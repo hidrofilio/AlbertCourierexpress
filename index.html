@@ -603,12 +603,9 @@
 
 <header role="banner">
     <div class="logo-video-container">
-        <iframe class="logo-video"
-                src="https://player.mediadelivery.net/play/748617/a27d2bc7-5a45-4cbb-9937-d69240cb8f9a"
-                frameborder="0"
-                allow="autoplay; encrypted-media"
-                allowfullscreen>
-        </iframe>
+        <video class="logo-video" autoplay muted playsinline loop>
+            <source src="logo-video.mp4" type="video/mp4">
+        </video>
     </div>
     <button class="menu-toggle" aria-label="Toggle navigation menu" aria-expanded="false" id="menuToggle">☰</button>
     <nav role="navigation" aria-label="Main navigation">
@@ -624,13 +621,10 @@
 </header>
 
 <section id="home" class="hero" role="region" aria-label="Hero section">
-    <iframe class="hero-video"
-            src="https://player.mediadelivery.net/play/748617/c9f5a2a8-126b-4b32-b14a-d5e861ac66b5"
-            frameborder="0"
-            allow="autoplay; encrypted-media"
-            allowfullscreen
-            id="heroVideo">
-    </iframe>
+    <video class="hero-video" autoplay muted playsinline id="heroVideo">
+        <source src="hero-video.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
     <div class="hero-overlay"></div>
     <div class="hero-content">
         <h1>24/7 Express Transport & Courier Services</h1>

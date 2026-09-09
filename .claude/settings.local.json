@@ -4,7 +4,9 @@
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(git push *)",
-      "Bash(cp \"C:\\\\Users\\\\hidro\\\\Downloads\\\\A_clean_modern_unbranded_whi.mp4\" \"C:\\\\Users\\\\hidro\\\\Desktop\\\\AlbertoCourierExpress\\\\hero-video.mp4\" && ls -lh \"C:\\\\Users\\\\hidro\\\\Desktop\\\\AlbertoCourierExpress\\\\hero-video.mp4\")"
+      "Bash(cp \"C:\\\\Users\\\\hidro\\\\Downloads\\\\A_clean_modern_unbranded_whi.mp4\" \"C:\\\\Users\\\\hidro\\\\Desktop\\\\AlbertoCourierExpress\\\\hero-video.mp4\" && ls -lh \"C:\\\\Users\\\\hidro\\\\Desktop\\\\AlbertoCourierExpress\\\\hero-video.mp4\")",
+      "Bash(git rm *)",
+      "Bash(cp \"C:\\\\Users\\\\hidro\\\\Downloads\\\\A_clean_modern_unbranded_whi.mp4\" \"C:\\\\Users\\\\hidro\\\\Desktop\\\\AlbertoCourierExpress\\\\hero-video.mp4\" && cp \"C:\\\\Users\\\\hidro\\\\Downloads\\\\Cinematic_D_title_animation_r.mp4\" \"C:\\\\Users\\\\hidro\\\\Desktop\\\\AlbertoCourierExpress\\\\logo-video.mp4\" && ls -lh \"C:\\\\Users\\\\hidro\\\\Desktop\\\\AlbertoCourierExpress\\\\\"*.mp4)"
     ]
   }
 }
