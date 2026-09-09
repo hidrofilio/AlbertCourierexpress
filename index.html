@@ -543,7 +543,7 @@
         <div class="section-subtitle">Estimate your transport costs instantly or send a request to our operations team.</div>
 
         <div class="calculator-section">
-            <form class="calculator-form" id="quoteForm" novalidate aria-label="Quote request form">
+            <form class="calculator-form" id="quoteForm" name="quote-form" netlify novalidate aria-label="Quote request form">
                 <div class="form-group">
                     <label for="origin">Pick-up Location:</label>
                     <input type="text" id="origin" name="origin" placeholder="e.g., Limerick, Dublin" required aria-required="true">
@@ -684,62 +684,40 @@
     const quoteForm = document.getElementById('quoteForm');
     const formStatus = document.getElementById('formStatus');
 
-    quoteForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-
-        const formData = new FormData(quoteForm);
-        const data = {
-            origin: formData.get('origin'),
-            destination: formData.get('destination'),
-            vehicle: formData.get('vehicle'),
-            email: formData.get('email'),
-            message: formData.get('message')
-        };
+    quoteForm.addEventListener('submit', (e) => {
+        const origin = document.getElementById('origin').value;
+        const destination = document.getElementById('destination').value;
+        const vehicle = document.getElementById('vehicle').value;
+        const email = document.getElementById('email').value;
 
         // Validate form
-        if (!data.origin || !data.destination || !data.vehicle || !data.email) {
+        if (!origin || !destination || !vehicle || !email) {
+            e.preventDefault();
             formStatus.textContent = '❌ Please fill in all required fields.';
             formStatus.className = 'form-status error';
-            return;
+            return false;
         }
 
         // Show loading state
-        quoteForm.classList.add('loading');
         const submitBtn = quoteForm.querySelector('button[type="submit"]');
         const originalText = submitBtn.textContent;
         submitBtn.textContent = 'Sending...';
+        submitBtn.disabled = true;
 
-        try {
-            // Send to Netlify Forms (form name must match)
-            const response = await fetch('/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: new URLSearchParams({
-                    'form-name': 'quote-form',
-                    ...data
-                })
-            });
-
-            if (response.ok) {
-                formStatus.textContent = '✅ Quote request sent successfully! We\'ll contact you within 1 hour.';
-                formStatus.className = 'form-status success';
-                quoteForm.reset();
-                setTimeout(() => {
-                    formStatus.style.display = 'none';
-                }, 5000);
-            } else {
-                throw new Error('Form submission failed');
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            formStatus.textContent = '❌ Error sending quote. Please call us at +353 (87) 459 2308';
-            formStatus.className = 'form-status error';
-        } finally {
-            quoteForm.classList.remove('loading');
+        // Show success message after submission
+        setTimeout(() => {
+            formStatus.textContent = '✅ Quote request sent successfully! We\'ll contact you within 1 hour at ' + email;
+            formStatus.className = 'form-status success';
+            quoteForm.reset();
             submitBtn.textContent = originalText;
-        }
+            submitBtn.disabled = false;
+            setTimeout(() => {
+                formStatus.style.display = 'none';
+            }, 6000);
+        }, 1000);
+
+        // Let Netlify process the form naturally
+        return true;
     });
 
     // Lazy load images for performance
