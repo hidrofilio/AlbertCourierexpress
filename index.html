@@ -110,6 +110,21 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
 
+        .logo-video-container {
+            height: 50px;
+            display: flex;
+            align-items: center;
+            min-width: 200px;
+        }
+
+        .logo-video {
+            height: 50px;
+            max-width: 300px;
+            width: auto;
+            object-fit: contain;
+            display: block;
+        }
+
         .logo {
             font-family: 'Poppins', sans-serif;
             font-size: 1.5rem;
@@ -586,7 +601,11 @@
 <a href="#main-content" class="skip-link">Skip to main content</a>
 
 <header role="banner">
-    <div class="logo">Albert Courier <span>Express</span></div>
+    <div class="logo-video-container">
+        <video class="logo-video" autoplay muted playsinline loop>
+            <source src="logo-video.mp4" type="video/mp4">
+        </video>
+    </div>
     <button class="menu-toggle" aria-label="Toggle navigation menu" aria-expanded="false" id="menuToggle">☰</button>
     <nav role="navigation" aria-label="Main navigation">
         <ul>
