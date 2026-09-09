@@ -1,0 +1,13 @@
+[build]
+  command = "echo 'build'"
+  publish = "."
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Form notifications
+[[forms]]
+  name = "quote-form"
+  email_address = "hidrofilio@gmail.com"
