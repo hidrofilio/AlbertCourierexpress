@@ -510,6 +510,48 @@
             opacity: 0.6;
             pointer-events: none;
         }
+
+        /* WhatsApp Floating Button */
+        .whatsapp-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background-color: #25D366;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            box-shadow: 0 4px 12px rgba(37, 211, 102, 0.4);
+            z-index: 999;
+            transition: all 0.3s ease;
+            font-size: 2rem;
+        }
+
+        .whatsapp-btn:hover,
+        .whatsapp-btn:focus {
+            background-color: #20BA5A;
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(37, 211, 102, 0.6);
+            outline: 2px solid var(--white);
+            outline-offset: 2px;
+        }
+
+        .whatsapp-btn:active {
+            transform: scale(0.95);
+        }
+
+        @media (max-width: 768px) {
+            .whatsapp-btn {
+                bottom: 15px;
+                right: 15px;
+                width: 55px;
+                height: 55px;
+                font-size: 1.8rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -655,6 +697,16 @@
         </table>
     </div>
 </main>
+
+<!-- WhatsApp Floating Button -->
+<a href="https://wa.me/353874592308?text=Hello%20Albert%20Courier%20Express.%20I%20need%20a%20quote%20for%20delivery"
+   class="whatsapp-btn"
+   title="Contact us on WhatsApp"
+   aria-label="Send message on WhatsApp"
+   target="_blank"
+   rel="noopener noreferrer">
+   💬
+</a>
 
 <footer role="contentinfo">
     <p>&copy; 2026 Albert Courier Express. All rights reserved.</p>
