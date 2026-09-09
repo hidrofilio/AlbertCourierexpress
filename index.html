@@ -1,0 +1,355 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Albert Courier Express | 24/7 Express Transport & Courier Services Ireland & UK</title>
+    <style>
+        :root {
+            --primary-color: #0b2545;
+            --secondary-color: #134074;
+            --accent-color: #ee6c4d;
+            --light-bg: #f8f9fa;
+            --text-color: #333333;
+            --white: #ffffff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            color: var(--text-color);
+            line-height: 1.5;
+            background-color: var(--light-bg);
+        }
+
+        header {
+            background-color: var(--primary-color);
+            color: var(--white);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .logo span {
+            color: var(--accent-color);
+        }
+
+        nav ul {
+            display: flex;
+            list-style: none;
+            gap: 1.5rem;
+        }
+
+        nav a {
+            color: var(--white);
+            text-decoration: none;
+            font-weight: bold;
+            transition: color 0.3s;
+        }
+
+        nav a:hover {
+            color: var(--accent-color);
+        }
+
+        .cta-btn {
+            background-color: var(--accent-color);
+            color: var(--white);
+            padding: 0.6rem 1.2rem;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: bold;
+            display: inline-block;
+        }
+
+        .hero {
+            background: linear-gradient(rgba(11, 37, 69, 0.85), rgba(19, 64, 116, 0.85)), url('https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1920&q=80') no-repeat center center/cover;
+            color: var(--white);
+            text-align: center;
+            padding: 6rem 2rem;
+        }
+
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            margin-bottom: 2rem;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 4rem 2rem;
+        }
+
+        h2 {
+            font-size: 2.2rem;
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .section-subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 3rem;
+            font-size: 1.1rem;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .card {
+            background: var(--white);
+            padding: 2.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        .card h3 {
+            color: var(--secondary-color);
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .card ul {
+            margin-top: 1rem;
+            padding-left: 1.2rem;
+        }
+
+        .card ul li {
+            margin-bottom: 0.5rem;
+        }
+
+        .calculator-section {
+            background-color: var(--white);
+            padding: 4rem 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            margin-top: 2rem;
+        }
+
+        .calculator-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            color: var(--primary-color);
+        }
+
+        .form-group input, .form-group select {
+            padding: 0.8rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+            text-align: center;
+            margin-top: 1.5rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 2rem;
+            background: var(--white);
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: var(--secondary-color);
+            color: var(--white);
+        }
+
+        footer {
+            background-color: var(--primary-color);
+            color: var(--white);
+            text-align: center;
+            padding: 3rem 2rem;
+            margin-top: 4rem;
+        }
+
+        .contact-info {
+            font-size: 1.2rem;
+            margin-top: 1rem;
+            color: var(--accent-color);
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">Albert Courier <span>Express</span></div>
+    <nav>
+        <ul>
+            <li><a href="#home">Home</a></li>
+            <li><a href="#services">Services</a></li>
+            <li><a href="#fleet">Our Fleet</a></li>
+            <li><a href="#calculator">Quote Calculator</a></li>
+            <li><a href="#contact">Contact</a></li>
+        </ul>
+    </nav>
+    <a href="tel:+35387492308" class="cta-btn">Call 24/7</a>
+</header>
+
+<section id="home" class="hero">
+    <h1>24/7 Express Transport & Courier Services</h1>
+    <p>Based in Limerick, providing fast, reliable, and secure pick-up and delivery across all of Ireland and the United Kingdom.</p>
+    <a href="#calculator" class="cta-btn" style="font-size: 1.1rem; padding: 0.8rem 2rem;">Get an Instant Quote</a>
+</section>
+
+<div class="container" id="services">
+    <h2>Our Core Services</h2>
+    <div class="section-subtitle">Tailored logistics solutions designed for speed, safety, and total reliability.</div>
+    
+    <div class="grid-2">
+        <div class="card">
+            <h3>Express Road Freight & Couriers</h3>
+            <p>Immediate dispatch and dedicated transport services for urgent shipments. We handle time-critical documents, high-value goods, and priority industrial loads.</p>
+            <ul>
+                <li>24/7 Availability</li>
+                <li>Direct Point-to-Point Deliveries</li>
+                <li>Real-time Status Updates</li>
+            </ul>
+        </div>
+        <div class="card">
+            <h3>Ireland & UK Cross-Border Transport</h3>
+            <p>Seamless connectivity between Ireland and the UK. Fully equipped for cross-border logistics, ensuring your freight crosses smoothly and arrives precisely on schedule.</p>
+            <ul>
+                <li>Nationwide Coverage in Ireland</li>
+                <li>Regular UK Transit Routes</li>
+                <li>Palletized & Bulk Cargo Handling</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="container" id="fleet" style="background-color: #f1f3f5; max-width: 100%; padding: 4rem 10%; border-top: 1px solid #e1e4e8; border-bottom: 1px solid #e1e4e8;">
+    <h2>Our Professional Fleet</h2>
+    <div class="section-subtitle">Modern, well-maintained vehicles ready for any logistical challenge.</div>
+
+    <div class="grid-2">
+        <div class="card">
+            <h3>Ford Explorer Long Range</h3>
+            <p>Designed for rapid express responses, priority document delivery, and urgent light cargo where maximum speed and efficiency are paramount.</p>
+            <ul>
+                <li><strong>Type:</strong> 100% Electric / Long Range Passenger & Light Express</li>
+                <li><strong>Ideal For:</strong> Urgent small parcels, critical parts, and rapid urban transit.</li>
+            </ul>
+        </div>
+        <div class="card">
+            <h3>Citroën Relay Luton Curtain Sider</h3>
+            <p>A versatile box van equipped with a hydraulic tail lift and side curtains, making loading and unloading heavy or oversized pallets quick and secure.</p>
+            <ul>
+                <li><strong>Features:</strong> Curtain sider structure with integrated Tail Lift (Tailgate).</li>
+                <li><strong>Dimensions:</strong> Approx. 4.1m - 4.5m interior length.</li>
+                <li><strong>Ideal For:</strong> Palletized freight, heavy machinery parts, and bulk commercial goods.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="container" id="calculator">
+    <h2>Interactive Quote Calculator</h2>
+    <div class="section-subtitle">Estimate your transport costs instantly or send a request to our operations team.</div>
+    
+    <div class="calculator-section">
+        <form class="calculator-form" onsubmit="event.preventDefault(); alert('Thank you! Your quote request has been sent successfully. Venta de servicios activa. Contact: +353 87 492 308');">
+            <div class="form-group">
+                <label for="origin">Pick-up Location:</label>
+                <input type="text" id="origin" placeholder="e.g., Limerick, Dublin" required>
+            </div>
+            <div class="form-group">
+                <label for="destination">Delivery Destination:</label>
+                <input type="text" id="destination" placeholder="e.g., Cork, London, Belfast" required>
+            </div>
+            <div class="form-group">
+                <label for="vehicle">Vehicle Requirement:</label>
+                <select id="vehicle">
+                    <option value="ford-explorer">Ford Explorer Long Range (Express / Small)</option>
+                    <option value="luton-van">Citroën Relay Luton Curtain Sider with Tail Lift</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="email">Your Email / Phone:</label>
+                <input type="text" id="email" placeholder="email@company.com / +353..." required>
+            </div>
+            <div class="full-width">
+                <button type="submit" class="cta-btn" style="border: none; cursor: pointer; font-size: 1.1rem; padding: 0.9rem 2.5rem;">Calculate & Request Booking</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="container" id="contact">
+    <h2>Contact Albert Courier Express</h2>
+    <div class="section-subtitle">Available 24 hours a day, 7 days a week for all your urgent transport needs.</div>
+    
+    <table>
+        <tr>
+            <th>Channel</th>
+            <th>Details</th>
+        </tr>
+        <tr>
+            <td><strong>Base Location</strong></td>
+            <td>Limerick, Ireland (Serving all Ireland & UK)</td>
+        </tr>
+        <tr>
+            <td><strong>Emergency Phone / WhatsApp</strong></td>
+            <td><a href="tel:+35387492308" style="color: var(--secondary-color); font-weight: bold;">+353 87 492 308</a></td>
+        </tr>
+        <tr>
+            <td><strong>Operational Support</strong></td>
+            <td>Available 24/7 for ad-hoc and scheduled logistics.</td>
+        </tr>
+    </table>
+</div>
+
+<footer>
+    <p>&copy; 2026 Albert Courier Express. All rights reserved.</p>
+    <p class="contact-info">Emergency 24/7 Hotline: +353 87 492 308 | Based in Limerick, Ireland</p>
+</footer>
+
+</body>
+</html>
