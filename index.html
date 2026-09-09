@@ -202,16 +202,42 @@
         }
 
         .hero {
-            background: linear-gradient(rgba(11, 37, 69, 0.85), rgba(19, 64, 116, 0.85)),
-                        url('https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1920&q=80') no-repeat center center/cover;
+            position: relative;
             color: var(--white);
             text-align: center;
             padding: 6rem 2rem;
-            min-height: 400px;
+            min-height: 500px;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
+            overflow: hidden;
+        }
+
+        .hero-video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+        }
+
+        .hero-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(11, 37, 69, 0.6), rgba(19, 64, 116, 0.6));
+            z-index: 2;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 3;
+            max-width: 800px;
         }
 
         .hero h1 {
@@ -505,42 +531,6 @@
             outline-offset: 2px;
         }
 
-        /* Video Container */
-        .video-container {
-            background-color: var(--white);
-            padding: 3rem 2rem;
-            margin: 0;
-        }
-
-        .video-wrapper {
-            max-width: 1200px;
-            margin: 0 auto;
-            position: relative;
-            padding-bottom: 56.25%;
-            height: 0;
-            overflow: hidden;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-
-        .video-wrapper iframe {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            border-radius: 8px;
-        }
-
-        @media (max-width: 768px) {
-            .video-container {
-                padding: 2rem 1rem;
-            }
-
-            .video-wrapper {
-                padding-bottom: 56.25%;
-            }
-        }
 
         /* Loading Animation */
         .loading {
@@ -611,24 +601,17 @@
 </header>
 
 <section id="home" class="hero" role="region" aria-label="Hero section">
-    <h1>24/7 Express Transport & Courier Services</h1>
-    <p>Based in Limerick, providing fast, reliable, and secure pick-up and delivery across all of Ireland and the United Kingdom.</p>
-    <a href="#calculator" class="cta-btn" style="font-size: 1.1rem; padding: 0.8rem 2rem;">Get an Instant Quote</a>
-</section>
-
-<!-- Vimeo Video Section -->
-<div class="video-container">
-    <div class="video-wrapper">
-        <iframe src="https://player.vimeo.com/video/1225395512?h=&title=0&byline=0&portrait=0"
-                width="640"
-                height="360"
-                frameborder="0"
-                allow="autoplay; fullscreen; picture-in-picture"
-                allowfullscreen
-                title="Albert Courier Express - Service Video">
-        </iframe>
+    <video class="hero-video" autoplay muted playsinline id="heroVideo">
+        <source src="hero-video.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+        <h1>24/7 Express Transport & Courier Services</h1>
+        <p>Based in Limerick, providing fast, reliable, and secure pick-up and delivery across all of Ireland and the United Kingdom.</p>
+        <a href="#calculator" class="cta-btn" style="font-size: 1.1rem; padding: 0.8rem 2rem;">Get an Instant Quote</a>
     </div>
-</div>
+</section>
 
 <main id="main-content">
     <div class="container" id="calculator">
@@ -822,6 +805,14 @@
         // Let Netlify process the form naturally
         return true;
     });
+
+    // Hero Video - Pause at end
+    const heroVideo = document.getElementById('heroVideo');
+    if (heroVideo) {
+        heroVideo.addEventListener('ended', () => {
+            heroVideo.pause();
+        });
+    }
 
     // Lazy load images for performance
     if ('IntersectionObserver' in window) {
