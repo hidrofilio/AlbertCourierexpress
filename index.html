@@ -219,8 +219,10 @@
         }
 
         .hero {
-            background: url('mapaynombreempresa.jpg') no-repeat center center;
-            background-size: auto;
+            background:
+                radial-gradient(ellipse at center, transparent 30%, rgba(0, 31, 63, 0.8) 100%),
+                url('mapaynombreempresa.jpg') no-repeat center center;
+            background-size: 100% 100%, auto;
             position: relative;
             color: var(--white);
             text-align: center;
@@ -236,8 +238,10 @@
 
         @media (max-width: 768px) {
             .hero {
-                background: url('mapaynombreempresa.jpg') center center no-repeat;
-                background-size: contain;
+                background:
+                    radial-gradient(ellipse at center, transparent 20%, rgba(0, 31, 63, 0.9) 100%),
+                    url('mapaynombreempresa.jpg') center center no-repeat;
+                background-size: 100% 100%, contain;
                 min-height: 350px;
                 padding: 5rem 1rem 2rem;
             }
