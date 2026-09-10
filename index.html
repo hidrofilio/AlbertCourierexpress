@@ -715,6 +715,11 @@
             flex-direction: column;
         }
 
+        /* display:flex above would otherwise override the hidden attribute */
+        .form-group[hidden] {
+            display: none;
+        }
+
         .form-group label {
             font-weight: 600;
             margin-bottom: 0.5rem;
@@ -1048,11 +1053,17 @@
                         <label for="destination">Delivery Destination:</label>
                         <input type="text" id="destination" name="destination" placeholder="Address or city of destination" required aria-required="true">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="asap" name="asap">
+                            Collect as soon as possible (ASAP)
+                        </label>
+                    </div>
+                    <div class="form-group" id="dateGroup">
                         <label for="pickupdate">Pick-up Date:</label>
                         <input type="date" id="pickupdate" name="pickupdate" required aria-required="true">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" id="timeGroup">
                         <label for="pickuptime">Pick-up Time:</label>
                         <input type="time" id="pickuptime" name="pickuptime" required aria-required="true">
                     </div>
@@ -1125,12 +1136,16 @@
                         <input type="email" id="email" name="email" placeholder="email@company.com" required aria-required="true">
                     </div>
                     <div class="form-group">
-                        <label for="phone">Phone Number:</label>
-                        <input type="tel" id="phone" name="phone" placeholder="+353..." required aria-required="true">
+                        <label for="phone">Phone Number (optional):</label>
+                        <input type="tel" id="phone" name="phone" placeholder="+353...">
                     </div>
                     <div class="form-group">
                         <label for="vatnumber">VAT Number (EU businesses, optional):</label>
                         <input type="text" id="vatnumber" name="vatnumber" placeholder="e.g. DE123456789">
+                    </div>
+                    <div class="form-group">
+                        <label for="company">Business Name (optional):</label>
+                        <input type="text" id="company" name="company" placeholder="Your company name">
                     </div>
                     <div class="form-group">
                         <label for="message">Additional Details (Optional):</label>
@@ -1446,6 +1461,38 @@
         refresh();
     })();
 
+    // ===== ASAP collection toggle =====
+    (function setupAsap() {
+        const asap = document.getElementById('asap');
+        const dateGroup = document.getElementById('dateGroup');
+        const timeGroup = document.getElementById('timeGroup');
+        const dateInput = document.getElementById('pickupdate');
+        const timeInput = document.getElementById('pickuptime');
+
+        if (!asap || !dateGroup || !timeGroup) return;
+
+        function apply() {
+            const on = asap.checked;
+
+            dateGroup.hidden = on;
+            timeGroup.hidden = on;
+
+            // Clearing required keeps the step validator from blocking on hidden fields
+            dateInput.required = !on;
+            timeInput.required = !on;
+            dateInput.setAttribute('aria-required', String(!on));
+            timeInput.setAttribute('aria-required', String(!on));
+
+            if (on) {
+                dateInput.value = '';
+                timeInput.value = '';
+            }
+        }
+
+        asap.addEventListener('change', apply);
+        apply();
+    })();
+
     // ===== Live request summary and quote =====
     (function setupSummary() {
         const form = document.getElementById('quoteForm');
@@ -1471,6 +1518,7 @@
         const fields = [
             ['origin', 'Pick-up'],
             ['destination', 'Delivery'],
+            ['asap', 'Collection', () => 'As soon as possible'],
             ['pickupdate', 'Date'],
             ['pickuptime', 'Time'],
             ['merchandise', 'Cargo'],
@@ -1480,6 +1528,7 @@
             ['service', 'Service'],
             ['tailift', 'Tail lift'],
             ['hazardous', 'Dangerous goods'],
+            ['company', 'Business'],
             ['email', 'Email'],
             ['phone', 'Phone'],
             ['vatnumber', 'VAT number'],
