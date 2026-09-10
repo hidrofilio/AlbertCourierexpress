@@ -665,10 +665,21 @@
                     <label for="service">Service Type / Urgency:</label>
                     <select id="service" name="service" required aria-required="true">
                         <option value="">-- Select service type --</option>
-                        <option value="aog">AOG (Aircraft On Ground)</option>
-                        <option value="express">Express Dedicated</option>
+                        <option value="aog">AOG (Aircraft On Ground) - Critical</option>
+                        <option value="express-4h">Express 4-Hour Delivery</option>
+                        <option value="express-24h">Express 24-Hour Delivery</option>
+                        <option value="dedicated">Dedicated Vehicle Transport</option>
                         <option value="standard">Standard Palletized Freight</option>
+                        <option value="temp-controlled">Temperature Controlled Transport</option>
+                        <option value="fragile">Fragile / High Value Goods</option>
+                        <option value="oversized">Oversized / Heavy Load</option>
                     </select>
+                </div>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label style="display: flex; align-items: center; gap: 0.5rem;">
+                        <input type="checkbox" id="hazardous" name="hazardous" style="width: 18px; height: 18px; cursor: pointer;">
+                        Hazardous Materials / Dangerous Goods?
+                    </label>
                 </div>
                 <div class="form-group">
                     <label for="email">Email Address:</label>
