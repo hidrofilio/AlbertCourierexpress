@@ -218,8 +218,10 @@
         }
 
         .hero {
-            background: url('mapaynombreempresa.jpg') no-repeat center center;
-            background-size: auto;
+            background:
+                url('fondopantallafoto.jpg') left center/25% auto no-repeat,
+                url('mapaynombreempresa.jpg') center center/auto auto no-repeat,
+                url('fondopantallafoto.jpg') right center/25% auto no-repeat;
             position: relative;
             color: var(--white);
             text-align: center;
@@ -235,6 +237,7 @@
 
         @media (max-width: 768px) {
             .hero {
+                background: url('mapaynombreempresa.jpg') center center no-repeat;
                 background-size: contain;
                 min-height: 350px;
                 padding: 5rem 1rem 2rem;
