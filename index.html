@@ -720,6 +720,15 @@
             display: none;
         }
 
+        /* Honeypot: off-screen, not display:none so bots still fill it */
+        .hp-field {
+            position: absolute;
+            left: -9999px;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+        }
+
         .form-group label {
             font-weight: 600;
             margin-bottom: 0.5rem;
@@ -1038,7 +1047,12 @@
                 </div>
             </div>
 
-            <form class="calculator-form" id="quoteForm" name="quote-form" method="POST" netlify novalidate aria-label="Quote request form">
+            <form class="calculator-form" id="quoteForm" method="POST" action="https://api.web3forms.com/submit" novalidate aria-label="Quote request form">
+
+                <input type="hidden" name="access_key" value="51f8ca24-f99c-4869-827a-3d13671053e9">
+                <input type="hidden" name="subject" value="New quote request — Albert Courier Express">
+                <input type="hidden" name="from_name" value="Albert Courier Express website">
+                <input type="checkbox" name="botcheck" class="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true">
 
                 <!-- STEP 1: Route & Schedule -->
                 <div class="form-step active" id="step1" data-step="1">
@@ -1379,35 +1393,59 @@
         }
     });
 
-    quoteForm.addEventListener('submit', (e) => {
-        if (validateStep(currentStep)) {
-            const email = document.getElementById('email').value;
+    quoteForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
 
-            // Show loading state
-            const originalText = submitBtn.textContent;
-            submitBtn.textContent = 'Sending...';
-            submitBtn.disabled = true;
+        if (!validateStep(currentStep)) {
+            formStatus.textContent = '⚠️ Please fill in all required fields.';
+            formStatus.className = 'form-status error';
+            return;
+        }
 
-            // Show success message after submission
-            setTimeout(() => {
-                formStatus.textContent = '✅ Quote request sent successfully! We\'ll contact you within 1 hour at ' + email;
+        const email = document.getElementById('email').value;
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = 'Sending...';
+        submitBtn.disabled = true;
+        formStatus.textContent = '';
+        formStatus.className = 'form-status';
+
+        const data = new FormData(quoteForm);
+
+        // Checkboxes are absent from FormData when unticked; send an explicit value
+        data.set('asap', document.getElementById('asap').checked ? 'Yes — as soon as possible' : 'No');
+        data.set('tailift', document.getElementById('tailift').checked ? 'Yes' : 'No');
+        data.set('hazardous', document.getElementById('hazardous').checked ? 'Yes' : 'No');
+
+        // Give Albert the same quote the customer saw
+        const priceText = document.getElementById('estimatedPrice');
+        if (priceText) data.set('estimated_price', priceText.textContent.trim());
+        const summary = document.getElementById('summaryList');
+        if (summary) data.set('quote_summary', summary.textContent.replace(/\s+/g, ' ').trim());
+
+        try {
+            const res = await fetch('https://api.web3forms.com/submit', {
+                method: 'POST',
+                headers: { Accept: 'application/json' },
+                body: data
+            });
+            const result = await res.json();
+
+            if (result.success) {
+                formStatus.textContent = '✅ Quote request sent. We\'ll contact you within 1 hour at ' + email + '.';
                 formStatus.className = 'form-status success';
                 quoteForm.reset();
                 currentStep = 1;
                 updateFormStep();
-                submitBtn.textContent = originalText;
-                submitBtn.disabled = false;
-                setTimeout(() => {
-                    formStatus.className = 'form-status';
-                }, 6000);
-            }, 1000);
-
-            return true;
-        } else {
-            e.preventDefault();
-            formStatus.textContent = '⚠️ Please fill in all required fields.';
+            } else {
+                throw new Error(result.message || 'submission failed');
+            }
+        } catch (err) {
+            formStatus.textContent = '⚠️ We could not send your request. Please call us on +353 87 459 2308.';
             formStatus.className = 'form-status error';
-            return false;
+        } finally {
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+            setTimeout(() => { formStatus.className = 'form-status'; }, 8000);
         }
     });
 

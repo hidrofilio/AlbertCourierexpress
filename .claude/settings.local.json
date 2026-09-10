@@ -7,7 +7,22 @@
       "Bash(cp \"C:\\\\Users\\\\hidro\\\\Downloads\\\\A_clean_modern_unbranded_whi.mp4\" \"C:\\\\Users\\\\hidro\\\\Desktop\\\\AlbertoCourierExpress\\\\hero-video.mp4\" && ls -lh \"C:\\\\Users\\\\hidro\\\\Desktop\\\\AlbertoCourierExpress\\\\hero-video.mp4\")",
       "Bash(git rm *)",
       "Bash(cp \"C:\\\\Users\\\\hidro\\\\Downloads\\\\A_clean_modern_unbranded_whi.mp4\" \"C:\\\\Users\\\\hidro\\\\Desktop\\\\AlbertoCourierExpress\\\\hero-video.mp4\" && cp \"C:\\\\Users\\\\hidro\\\\Downloads\\\\Cinematic_D_title_animation_r.mp4\" \"C:\\\\Users\\\\hidro\\\\Desktop\\\\AlbertoCourierExpress\\\\logo-video.mp4\" && ls -lh \"C:\\\\Users\\\\hidro\\\\Desktop\\\\AlbertoCourierExpress\\\\\"*.mp4)",
-      "Bash(git revert *)"
+      "Bash(git revert *)",
+      "Bash(curl -s \"https://router.project-osrm.org/route/v1/driving/-8.6305,52.6638;-6.2499,53.4264?overview=false\")",
+      "Bash(curl -s -m 15 -I https://albertcourierexpress.com --resolve albertcourierexpress.com:443:69.46.46.9)",
+      "Bash(echo \"--- exit: $? ---\")",
+      "Bash(curl -s -m 15 -I https://www.albertcourierexpress.com --resolve www.albertcourierexpress.com:443:69.46.46.9)",
+      "Bash(nslookup -type=CNAME albertcourierexpress.com 8.8.8.8)",
+      "Bash(nslookup -type=CNAME www.albertcourierexpress.com 8.8.8.8)",
+      "Bash(nslookup -type=TXT _railway-verify.albertcourierexpress.com 8.8.8.8)",
+      "Bash(nslookup -type=TXT _railway-verify.www.albertcourierexpress.com 8.8.8.8)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(curl -s -m 20 -I https://albertcourierexpress.com)",
+      "Bash(curl -s -m 20 -I https://www.albertcourierexpress.com)",
+      "Bash(timeout 15 openssl s_client -connect albertcourierexpress.com:443 -servername albertcourierexpress.com)",
+      "Bash(openssl x509 *)",
+      "Bash(curl -s -m 20 https://albertcourierexpress.com)",
+      "Bash(curl -s -m 20 -X POST https://api.web3forms.com/submit -H 'Accept: application/json' -H 'Content-Type: application/json' -d '{ *)"
     ]
   }
 }
