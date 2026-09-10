@@ -1499,9 +1499,15 @@
         function priceFor(fromZone, toZone, loadedKm, approachKm) {
             if (fromZone === 'GB' || toZone === 'GB') return null;
             if (fromZone === 'NI' || toZone === 'NI') return RATES.extended;
-            if (approachKm === null || approachKm > NEAR_BASE_KM) return RATES.extended;
+
+            // Short and medium jobs are charged on distance wherever they start:
+            // they can be covered on the spot or passed to a local partner.
             if (loadedKm < 50) return RATES.local;
             if (loadedKm <= 100) return RATES.medium;
+
+            // A long run needs a dedicated vehicle brought to the pick-up, so one
+            // starting far from the depot carries the extended rate.
+            if (approachKm === null || approachKm > NEAR_BASE_KM) return RATES.extended;
             return RATES.national;
         }
 
