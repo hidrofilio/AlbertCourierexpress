@@ -632,6 +632,15 @@
             font-size: 0.8rem;
         }
 
+        .summary-vat-note {
+            margin-top: 0.5rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid rgba(10, 132, 255, 0.3);
+            color: var(--text-light);
+            font-size: 0.75rem;
+            line-height: 1.5;
+        }
+
         @media (max-width: 768px) {
             .summary-list {
                 grid-template-columns: 1fr;
@@ -1126,6 +1135,7 @@
                         </span>
                     </div>
                     <p class="summary-note" id="summaryNote">Indicative only. We confirm the final price after reviewing your request.</p>
+                    <p class="summary-vat-note">VAT-registered businesses in other EU countries may be invoiced without Irish VAT under the reverse charge mechanism. Please include your VAT number with your request.</p>
                 </div>
 
                 <div id="formStatus" class="form-status"></div>
