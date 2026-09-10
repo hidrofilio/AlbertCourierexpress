@@ -1109,7 +1109,7 @@
                         <span>Estimated price</span>
                         <strong id="estimatedPrice">€0.00</strong>
                     </div>
-                    <p class="summary-note">Indicative only. We confirm the final price after reviewing your request.</p>
+                    <p class="summary-note" id="summaryNote">Indicative only. We confirm the final price after reviewing your request.</p>
                 </div>
 
                 <div id="formStatus" class="form-status"></div>
@@ -1394,15 +1394,26 @@
         refresh();
     })();
 
-    // ===== Live request summary =====
+    // ===== Live request summary and quote =====
     (function setupSummary() {
         const form = document.getElementById('quoteForm');
         const list = document.getElementById('summaryList');
         const priceEl = document.getElementById('estimatedPrice');
+        const noteEl = document.getElementById('summaryNote');
         const originInput = document.getElementById('origin');
         const destinationInput = document.getElementById('destination');
 
         if (!form || !list || !priceEl) return;
+
+        // Depot in Limerick. A pick-up further than NEAR_BASE_KM from here means the
+        // van runs empty to reach it, so the job is charged at the extended rate.
+        const BASE = { lon: -8.6305, lat: 52.6638 };
+        const NEAR_BASE_KM = 50;
+
+        const RATES = { local: 120, medium: 220, national: 320, extended: 360 };
+
+        const NOTE_DEFAULT = 'Indicative only. We confirm the final price after reviewing your request.';
+        const NOTE_CROSS_CHANNEL = 'Routes to Great Britain involve a ferry crossing and customs, so we price them individually. Send your request and we will reply within the hour.';
 
         const fields = [
             ['origin', 'Pick-up'],
@@ -1421,7 +1432,7 @@
             ['message', 'Notes']
         ];
 
-        const route = { km: null, minutes: null, status: 'idle' };
+        const quote = { km: null, minutes: null, price: null, status: 'idle' };
 
         function readValue(el) {
             if (el.type === 'checkbox') return el.checked ? 'Yes' : '';
@@ -1437,18 +1448,30 @@
             if (geoCache.has(key)) return geoCache.get(key);
 
             const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1' +
-                '&countrycodes=ie,gb&q=' + encodeURIComponent(address);
+                '&addressdetails=1&countrycodes=ie,gb&q=' + encodeURIComponent(address);
 
             const res = await fetch(url);
             if (!res.ok) return null;
 
             const data = await res.json();
-            const point = data.length ? { lon: data[0].lon, lat: data[0].lat } : null;
-            geoCache.set(key, point);
-            return point;
+            let place = null;
+
+            if (data.length) {
+                const hit = data[0];
+                const addr = hit.address || {};
+                place = {
+                    lon: hit.lon,
+                    lat: hit.lat,
+                    countryCode: (addr.country_code || '').toLowerCase(),
+                    state: addr.state || ''
+                };
+            }
+
+            geoCache.set(key, place);
+            return place;
         }
 
-        async function drivingRoute(from, to) {
+        async function drivingKm(from, to) {
             const url = 'https://router.project-osrm.org/route/v1/driving/' +
                 from.lon + ',' + from.lat + ';' + to.lon + ',' + to.lat + '?overview=false';
 
@@ -1462,42 +1485,89 @@
             return { km: best.distance / 1000, minutes: best.duration / 60 };
         }
 
-        let routeToken = 0;
+        // OSRM will happily route across the Irish Sea by folding a ferry into the
+        // itinerary, so Great Britain has to be excluded by country, not by distance.
+        function zoneOf(place) {
+            if (!place) return null;
+            if (place.countryCode === 'ie') return 'IE';
+            if (place.countryCode === 'gb') {
+                return /northern ireland/i.test(place.state) ? 'NI' : 'GB';
+            }
+            return 'GB';
+        }
 
-        async function refreshRoute() {
+        function priceFor(fromZone, toZone, loadedKm, approachKm) {
+            if (fromZone === 'GB' || toZone === 'GB') return null;
+            if (fromZone === 'NI' || toZone === 'NI') return RATES.extended;
+            if (approachKm === null || approachKm > NEAR_BASE_KM) return RATES.extended;
+            if (loadedKm < 50) return RATES.local;
+            if (loadedKm <= 100) return RATES.medium;
+            return RATES.national;
+        }
+
+        let quoteToken = 0;
+
+        async function refreshQuote() {
             const origin = originInput.value.trim();
             const destination = destinationInput.value.trim();
 
             if (origin.length < 3 || destination.length < 3) {
-                route.km = null;
-                route.minutes = null;
-                route.status = 'idle';
+                quote.km = null;
+                quote.minutes = null;
+                quote.price = null;
+                quote.status = 'idle';
                 render();
                 return;
             }
 
-            const token = ++routeToken;
-            route.status = 'loading';
+            const token = ++quoteToken;
+            quote.status = 'loading';
             render();
 
             try {
                 const from = await geocode(origin);
-                if (token !== routeToken) return;
+                if (token !== quoteToken) return;
 
                 const to = from ? await geocode(destination) : null;
-                if (token !== routeToken) return;
+                if (token !== quoteToken) return;
 
-                const result = to ? await drivingRoute(from, to) : null;
-                if (token !== routeToken) return;
+                const fromZone = zoneOf(from);
+                const toZone = zoneOf(to);
 
-                route.km = result ? result.km : null;
-                route.minutes = result ? result.minutes : null;
-                route.status = result ? 'ready' : 'unavailable';
+                if (!from || !to) {
+                    quote.status = 'unavailable';
+                    render();
+                    return;
+                }
+
+                if (fromZone === 'GB' || toZone === 'GB') {
+                    quote.km = null;
+                    quote.minutes = null;
+                    quote.price = null;
+                    quote.status = 'crosschannel';
+                    render();
+                    return;
+                }
+
+                const leg = await drivingKm(from, to);
+                if (token !== quoteToken) return;
+
+                const approach = await drivingKm(BASE, from);
+                if (token !== quoteToken) return;
+
+                if (!leg) {
+                    quote.status = 'unavailable';
+                    render();
+                    return;
+                }
+
+                quote.km = leg.km;
+                quote.minutes = leg.minutes;
+                quote.price = priceFor(fromZone, toZone, leg.km, approach ? approach.km : null);
+                quote.status = 'ready';
             } catch (err) {
-                if (token !== routeToken) return;
-                route.km = null;
-                route.minutes = null;
-                route.status = 'unavailable';
+                if (token !== quoteToken) return;
+                quote.status = 'unavailable';
             }
 
             render();
@@ -1510,20 +1580,15 @@
         }
 
         function routeRows() {
-            if (route.status === 'loading') return [['Distance', 'Calculating...']];
-            if (route.status === 'ready') {
+            if (quote.status === 'loading') return [['Distance', 'Calculating...']];
+            if (quote.status === 'crosschannel') return [['Route', 'Great Britain (ferry crossing)']];
+            if (quote.status === 'ready') {
                 return [
-                    ['Distance', 'Approx. ' + route.km.toFixed(1) + ' km'],
-                    ['Driving time', 'Approx. ' + formatDuration(route.minutes)]
+                    ['Distance', 'Approx. ' + quote.km.toFixed(1) + ' km'],
+                    ['Driving time', 'Approx. ' + formatDuration(quote.minutes)]
                 ];
             }
             return [];
-        }
-
-        // Pricing rules are not decided yet. When they are, route.km holds the
-        // road distance in kilometres and route.minutes the driving time.
-        function estimatePrice() {
-            return 0;
         }
 
         function addRow(label, value) {
@@ -1532,6 +1597,20 @@
             const detail = document.createElement('dd');
             detail.textContent = value;
             list.append(term, detail);
+        }
+
+        function renderPrice() {
+            if (quote.status === 'loading') {
+                priceEl.textContent = '...';
+            } else if (quote.status === 'ready' && quote.price !== null) {
+                priceEl.textContent = '€' + quote.price;
+            } else {
+                priceEl.textContent = 'On request';
+            }
+
+            if (noteEl) {
+                noteEl.textContent = quote.status === 'crosschannel' ? NOTE_CROSS_CHANNEL : NOTE_DEFAULT;
+            }
         }
 
         function render() {
@@ -1560,30 +1639,30 @@
                 list.append(empty);
             }
 
-            priceEl.textContent = '€' + estimatePrice().toFixed(2);
+            renderPrice();
         }
 
-        let routeTimer;
-        function scheduleRoute() {
-            clearTimeout(routeTimer);
-            routeTimer = setTimeout(refreshRoute, 1100);
+        let quoteTimer;
+        function scheduleQuote() {
+            clearTimeout(quoteTimer);
+            quoteTimer = setTimeout(refreshQuote, 1100);
         }
 
         form.addEventListener('input', render);
         form.addEventListener('change', render);
         // reset() clears the fields after this event fires, so re-read on the next tick
         form.addEventListener('reset', () => setTimeout(() => {
-            geoCache.clear();
-            route.km = null;
-            route.minutes = null;
-            route.status = 'idle';
+            quote.km = null;
+            quote.minutes = null;
+            quote.price = null;
+            quote.status = 'idle';
             render();
         }, 0));
 
-        originInput.addEventListener('input', scheduleRoute);
-        destinationInput.addEventListener('input', scheduleRoute);
-        originInput.addEventListener('change', refreshRoute);
-        destinationInput.addEventListener('change', refreshRoute);
+        originInput.addEventListener('input', scheduleQuote);
+        destinationInput.addEventListener('input', scheduleQuote);
+        originInput.addEventListener('change', refreshQuote);
+        destinationInput.addEventListener('change', refreshQuote);
 
         render();
     })();
