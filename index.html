@@ -630,31 +630,39 @@
         <div class="calculator-section">
             <form class="calculator-form" id="quoteForm" name="quote-form" method="POST" netlify novalidate aria-label="Quote request form">
                 <div class="form-group">
-                    <label for="origin">Pick-up Location:</label>
-                    <input type="text" id="origin" name="origin" placeholder="e.g., Limerick, Dublin" required aria-required="true">
+                    <label for="origin">Punto de Recogida:</label>
+                    <input type="text" id="origin" name="origin" placeholder="Ciudad, código postal o dirección" required aria-required="true">
                 </div>
                 <div class="form-group">
-                    <label for="destination">Delivery Destination:</label>
-                    <input type="text" id="destination" name="destination" placeholder="e.g., Cork, London, Belfast" required aria-required="true">
+                    <label for="destination">Destino de Entrega:</label>
+                    <input type="text" id="destination" name="destination" placeholder="Dirección o ciudad de destino" required aria-required="true">
                 </div>
                 <div class="form-group">
-                    <label for="vehicle">Vehicle Requirement:</label>
-                    <select id="vehicle" name="vehicle" required aria-required="true">
-                        <option value="">-- Select Vehicle Type --</option>
-                        <option value="ford-explorer">Ford Explorer Long Range (Express / Small)</option>
-                        <option value="luton-van">Citroën Relay Luton Curtain Sider with Tail Lift</option>
-                    </select>
+                    <label for="merchandise">Tipo de Mercancía / Descripción:</label>
+                    <input type="text" id="merchandise" name="merchandise" placeholder="ej. palets, carga AOG, mercancía general" required aria-required="true">
                 </div>
                 <div class="form-group">
-                    <label for="email">Your Email / Phone:</label>
+                    <label for="pallets">Número de Palets o Bultos:</label>
+                    <input type="number" id="pallets" name="pallets" placeholder="Cuántas unidades" required aria-required="true">
+                </div>
+                <div class="form-group">
+                    <label for="weight">Peso Aproximado (kg):</label>
+                    <input type="number" id="weight" name="weight" placeholder="Peso en kg" required aria-required="true">
+                </div>
+                <div class="form-group">
+                    <label for="dimensions">Dimensiones (L x A x H, opcional):</label>
+                    <input type="text" id="dimensions" name="dimensions" placeholder="ej. 200x150x100 cm">
+                </div>
+                <div class="form-group">
+                    <label for="email">Tu Email / Teléfono:</label>
                     <input type="text" id="email" name="email" placeholder="email@company.com / +353..." required aria-required="true">
                 </div>
-                <div class="form-group">
-                    <label for="message">Additional Details (Optional):</label>
-                    <textarea id="message" name="message" placeholder="Any special requirements or details..."></textarea>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label for="message">Detalles Adicionales (Opcional):</label>
+                    <textarea id="message" name="message" placeholder="Recogida urgente 24/7, plataforma elevadora, etc..."></textarea>
                 </div>
                 <div class="full-width">
-                    <button type="submit" class="cta-btn" style="border: none; cursor: pointer; font-size: 1.1rem; padding: 0.9rem 2.5rem;">Calculate & Request Booking</button>
+                    <button type="submit" class="cta-btn" style="border: none; cursor: pointer; font-size: 1.1rem; padding: 0.9rem 2.5rem;">Enviar Solicitud de Transporte</button>
                     <div id="formStatus" class="form-status"></div>
                 </div>
             </form>
