@@ -1399,6 +1399,8 @@
         const form = document.getElementById('quoteForm');
         const list = document.getElementById('summaryList');
         const priceEl = document.getElementById('estimatedPrice');
+        const originInput = document.getElementById('origin');
+        const destinationInput = document.getElementById('destination');
 
         if (!form || !list || !priceEl) return;
 
@@ -1419,15 +1421,117 @@
             ['message', 'Notes']
         ];
 
+        const route = { km: null, minutes: null, status: 'idle' };
+
         function readValue(el) {
             if (el.type === 'checkbox') return el.checked ? 'Yes' : '';
             if (el.tagName === 'SELECT') return el.value ? el.options[el.selectedIndex].text : '';
             return el.value.trim();
         }
 
-        // Pricing rules are still to be defined — returns 0 until then.
+        // Nominatim asks for at most one request per second, so repeat lookups are cached
+        const geoCache = new Map();
+
+        async function geocode(address) {
+            const key = address.toLowerCase();
+            if (geoCache.has(key)) return geoCache.get(key);
+
+            const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1' +
+                '&countrycodes=ie,gb&q=' + encodeURIComponent(address);
+
+            const res = await fetch(url);
+            if (!res.ok) return null;
+
+            const data = await res.json();
+            const point = data.length ? { lon: data[0].lon, lat: data[0].lat } : null;
+            geoCache.set(key, point);
+            return point;
+        }
+
+        async function drivingRoute(from, to) {
+            const url = 'https://router.project-osrm.org/route/v1/driving/' +
+                from.lon + ',' + from.lat + ';' + to.lon + ',' + to.lat + '?overview=false';
+
+            const res = await fetch(url);
+            if (!res.ok) return null;
+
+            const data = await res.json();
+            const best = data.routes && data.routes[0];
+            if (!best) return null;
+
+            return { km: best.distance / 1000, minutes: best.duration / 60 };
+        }
+
+        let routeToken = 0;
+
+        async function refreshRoute() {
+            const origin = originInput.value.trim();
+            const destination = destinationInput.value.trim();
+
+            if (origin.length < 3 || destination.length < 3) {
+                route.km = null;
+                route.minutes = null;
+                route.status = 'idle';
+                render();
+                return;
+            }
+
+            const token = ++routeToken;
+            route.status = 'loading';
+            render();
+
+            try {
+                const from = await geocode(origin);
+                if (token !== routeToken) return;
+
+                const to = from ? await geocode(destination) : null;
+                if (token !== routeToken) return;
+
+                const result = to ? await drivingRoute(from, to) : null;
+                if (token !== routeToken) return;
+
+                route.km = result ? result.km : null;
+                route.minutes = result ? result.minutes : null;
+                route.status = result ? 'ready' : 'unavailable';
+            } catch (err) {
+                if (token !== routeToken) return;
+                route.km = null;
+                route.minutes = null;
+                route.status = 'unavailable';
+            }
+
+            render();
+        }
+
+        function formatDuration(minutes) {
+            const total = Math.round(minutes);
+            if (total < 60) return total + ' min';
+            return Math.floor(total / 60) + 'h ' + String(total % 60).padStart(2, '0') + 'm';
+        }
+
+        function routeRows() {
+            if (route.status === 'loading') return [['Distance', 'Calculating...']];
+            if (route.status === 'ready') {
+                return [
+                    ['Distance', 'Approx. ' + route.km.toFixed(1) + ' km'],
+                    ['Driving time', 'Approx. ' + formatDuration(route.minutes)]
+                ];
+            }
+            return [];
+        }
+
+        // Pricing rules are not decided yet. When they are, route.km holds the
+        // road distance in kilometres and route.minutes the driving time.
         function estimatePrice() {
             return 0;
+        }
+
+        function addRow(label, value) {
+            const term = document.createElement('dt');
+            term.textContent = label;
+            const detail = document.createElement('dd');
+            detail.textContent = value;
+            list.append(term, detail);
         }
 
         function render() {
@@ -1442,11 +1546,11 @@
                 if (!value) return;
 
                 filled++;
-                const term = document.createElement('dt');
-                term.textContent = label;
-                const detail = document.createElement('dd');
-                detail.textContent = format ? format(value) : value;
-                list.append(term, detail);
+                addRow(label, format ? format(value) : value);
+
+                if (id === 'destination') {
+                    routeRows().forEach(row => addRow(row[0], row[1]));
+                }
             });
 
             if (!filled) {
@@ -1459,10 +1563,28 @@
             priceEl.textContent = '€' + estimatePrice().toFixed(2);
         }
 
+        let routeTimer;
+        function scheduleRoute() {
+            clearTimeout(routeTimer);
+            routeTimer = setTimeout(refreshRoute, 1100);
+        }
+
         form.addEventListener('input', render);
         form.addEventListener('change', render);
         // reset() clears the fields after this event fires, so re-read on the next tick
-        form.addEventListener('reset', () => setTimeout(render, 0));
+        form.addEventListener('reset', () => setTimeout(() => {
+            geoCache.clear();
+            route.km = null;
+            route.minutes = null;
+            route.status = 'idle';
+            render();
+        }, 0));
+
+        originInput.addEventListener('input', scheduleRoute);
+        destinationInput.addEventListener('input', scheduleRoute);
+        originInput.addEventListener('change', refreshRoute);
+        destinationInput.addEventListener('change', refreshRoute);
+
         render();
     })();
 
