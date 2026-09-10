@@ -333,6 +333,18 @@
             margin-top: 1rem;
         }
 
+        @media (max-width: 1200px) {
+            .calculator-form {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .calculator-form {
+                grid-template-columns: 1fr;
+            }
+        }
+
         .form-group {
             display: flex;
             flex-direction: column;
