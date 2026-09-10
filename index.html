@@ -336,6 +336,24 @@
             border: 1px solid var(--border-color);
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
             margin-top: 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .calculator-section video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.15;
+            z-index: 0;
+        }
+
+        .calculator-section .calculator-form {
+            position: relative;
+            z-index: 1;
         }
 
         .calculator-form {
@@ -648,6 +666,9 @@
 <main id="main-content">
     <div class="container" id="calculator">
         <div class="calculator-section">
+            <video autoplay muted loop playsinline>
+                <source src="fondopantallavideo.mp4" type="video/mp4">
+            </video>
             <form class="calculator-form" id="quoteForm" name="quote-form" method="POST" netlify novalidate aria-label="Quote request form">
                 <div class="form-group">
                     <label for="origin">Pick-up Location:</label>
