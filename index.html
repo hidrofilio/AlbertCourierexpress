@@ -638,6 +638,14 @@
                     <input type="text" id="destination" name="destination" placeholder="Dirección o ciudad de destino" required aria-required="true">
                 </div>
                 <div class="form-group">
+                    <label for="pickupdate">Fecha de Recogida:</label>
+                    <input type="date" id="pickupdate" name="pickupdate" required aria-required="true">
+                </div>
+                <div class="form-group">
+                    <label for="pickuptime">Hora de Recogida:</label>
+                    <input type="time" id="pickuptime" name="pickuptime" required aria-required="true">
+                </div>
+                <div class="form-group">
                     <label for="merchandise">Tipo de Mercancía / Descripción:</label>
                     <input type="text" id="merchandise" name="merchandise" placeholder="ej. palets, carga AOG, mercancía general" required aria-required="true">
                 </div>
@@ -654,12 +662,31 @@
                     <input type="text" id="dimensions" name="dimensions" placeholder="ej. 200x150x100 cm">
                 </div>
                 <div class="form-group">
-                    <label for="email">Tu Email / Teléfono:</label>
-                    <input type="text" id="email" name="email" placeholder="email@company.com / +353..." required aria-required="true">
+                    <label for="service">Tipo de Servicio / Urgencia:</label>
+                    <select id="service" name="service" required aria-required="true">
+                        <option value="">-- Selecciona tipo de servicio --</option>
+                        <option value="aog">AOG (Aircraft On Ground)</option>
+                        <option value="express">Express Dedicado</option>
+                        <option value="standard">Carga Paletizada Estándar</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="email">Tu Email:</label>
+                    <input type="email" id="email" name="email" placeholder="email@company.com" required aria-required="true">
+                </div>
+                <div class="form-group">
+                    <label for="phone">Tu Teléfono:</label>
+                    <input type="tel" id="phone" name="phone" placeholder="+353..." required aria-required="true">
+                </div>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label style="display: flex; align-items: center; gap: 0.5rem;">
+                        <input type="checkbox" id="tailift" name="tailift" style="width: 18px; height: 18px; cursor: pointer;">
+                        ¿Requiere plataforma elevadora (Tail Lift)?
+                    </label>
                 </div>
                 <div class="form-group" style="grid-column: 1 / -1;">
                     <label for="message">Detalles Adicionales (Opcional):</label>
-                    <textarea id="message" name="message" placeholder="Recogida urgente 24/7, plataforma elevadora, etc..."></textarea>
+                    <textarea id="message" name="message" placeholder="Cualquier otro detalle importante..."></textarea>
                 </div>
                 <div class="full-width">
                     <button type="submit" class="cta-btn" style="border: none; cursor: pointer; font-size: 1.1rem; padding: 0.9rem 2.5rem;">Enviar Solicitud de Transporte</button>
