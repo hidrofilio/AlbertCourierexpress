@@ -339,16 +339,164 @@
             margin-top: 0;
         }
 
+        .form-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .form-header h3 {
+            font-family: 'Poppins', sans-serif;
+            color: var(--white);
+            font-size: 1.8rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background-color: rgba(10, 132, 255, 0.2);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-color), var(--border-color));
+            width: 33.33%;
+            transition: width 0.3s ease;
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .step-dot {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: rgba(10, 132, 255, 0.3);
+            border: 2px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--white);
+            font-weight: 600;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .step-dot.active {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+            color: #001F3F;
+            transform: scale(1.1);
+        }
+
         .calculator-form {
+            position: relative;
+        }
+
+        .form-step {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .form-step.active {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 1.5rem;
-            margin-top: 1rem;
+        }
+
+        .form-step h4 {
+            font-family: 'Poppins', sans-serif;
+            color: var(--accent-color);
+            font-size: 1.4rem;
+            grid-column: 1 / -1;
+            margin-bottom: 0;
+        }
+
+        .step-subtitle {
+            color: var(--text-light);
+            font-size: 0.95rem;
+            grid-column: 1 / -1;
+            margin-bottom: 1.5rem;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .form-navigation {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 2rem;
+            grid-column: 1 / -1;
+        }
+
+        .nav-btn {
+            padding: 0.9rem 2rem;
+            border: none;
+            border-radius: 25px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .nav-btn.next-btn,
+        .nav-btn.submit-btn {
+            background-color: var(--accent-color);
+            color: #001F3F;
+        }
+
+        .nav-btn.next-btn:hover,
+        .nav-btn.submit-btn:hover {
+            background-color: #00D9F0;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 240, 255, 0.4);
+        }
+
+        .nav-btn.back-btn {
+            background-color: rgba(10, 132, 255, 0.3);
+            color: var(--white);
+            border: 2px solid var(--border-color);
+        }
+
+        .nav-btn.back-btn:hover {
+            background-color: rgba(10, 132, 255, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .nav-btn:active {
+            transform: scale(0.98);
         }
 
         @media (max-width: 768px) {
-            .calculator-form {
+            .form-step.active {
                 grid-template-columns: 1fr;
+            }
+
+            .step-dot {
+                width: 35px;
+                height: 35px;
+                font-size: 0.9rem;
+            }
+
+            .nav-btn {
+                padding: 0.7rem 1.5rem;
+                font-size: 0.9rem;
             }
         }
 
@@ -649,81 +797,107 @@
 <main id="main-content">
     <div class="container" id="calculator">
         <div class="calculator-section">
+            <div class="form-header">
+                <h3>Quick Quote Request</h3>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="step-indicator">
+                    <span class="step-dot active" id="step1Dot">1</span>
+                    <span class="step-dot" id="step2Dot">2</span>
+                    <span class="step-dot" id="step3Dot">3</span>
+                </div>
+            </div>
+
             <form class="calculator-form" id="quoteForm" name="quote-form" method="POST" netlify novalidate aria-label="Quote request form">
-                <div class="form-group">
-                    <label for="origin">Pick-up Location:</label>
-                    <input type="text" id="origin" name="origin" placeholder="City, postcode, or address" required aria-required="true">
+
+                <!-- STEP 1: Route & Schedule -->
+                <div class="form-step active" id="step1" data-step="1">
+                    <h4>Step 1: Route & Schedule</h4>
+                    <p class="step-subtitle">Where and when do you need transport?</p>
+
+                    <div class="form-group">
+                        <label for="origin">Pick-up Location:</label>
+                        <input type="text" id="origin" name="origin" placeholder="City, postcode, or address" required aria-required="true">
+                    </div>
+                    <div class="form-group">
+                        <label for="destination">Delivery Destination:</label>
+                        <input type="text" id="destination" name="destination" placeholder="Address or city of destination" required aria-required="true">
+                    </div>
+                    <div class="form-group">
+                        <label for="pickupdate">Pick-up Date:</label>
+                        <input type="date" id="pickupdate" name="pickupdate" required aria-required="true">
+                    </div>
+                    <div class="form-group">
+                        <label for="pickuptime">Pick-up Time:</label>
+                        <input type="time" id="pickuptime" name="pickuptime" required aria-required="true">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="destination">Delivery Destination:</label>
-                    <input type="text" id="destination" name="destination" placeholder="Address or city of destination" required aria-required="true">
+
+                <!-- STEP 2: Cargo Details -->
+                <div class="form-step" id="step2" data-step="2">
+                    <h4>Step 2: Cargo Details</h4>
+                    <p class="step-subtitle">Tell us about what you're shipping</p>
+
+                    <div class="form-group">
+                        <label for="merchandise">Cargo Description:</label>
+                        <input type="text" id="merchandise" name="merchandise" placeholder="e.g., Pallets, AOG parts, General cargo" required aria-required="true">
+                    </div>
+                    <div class="form-group">
+                        <label for="weight">Approximate Weight (kg):</label>
+                        <input type="number" id="weight" name="weight" placeholder="Weight in kg" required aria-required="true">
+                    </div>
+                    <div class="form-group">
+                        <label for="pallets">Number of Pallets / Units:</label>
+                        <input type="number" id="pallets" name="pallets" placeholder="How many units" required aria-required="true">
+                    </div>
+                    <div class="form-group">
+                        <label for="dimensions">Dimensions (L x W x H cm):</label>
+                        <input type="text" id="dimensions" name="dimensions" placeholder="e.g., 200x150x100 cm">
+                    </div>
+                    <div class="form-group">
+                        <label for="service">Service Type:</label>
+                        <select id="service" name="service" required aria-required="true">
+                            <option value="">-- Select service type --</option>
+                            <option value="aog">AOG Critical Transport</option>
+                            <option value="express-4h">Express 4-Hour Delivery</option>
+                            <option value="express-24h">Express 24-Hour Delivery</option>
+                            <option value="dedicated">Dedicated Vehicle Transport</option>
+                            <option value="standard">Standard Palletized Freight</option>
+                            <option value="temp-controlled">Temperature Controlled Transport</option>
+                            <option value="fragile">Fragile / High Value Goods</option>
+                            <option value="oversized">Oversized / Heavy Load</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="pickupdate">Pick-up Date:</label>
-                    <input type="date" id="pickupdate" name="pickupdate" required aria-required="true">
+
+                <!-- STEP 3: Contact & Confirmation -->
+                <div class="form-step" id="step3" data-step="3">
+                    <h4>Step 3: Contact & Confirmation</h4>
+                    <p class="step-subtitle">How should we reach you with your quote?</p>
+
+                    <div class="form-group">
+                        <label for="email">Email Address:</label>
+                        <input type="email" id="email" name="email" placeholder="email@company.com" required aria-required="true">
+                    </div>
+                    <div class="form-group">
+                        <label for="phone">Phone Number:</label>
+                        <input type="tel" id="phone" name="phone" placeholder="+353..." required aria-required="true">
+                    </div>
+                    <div class="form-group">
+                        <label for="message">Additional Details (Optional):</label>
+                        <textarea id="message" name="message" placeholder="Special handling requirements or instructions..."></textarea>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="pickuptime">Pick-up Time:</label>
-                    <input type="time" id="pickuptime" name="pickuptime" required aria-required="true">
+
+                <!-- Navigation Buttons -->
+                <div class="form-navigation">
+                    <button type="button" class="nav-btn back-btn" id="backBtn" style="display: none;">← Back</button>
+                    <button type="button" class="nav-btn next-btn" id="nextBtn">Next →</button>
+                    <button type="submit" class="nav-btn submit-btn" id="submitBtn" style="display: none;">Submit Request</button>
                 </div>
-                <div class="form-group">
-                    <label for="merchandise">Cargo Type / Description:</label>
-                    <input type="text" id="merchandise" name="merchandise" placeholder="e.g., pallets, AOG cargo, general freight" required aria-required="true">
-                </div>
-                <div class="form-group">
-                    <label for="pallets">Number of Pallets / Units:</label>
-                    <input type="number" id="pallets" name="pallets" placeholder="How many units" required aria-required="true">
-                </div>
-                <div class="form-group">
-                    <label for="weight">Approximate Weight (kg):</label>
-                    <input type="number" id="weight" name="weight" placeholder="Weight in kg" required aria-required="true">
-                </div>
-                <div class="form-group">
-                    <label for="dimensions">Dimensions (L x W x H, optional):</label>
-                    <input type="text" id="dimensions" name="dimensions" placeholder="e.g., 200x150x100 cm">
-                </div>
-                <div class="form-group">
-                    <label for="service">Service Type / Urgency:</label>
-                    <select id="service" name="service" required aria-required="true">
-                        <option value="">-- Select service type --</option>
-                        <option value="aog">AOG (Aircraft On Ground) - Critical</option>
-                        <option value="express-4h">Express 4-Hour Delivery</option>
-                        <option value="express-24h">Express 24-Hour Delivery</option>
-                        <option value="dedicated">Dedicated Vehicle Transport</option>
-                        <option value="standard">Standard Palletized Freight</option>
-                        <option value="temp-controlled">Temperature Controlled Transport</option>
-                        <option value="fragile">Fragile / High Value Goods</option>
-                        <option value="oversized">Oversized / Heavy Load</option>
-                    </select>
-                </div>
-                <div class="form-group" style="grid-column: 1 / -1;">
-                    <label style="display: flex; align-items: center; gap: 0.5rem;">
-                        <input type="checkbox" id="hazardous" name="hazardous" style="width: 18px; height: 18px; cursor: pointer;">
-                        Hazardous Materials / Dangerous Goods?
-                    </label>
-                </div>
-                <div class="form-group">
-                    <label for="email">Email Address:</label>
-                    <input type="email" id="email" name="email" placeholder="email@company.com" required aria-required="true">
-                </div>
-                <div class="form-group">
-                    <label for="phone">Phone Number:</label>
-                    <input type="tel" id="phone" name="phone" placeholder="+353..." required aria-required="true">
-                </div>
-                <div class="form-group" style="grid-column: 1 / -1;">
-                    <label style="display: flex; align-items: center; gap: 0.5rem;">
-                        <input type="checkbox" id="tailift" name="tailift" style="width: 18px; height: 18px; cursor: pointer;">
-                        Tail Lift Required?
-                    </label>
-                </div>
-                <div class="form-group" style="grid-column: 1 / -1;">
-                    <label for="message">Additional Details (Optional):</label>
-                    <textarea id="message" name="message" placeholder="Any other important details..."></textarea>
-                </div>
-                <div class="full-width">
-                    <button type="submit" class="cta-btn" style="border: none; cursor: pointer; font-size: 1.1rem; padding: 0.9rem 2.5rem;">Submit Transport Request</button>
-                    <div id="formStatus" class="form-status"></div>
-                </div>
+
+                <div id="formStatus" class="form-status"></div>
             </form>
         </div>
     </div>
@@ -841,45 +1015,122 @@
         });
     });
 
-    // Quote Form Submission (Netlify Forms)
+    // Multi-Step Form Wizard
+    let currentStep = 1;
+    const totalSteps = 3;
     const quoteForm = document.getElementById('quoteForm');
     const formStatus = document.getElementById('formStatus');
+    const nextBtn = document.getElementById('nextBtn');
+    const backBtn = document.getElementById('backBtn');
+    const submitBtn = document.getElementById('submitBtn');
+    const progressFill = document.getElementById('progressFill');
+
+    function updateFormStep() {
+        // Hide all steps
+        document.querySelectorAll('.form-step').forEach(step => {
+            step.classList.remove('active');
+        });
+
+        // Show current step
+        document.getElementById(`step${currentStep}`).classList.add('active');
+
+        // Update progress bar
+        const progress = (currentStep / totalSteps) * 100;
+        progressFill.style.width = progress + '%';
+
+        // Update step indicators
+        document.querySelectorAll('.step-dot').forEach((dot, index) => {
+            if (index + 1 <= currentStep) {
+                dot.classList.add('active');
+            } else {
+                dot.classList.remove('active');
+            }
+        });
+
+        // Update button visibility
+        backBtn.style.display = currentStep > 1 ? 'block' : 'none';
+        nextBtn.style.display = currentStep < totalSteps ? 'block' : 'none';
+        submitBtn.style.display = currentStep === totalSteps ? 'block' : 'none';
+
+        // Scroll to form
+        quoteForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function validateStep(step) {
+        let isValid = true;
+        const stepElement = document.getElementById(`step${step}`);
+        const requiredFields = stepElement.querySelectorAll('[required]');
+
+        requiredFields.forEach(field => {
+            if (!field.value) {
+                isValid = false;
+                field.style.borderColor = '#FF6B6B';
+            } else {
+                field.style.borderColor = 'var(--border-color)';
+            }
+        });
+
+        return isValid;
+    }
+
+    nextBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (validateStep(currentStep)) {
+            if (currentStep < totalSteps) {
+                currentStep++;
+                updateFormStep();
+            }
+        } else {
+            formStatus.textContent = '⚠️ Please fill in all required fields to continue.';
+            formStatus.className = 'form-status error';
+            setTimeout(() => {
+                formStatus.className = 'form-status';
+            }, 3000);
+        }
+    });
+
+    backBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (currentStep > 1) {
+            currentStep--;
+            updateFormStep();
+        }
+    });
 
     quoteForm.addEventListener('submit', (e) => {
-        const origin = document.getElementById('origin').value;
-        const destination = document.getElementById('destination').value;
-        const vehicle = document.getElementById('vehicle').value;
-        const email = document.getElementById('email').value;
+        if (validateStep(currentStep)) {
+            const email = document.getElementById('email').value;
 
-        // Validate form
-        if (!origin || !destination || !vehicle || !email) {
+            // Show loading state
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Sending...';
+            submitBtn.disabled = true;
+
+            // Show success message after submission
+            setTimeout(() => {
+                formStatus.textContent = '✅ Quote request sent successfully! We\'ll contact you within 1 hour at ' + email;
+                formStatus.className = 'form-status success';
+                quoteForm.reset();
+                currentStep = 1;
+                updateFormStep();
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+                setTimeout(() => {
+                    formStatus.className = 'form-status';
+                }, 6000);
+            }, 1000);
+
+            return true;
+        } else {
             e.preventDefault();
-            formStatus.textContent = '❌ Please fill in all required fields.';
+            formStatus.textContent = '⚠️ Please fill in all required fields.';
             formStatus.className = 'form-status error';
             return false;
         }
-
-        // Show loading state
-        const submitBtn = quoteForm.querySelector('button[type="submit"]');
-        const originalText = submitBtn.textContent;
-        submitBtn.textContent = 'Sending...';
-        submitBtn.disabled = true;
-
-        // Show success message after submission
-        setTimeout(() => {
-            formStatus.textContent = '✅ Quote request sent successfully! We\'ll contact you within 1 hour at ' + email;
-            formStatus.className = 'form-status success';
-            quoteForm.reset();
-            submitBtn.textContent = originalText;
-            submitBtn.disabled = false;
-            setTimeout(() => {
-                formStatus.style.display = 'none';
-            }, 6000);
-        }, 1000);
-
-        // Let Netlify process the form naturally
-        return true;
     });
+
+    // Initialize form
+    updateFormStep();
 
     // Hero Video - Pause at end
     const heroVideo = document.getElementById('heroVideo');
