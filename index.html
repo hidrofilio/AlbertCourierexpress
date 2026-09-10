@@ -528,6 +528,108 @@
             text-align: center;
         }
 
+        .checkbox-group {
+            grid-column: 1 / -1;
+            gap: 0.75rem;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            color: var(--white);
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .checkbox-label input {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+            accent-color: var(--accent-color);
+            cursor: pointer;
+        }
+
+        .quote-summary {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: linear-gradient(135deg, rgba(0, 240, 255, 0.08), rgba(10, 132, 255, 0.08));
+        }
+
+        .quote-summary h5 {
+            font-family: 'Poppins', sans-serif;
+            color: var(--accent-color);
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+        }
+
+        .summary-list {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 0.6rem 1.5rem;
+            margin: 0;
+        }
+
+        .summary-list dt {
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+
+        .summary-list dd {
+            margin: 0;
+            color: var(--white);
+            font-size: 0.95rem;
+            font-weight: 600;
+            overflow-wrap: anywhere;
+        }
+
+        .summary-empty {
+            margin: 0;
+            color: var(--text-light);
+            font-size: 0.95rem;
+        }
+
+        .summary-price {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 1rem;
+            margin-top: 1.5rem;
+            padding-top: 1.25rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .summary-price span {
+            color: var(--text-light);
+            font-size: 0.95rem;
+        }
+
+        .summary-price strong {
+            font-family: 'Poppins', sans-serif;
+            color: var(--accent-color);
+            font-size: 1.6rem;
+        }
+
+        .summary-note {
+            margin-top: 0.75rem;
+            color: var(--text-light);
+            font-size: 0.8rem;
+        }
+
+        @media (max-width: 768px) {
+            .summary-list {
+                grid-template-columns: 1fr;
+                gap: 0.15rem;
+            }
+
+            .summary-list dd {
+                margin-bottom: 0.7rem;
+            }
+        }
+
         .route-info {
             background: linear-gradient(135deg, rgba(0, 240, 255, 0.1), rgba(10, 132, 255, 0.1));
             border: 1px solid var(--border-color);
@@ -962,6 +1064,16 @@
                             <option value="oversized">Oversized / Heavy Load</option>
                         </select>
                     </div>
+                    <div class="form-group checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="tailift" name="tailift">
+                            Tail lift required at pick-up or delivery
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="hazardous" name="hazardous">
+                            Hazardous materials / dangerous goods (ADR)
+                        </label>
+                    </div>
                 </div>
 
                 <!-- STEP 3: Contact & Confirmation -->
@@ -988,6 +1100,16 @@
                     <button type="button" class="nav-btn back-btn" id="backBtn" style="display: none;">← Back</button>
                     <button type="button" class="nav-btn next-btn" id="nextBtn">Next →</button>
                     <button type="submit" class="nav-btn submit-btn" id="submitBtn" style="display: none;">Submit Request</button>
+                </div>
+
+                <div class="quote-summary" id="quoteSummary" aria-live="polite">
+                    <h5>Your request</h5>
+                    <dl class="summary-list" id="summaryList"></dl>
+                    <div class="summary-price">
+                        <span>Estimated price</span>
+                        <strong id="estimatedPrice">€0.00</strong>
+                    </div>
+                    <p class="summary-note">Indicative only. We confirm the final price after reviewing your request.</p>
                 </div>
 
                 <div id="formStatus" class="form-status"></div>
@@ -1270,6 +1392,78 @@
         destinationInput.addEventListener('change', refresh);
 
         refresh();
+    })();
+
+    // ===== Live request summary =====
+    (function setupSummary() {
+        const form = document.getElementById('quoteForm');
+        const list = document.getElementById('summaryList');
+        const priceEl = document.getElementById('estimatedPrice');
+
+        if (!form || !list || !priceEl) return;
+
+        const fields = [
+            ['origin', 'Pick-up'],
+            ['destination', 'Delivery'],
+            ['pickupdate', 'Date'],
+            ['pickuptime', 'Time'],
+            ['merchandise', 'Cargo'],
+            ['weight', 'Weight', v => v + ' kg'],
+            ['pallets', 'Pallets / units'],
+            ['dimensions', 'Dimensions'],
+            ['service', 'Service'],
+            ['tailift', 'Tail lift'],
+            ['hazardous', 'Dangerous goods'],
+            ['email', 'Email'],
+            ['phone', 'Phone'],
+            ['message', 'Notes']
+        ];
+
+        function readValue(el) {
+            if (el.type === 'checkbox') return el.checked ? 'Yes' : '';
+            if (el.tagName === 'SELECT') return el.value ? el.options[el.selectedIndex].text : '';
+            return el.value.trim();
+        }
+
+        // Pricing rules are still to be defined — returns 0 until then.
+        function estimatePrice() {
+            return 0;
+        }
+
+        function render() {
+            list.textContent = '';
+            let filled = 0;
+
+            fields.forEach(([id, label, format]) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+
+                const value = readValue(el);
+                if (!value) return;
+
+                filled++;
+                const term = document.createElement('dt');
+                term.textContent = label;
+                const detail = document.createElement('dd');
+                detail.textContent = format ? format(value) : value;
+                list.append(term, detail);
+            });
+
+            if (!filled) {
+                const empty = document.createElement('p');
+                empty.className = 'summary-empty';
+                empty.textContent = 'Your details will appear here as you fill in the form.';
+                list.append(empty);
+            }
+
+            priceEl.textContent = '€' + estimatePrice().toFixed(2);
+        }
+
+        form.addEventListener('input', render);
+        form.addEventListener('change', render);
+        // reset() clears the fields after this event fires, so re-read on the next tick
+        form.addEventListener('reset', () => setTimeout(render, 0));
+        render();
     })();
 
     // Hero Video - Pause at end
