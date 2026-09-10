@@ -913,8 +913,8 @@
                         <input type="time" id="pickuptime" name="pickuptime" required aria-required="true">
                     </div>
 
-                    <!-- Mapbox Map Container -->
-                    <div class="map-container" id="mapContainer">
+                    <!-- Mapbox Map Container - Always Visible -->
+                    <div class="map-container active" id="mapContainer">
                         <div id="mapbox-map"></div>
                         <div class="route-info" id="routeInfo">
                             <h5>📍 Route Summary</h5>
@@ -1243,9 +1243,12 @@
         let map = null;
         let originCoords = null;
         let destinationCoords = null;
+        let mapInitialized = false;
 
         function initializeMap() {
-            if (!map) {
+            if (!map && !mapInitialized) {
+                mapInitialized = true;
+
                 // Ensure container is visible and has dimensions
                 const container = document.getElementById('mapbox-map');
                 if (container) {
@@ -1256,25 +1259,25 @@
                     container: 'mapbox-map',
                     style: 'mapbox://styles/mapbox/dark-v11',
                     center: [-8.6291, 52.6386],
-                    zoom: 7,
+                    zoom: 6,
                     preserveDrawingBuffer: true
                 });
 
                 map.on('load', () => {
-                    console.log('Mapbox loaded successfully');
+                    console.log('Mapbox loaded - Ireland view ready');
                     // Resize map to fit container
                     setTimeout(() => {
-                        map.resize();
+                        if (map) map.resize();
                     }, 100);
                 });
 
                 map.on('error', (error) => {
                     console.error('Mapbox error:', error);
                 });
-            } else {
+            } else if (map) {
                 // If map already exists, just resize it
                 setTimeout(() => {
-                    map.resize();
+                    if (map) map.resize();
                 }, 100);
             }
         }
@@ -1296,30 +1299,49 @@
             const origin = document.getElementById('origin').value.trim();
             const destination = document.getElementById('destination').value.trim();
 
-            if (!origin || !destination) return;
+            // Always initialize map (even with empty fields)
+            if (!map) {
+                initializeMap();
+                return;
+            }
+
+            // Only draw route if both fields are filled
+            if (!origin || !destination) {
+                clearRoute();
+                return;
+            }
 
             originCoords = await geocodeAddress(origin);
             destinationCoords = await geocodeAddress(destination);
 
             if (!originCoords || !destinationCoords) {
                 console.log('Could not geocode one or both addresses');
+                clearRoute();
                 return;
             }
 
-            initializeMap();
-            showMapContainer();
-
             // Wait for map to be ready
-            if (map && map.isStyleLoaded()) {
+            if (map.isStyleLoaded()) {
                 drawRoute();
             } else if (map) {
                 map.once('load', drawRoute);
             }
         }
 
-        function showMapContainer() {
-            const container = document.getElementById('mapContainer');
-            container.classList.add('active');
+        function clearRoute() {
+            if (!map) return;
+
+            // Remove existing layers and sources
+            if (map.getLayer('route')) map.removeLayer('route');
+            if (map.getLayer('origin-point')) map.removeLayer('origin-point');
+            if (map.getLayer('destination-point')) map.removeLayer('destination-point');
+            if (map.getSource('route')) map.removeSource('route');
+            if (map.getSource('origin')) map.removeSource('origin');
+            if (map.getSource('destination')) map.removeSource('destination');
+
+            // Hide route info
+            const routeInfo = document.getElementById('routeInfo');
+            if (routeInfo) routeInfo.classList.remove('active');
         }
 
         function drawRoute() {
@@ -1440,6 +1462,11 @@
         // Event listeners for address fields
         document.getElementById('origin').addEventListener('input', calculateRoute);
         document.getElementById('destination').addEventListener('input', calculateRoute);
+
+        // Initialize map immediately when Step 1 is shown
+        setTimeout(() => {
+            initializeMap();
+        }, 200);
     }
 
     // Hero Video - Pause at end
