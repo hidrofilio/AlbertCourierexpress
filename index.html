@@ -523,6 +523,28 @@
             border: 2px solid var(--border-color);
             box-shadow: 0 4px 15px rgba(0, 240, 255, 0.2);
             position: relative;
+            overflow: hidden;
+        }
+
+        #mapbox-map.map-unavailable::after {
+            content: 'Map preview unavailable on this browser — your quote is unaffected.';
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+
+        .mapboxgl-ctrl-group {
+            background: rgba(0, 31, 63, 0.9) !important;
+        }
+
+        .mapboxgl-ctrl-group button + button {
+            border-top-color: var(--border-color) !important;
         }
 
         .route-info {
@@ -1230,244 +1252,187 @@
     // Initialize form
     updateFormStep();
 
-    // Load Turf.js first
-    const turfScript = document.createElement('script');
-    turfScript.src = 'https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js';
-    turfScript.onload = initializeMapbox;
-    document.head.appendChild(turfScript);
+    // ===== Interactive Route Map (Mapbox GL) =====
+    (function setupRouteMap() {
+        const MAPBOX_TOKEN = 'pk.eyJ1IjoiaGlkcm9maWxpbyIsImEiOiJjbXR1eTJvczQwMHN0MndzN2gyenpxcGY0In0._gqHm4zr_kXK3Sghn1ORkg';
 
-    function initializeMapbox() {
-        // Mapbox Integration
-        mapboxgl.accessToken = 'pk.eyJ1IjoiaGlkcm9maWxpbyIsImEiOiJjbXR1eTJvczQwMHN0MndzN2gyenpxcGY0In0._gqHm4zr_kXK3Sghn1ORkg';
+        const mapEl = document.getElementById('mapbox-map');
+        const routeInfo = document.getElementById('routeInfo');
+        const distanceValue = document.getElementById('distanceValue');
+        const timeValue = document.getElementById('timeValue');
+        const originInput = document.getElementById('origin');
+        const destinationInput = document.getElementById('destination');
 
-        let map = null;
-        let originCoords = null;
-        let destinationCoords = null;
-        let mapInitialized = false;
-
-        function initializeMap() {
-            if (!map && !mapInitialized) {
-                mapInitialized = true;
-
-                // Ensure container is visible and has dimensions
-                const container = document.getElementById('mapbox-map');
-                if (container) {
-                    container.style.display = 'block';
-                }
-
-                map = new mapboxgl.Map({
-                    container: 'mapbox-map',
-                    style: 'mapbox://styles/mapbox/dark-v11',
-                    center: [-8.6291, 52.6386],
-                    zoom: 6,
-                    preserveDrawingBuffer: true
-                });
-
-                map.on('load', () => {
-                    console.log('Mapbox loaded - Ireland view ready');
-                    // Resize map to fit container
-                    setTimeout(() => {
-                        if (map) map.resize();
-                    }, 100);
-                });
-
-                map.on('error', (error) => {
-                    console.error('Mapbox error:', error);
-                });
-            } else if (map) {
-                // If map already exists, just resize it
-                setTimeout(() => {
-                    if (map) map.resize();
-                }, 100);
-            }
+        if (!mapEl || typeof mapboxgl === 'undefined' || !mapboxgl.supported()) {
+            if (mapEl) mapEl.classList.add('map-unavailable');
+            return;
         }
 
-        async function geocodeAddress(address) {
-            try {
-                const response = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?country=ie,gb&access_token=${mapboxgl.accessToken}`);
-                const data = await response.json();
-                if (data.features && data.features.length > 0) {
-                    return data.features[0].geometry.coordinates;
-                }
-            } catch (error) {
-                console.error('Geocoding error:', error);
-            }
-            return null;
+        mapboxgl.accessToken = MAPBOX_TOKEN;
+
+        // 'mercator' avoids the 3D globe renderer, which fails silently on many mobile GPUs
+        const map = new mapboxgl.Map({
+            container: mapEl,
+            style: 'mapbox://styles/mapbox/dark-v11',
+            center: [-8.0, 53.4],
+            zoom: 5.4,
+            projection: 'mercator',
+            cooperativeGestures: true
+        });
+
+        map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
+        map.on('error', e => console.error('[Mapbox]', (e && e.error && e.error.message) || e));
+
+        let styleReady = false;
+        let pendingRoute = null;
+
+        function emptyLine() {
+            return { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [] } };
         }
 
-        async function calculateRoute() {
-            const origin = document.getElementById('origin').value.trim();
-            const destination = document.getElementById('destination').value.trim();
+        map.on('load', () => {
+            map.addSource('route', { type: 'geojson', data: emptyLine() });
+            map.addLayer({
+                id: 'route-line',
+                type: 'line',
+                source: 'route',
+                layout: { 'line-join': 'round', 'line-cap': 'round' },
+                paint: { 'line-color': '#00F0FF', 'line-width': 4, 'line-opacity': 0.9 }
+            });
 
-            // Always initialize map (even with empty fields)
-            if (!map) {
-                initializeMap();
-                return;
-            }
+            map.addSource('endpoints', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+            map.addLayer({
+                id: 'endpoint-dots',
+                type: 'circle',
+                source: 'endpoints',
+                paint: {
+                    'circle-radius': 8,
+                    'circle-color': ['match', ['get', 'kind'], 'origin', '#FF5A5A', '#3DDC84'],
+                    'circle-stroke-width': 2,
+                    'circle-stroke-color': '#FFFFFF'
+                }
+            });
 
-            // Only draw route if both fields are filled
-            if (!origin || !destination) {
-                clearRoute();
-                return;
-            }
+            styleReady = true;
+            map.resize();
+            if (pendingRoute) { paint(pendingRoute); pendingRoute = null; }
+        });
 
-            originCoords = await geocodeAddress(origin);
-            destinationCoords = await geocodeAddress(destination);
+        // The map lives inside a wizard step that gets shown and hidden, so keep the canvas in sync
+        window.addEventListener('resize', () => map.resize());
+        if (window.ResizeObserver) new ResizeObserver(() => map.resize()).observe(mapEl);
 
-            if (!originCoords || !destinationCoords) {
-                console.log('Could not geocode one or both addresses');
-                clearRoute();
-                return;
-            }
+        async function geocode(address) {
+            const url = 'https://api.mapbox.com/geocoding/v5/mapbox.places/' +
+                encodeURIComponent(address) + '.json?country=ie,gb&limit=1&access_token=' + MAPBOX_TOKEN;
+            const res = await fetch(url);
+            if (!res.ok) return null;
+            const data = await res.json();
+            return (data.features && data.features[0]) ? data.features[0].geometry.coordinates : null;
+        }
 
-            // Wait for map to be ready
-            if (map.isStyleLoaded()) {
-                drawRoute();
-            } else if (map) {
-                map.once('load', drawRoute);
-            }
+        async function drivingRoute(from, to) {
+            const url = 'https://api.mapbox.com/directions/v5/mapbox/driving/' +
+                from[0] + ',' + from[1] + ';' + to[0] + ',' + to[1] +
+                '?geometries=geojson&overview=full&access_token=' + MAPBOX_TOKEN;
+            const res = await fetch(url);
+            if (!res.ok) return null;
+            const data = await res.json();
+            const route = data.routes && data.routes[0];
+            if (!route) return null;
+            return { line: route.geometry, km: route.distance / 1000, minutes: route.duration / 60 };
+        }
+
+        function straightLineKm(a, b) {
+            const R = 6371, rad = d => d * Math.PI / 180;
+            const dLat = rad(b[1] - a[1]), dLon = rad(b[0] - a[0]);
+            const h = Math.sin(dLat / 2) ** 2 +
+                Math.cos(rad(a[1])) * Math.cos(rad(b[1])) * Math.sin(dLon / 2) ** 2;
+            return 2 * R * Math.asin(Math.sqrt(h));
+        }
+
+        function formatDuration(minutes) {
+            const total = Math.round(minutes);
+            if (total < 60) return total + ' min';
+            return Math.floor(total / 60) + 'h ' + String(total % 60).padStart(2, '0') + 'm';
+        }
+
+        function paint(result) {
+            map.getSource('route').setData({ type: 'Feature', properties: {}, geometry: result.line });
+            map.getSource('endpoints').setData({
+                type: 'FeatureCollection',
+                features: [
+                    { type: 'Feature', properties: { kind: 'origin' }, geometry: { type: 'Point', coordinates: result.from } },
+                    { type: 'Feature', properties: { kind: 'destination' }, geometry: { type: 'Point', coordinates: result.to } }
+                ]
+            });
+
+            const bounds = result.line.coordinates.reduce(
+                (box, coord) => box.extend(coord),
+                new mapboxgl.LngLatBounds(result.from, result.from)
+            );
+            map.fitBounds(bounds, { padding: 60, duration: 800 });
+
+            distanceValue.textContent = result.km.toFixed(1) + ' km';
+            timeValue.textContent = formatDuration(result.minutes);
+            routeInfo.classList.add('active');
         }
 
         function clearRoute() {
-            if (!map) return;
-
-            // Remove existing layers and sources
-            if (map.getLayer('route')) map.removeLayer('route');
-            if (map.getLayer('origin-point')) map.removeLayer('origin-point');
-            if (map.getLayer('destination-point')) map.removeLayer('destination-point');
-            if (map.getSource('route')) map.removeSource('route');
-            if (map.getSource('origin')) map.removeSource('origin');
-            if (map.getSource('destination')) map.removeSource('destination');
-
-            // Hide route info
-            const routeInfo = document.getElementById('routeInfo');
-            if (routeInfo) routeInfo.classList.remove('active');
+            if (styleReady) {
+                map.getSource('route').setData(emptyLine());
+                map.getSource('endpoints').setData({ type: 'FeatureCollection', features: [] });
+            }
+            routeInfo.classList.remove('active');
         }
 
-        function drawRoute() {
-            if (!map || !originCoords || !destinationCoords) return;
+        let requestId = 0;
 
-            // Remove existing layers and sources
-            if (map.getLayer('route')) map.removeLayer('route');
-            if (map.getLayer('origin-point')) map.removeLayer('origin-point');
-            if (map.getLayer('destination-point')) map.removeLayer('destination-point');
-            if (map.getSource('route')) map.removeSource('route');
-            if (map.getSource('origin')) map.removeSource('origin');
-            if (map.getSource('destination')) map.removeSource('destination');
+        async function updateRoute() {
+            const origin = originInput.value.trim();
+            const destination = destinationInput.value.trim();
 
-            // Add route source
-            map.addSource('route', {
-                type: 'geojson',
-                data: {
-                    type: 'Feature',
-                    geometry: {
-                        type: 'LineString',
-                        coordinates: [originCoords, destinationCoords]
-                    }
-                }
-            });
+            if (origin.length < 3 || destination.length < 3) { clearRoute(); return; }
 
-            // Add route layer
-            map.addLayer({
-                id: 'route',
-                type: 'line',
-                source: 'route',
-                layout: {
-                    'line-join': 'round',
-                    'line-cap': 'round'
-                },
-                paint: {
-                    'line-color': '#00F0FF',
-                    'line-width': 3,
-                    'line-opacity': 0.8
-                }
-            });
+            const thisRequest = ++requestId;
+            routeInfo.classList.add('active');
+            distanceValue.textContent = '...';
+            timeValue.textContent = '...';
 
-            // Add origin marker
-            map.addSource('origin', {
-                type: 'geojson',
-                data: {
-                    type: 'Feature',
-                    geometry: {
-                        type: 'Point',
-                        coordinates: originCoords
-                    }
-                }
-            });
+            const [from, to] = await Promise.all([geocode(origin), geocode(destination)]);
+            if (thisRequest !== requestId) return;
 
-            map.addLayer({
-                id: 'origin-point',
-                type: 'circle',
-                source: 'origin',
-                paint: {
-                    'circle-radius': 8,
-                    'circle-color': '#FF4444',
-                    'circle-stroke-width': 2,
-                    'circle-stroke-color': '#FFFFFF'
-                }
-            });
+            if (!from || !to) {
+                distanceValue.textContent = '--';
+                timeValue.textContent = '--';
+                return;
+            }
 
-            // Add destination marker
-            map.addSource('destination', {
-                type: 'geojson',
-                data: {
-                    type: 'Feature',
-                    geometry: {
-                        type: 'Point',
-                        coordinates: destinationCoords
-                    }
-                }
-            });
+            let result = await drivingRoute(from, to);
+            if (thisRequest !== requestId) return;
 
-            map.addLayer({
-                id: 'destination-point',
-                type: 'circle',
-                source: 'destination',
-                paint: {
-                    'circle-radius': 8,
-                    'circle-color': '#44FF44',
-                    'circle-stroke-width': 2,
-                    'circle-stroke-color': '#FFFFFF'
-                }
-            });
+            if (!result) {
+                const km = straightLineKm(from, to);
+                result = { line: { type: 'LineString', coordinates: [from, to] }, km: km, minutes: km / 80 * 60 };
+            }
 
-            // Fit bounds
-            const bounds = turf.bbox(turf.featureCollection([
-                turf.point(originCoords),
-                turf.point(destinationCoords)
-            ]));
+            result.from = from;
+            result.to = to;
 
-            map.fitBounds(bounds, { padding: 50 });
-
-            // Calculate distance
-            calculateDistance();
+            if (styleReady) paint(result); else pendingRoute = result;
         }
 
-        function calculateDistance() {
-            if (!originCoords || !destinationCoords) return;
-
-            const from = turf.point(originCoords);
-            const to = turf.point(destinationCoords);
-            const distance = turf.distance(from, to, { units: 'kilometers' });
-
-            // Estimate time (average 80 km/h)
-            const time = Math.round(distance / 80 * 60);
-
-            document.getElementById('distanceValue').textContent = distance.toFixed(1) + ' km';
-            document.getElementById('timeValue').textContent = time + ' min';
-
-            document.getElementById('routeInfo').classList.add('active');
+        let debounceTimer;
+        function scheduleUpdate() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(updateRoute, 700);
         }
 
-        // Event listeners for address fields
-        document.getElementById('origin').addEventListener('input', calculateRoute);
-        document.getElementById('destination').addEventListener('input', calculateRoute);
-
-        // Initialize map immediately when Step 1 is shown
-        setTimeout(() => {
-            initializeMap();
-        }, 200);
-    }
+        originInput.addEventListener('input', scheduleUpdate);
+        destinationInput.addEventListener('input', scheduleUpdate);
+        originInput.addEventListener('change', updateRoute);
+        destinationInput.addEventListener('change', updateRoute);
+    })();
 
     // Hero Video - Pause at end
     const heroVideo = document.getElementById('heroVideo');
