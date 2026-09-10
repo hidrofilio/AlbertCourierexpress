@@ -607,10 +607,23 @@
             font-size: 0.95rem;
         }
 
+        .summary-price-figure {
+            display: flex;
+            align-items: baseline;
+            gap: 0.4rem;
+        }
+
         .summary-price strong {
             font-family: 'Poppins', sans-serif;
             color: var(--accent-color);
             font-size: 1.6rem;
+        }
+
+        .summary-vat {
+            color: var(--text-light);
+            font-size: 0.85rem;
+            font-weight: 600;
+            white-space: nowrap;
         }
 
         .summary-note {
@@ -1107,7 +1120,10 @@
                     <dl class="summary-list" id="summaryList"></dl>
                     <div class="summary-price">
                         <span>Estimated price</span>
-                        <strong id="estimatedPrice">€0.00</strong>
+                        <span class="summary-price-figure">
+                            <strong id="estimatedPrice">On request</strong>
+                            <small class="summary-vat" id="priceVat" hidden>+ VAT</small>
+                        </span>
                     </div>
                     <p class="summary-note" id="summaryNote">Indicative only. We confirm the final price after reviewing your request.</p>
                 </div>
@@ -1399,6 +1415,7 @@
         const form = document.getElementById('quoteForm');
         const list = document.getElementById('summaryList');
         const priceEl = document.getElementById('estimatedPrice');
+        const vatEl = document.getElementById('priceVat');
         const noteEl = document.getElementById('summaryNote');
         const originInput = document.getElementById('origin');
         const destinationInput = document.getElementById('destination');
@@ -1412,7 +1429,7 @@
 
         const RATES = { local: 120, medium: 220, national: 320, extended: 360 };
 
-        const NOTE_DEFAULT = 'Indicative only. We confirm the final price after reviewing your request.';
+        const NOTE_DEFAULT = 'All prices exclude VAT. Indicative only — we confirm the final price after reviewing your request.';
         const NOTE_CROSS_CHANNEL = 'Routes to Great Britain involve a ferry crossing and customs, so we price them individually. Send your request and we will reply within the hour.';
 
         const fields = [
@@ -1606,13 +1623,18 @@
         }
 
         function renderPrice() {
+            const hasFigure = quote.status === 'ready' && quote.price !== null;
+
             if (quote.status === 'loading') {
                 priceEl.textContent = '...';
-            } else if (quote.status === 'ready' && quote.price !== null) {
+            } else if (hasFigure) {
                 priceEl.textContent = '€' + quote.price;
             } else {
                 priceEl.textContent = 'On request';
             }
+
+            // "+ VAT" only makes sense next to an actual figure
+            if (vatEl) vatEl.hidden = !hasFigure;
 
             if (noteEl) {
                 noteEl.textContent = quote.status === 'crosschannel' ? NOTE_CROSS_CHANNEL : NOTE_DEFAULT;
