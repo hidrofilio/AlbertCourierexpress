@@ -21,9 +21,12 @@
         "@context": "https://schema.org",
         "@type": "LocalBusiness",
         "name": "Albert Courier Express Ireland",
+        "legalName": "Albert Couriers Limited",
         "description": "24/7 Express Transport & Courier Services",
         "url": "https://albertcourierexpress.com",
         "telephone": "+353874592308",
+        "vatID": "IE4443513PH",
+        "identifier": "792955",
         "address": {
             "@type": "PostalAddress",
             "addressLocality": "Limerick",
@@ -826,6 +829,20 @@
             font-weight: 600;
         }
 
+        .legal-details {
+            max-width: 700px;
+            margin: 2rem auto 0;
+            padding-top: 1.5rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            color: var(--text-light);
+            font-size: 0.8rem;
+            line-height: 1.8;
+        }
+
+        .legal-details strong {
+            color: var(--white);
+        }
+
         /* Mobile Responsive */
         @media (max-width: 768px) {
             header {
@@ -1112,6 +1129,10 @@
                         <input type="tel" id="phone" name="phone" placeholder="+353..." required aria-required="true">
                     </div>
                     <div class="form-group">
+                        <label for="vatnumber">VAT Number (EU businesses, optional):</label>
+                        <input type="text" id="vatnumber" name="vatnumber" placeholder="e.g. DE123456789">
+                    </div>
+                    <div class="form-group">
                         <label for="message">Additional Details (Optional):</label>
                         <textarea id="message" name="message" placeholder="Special handling requirements or instructions..."></textarea>
                     </div>
@@ -1233,8 +1254,13 @@
 </a>
 
 <footer role="contentinfo">
-    <p>&copy; 2026 Albert Courier Express Ireland. All rights reserved.</p>
     <p class="contact-info">Emergency 24/7 Hotline: <a href="tel:+353874592308" style="color: var(--white); text-decoration: none;">+353 (87) 459 2308</a> | Based in Limerick, Ireland</p>
+
+    <div class="legal-details">
+        <p><strong>Albert Couriers Limited</strong>, trading as Albert Courier Express Ireland</p>
+        <p>Registered in Ireland &middot; Company No. 792955 &middot; VAT No. IE4443513PH</p>
+        <p>&copy; 2026 Albert Couriers Limited. All rights reserved.</p>
+    </div>
 </footer>
 
 <script>
@@ -1456,6 +1482,7 @@
             ['hazardous', 'Dangerous goods'],
             ['email', 'Email'],
             ['phone', 'Phone'],
+            ['vatnumber', 'VAT number'],
             ['message', 'Notes']
         ];
 
