@@ -219,10 +219,8 @@
         }
 
         .hero {
-            background:
-                radial-gradient(ellipse at center, transparent 30%, rgba(0, 31, 63, 0.8) 100%),
-                url('mapaynombreempresa.jpg') no-repeat center center;
-            background-size: 100% 100%, auto;
+            background: url('mapaynombreempresa.jpg') no-repeat center center;
+            background-size: auto;
             position: relative;
             color: var(--white);
             text-align: center;
@@ -236,12 +234,27 @@
             margin-top: -80px;
         }
 
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(ellipse at center, transparent 25%, rgba(0, 31, 63, 0.9) 100%);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .hero > * {
+            position: relative;
+            z-index: 2;
+        }
+
         @media (max-width: 768px) {
             .hero {
-                background:
-                    radial-gradient(ellipse at center, transparent 20%, rgba(0, 31, 63, 0.9) 100%),
-                    url('mapaynombreempresa.jpg') center center no-repeat;
-                background-size: 100% 100%, contain;
+                background: url('mapaynombreempresa.jpg') center center no-repeat;
+                background-size: contain;
                 min-height: 350px;
                 padding: 5rem 1rem 2rem;
             }
