@@ -48,9 +48,8 @@
     <!-- Google Fonts - Modern Typography -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
 
-    <!-- Mapbox GL JS -->
-    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
-    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+    <!-- Google Maps API -->
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBB-oQV_VIzuSvA0HANqTCUGkry6rsXqig"></script>
 
     <style>
         :root {
@@ -935,9 +934,9 @@
                         <input type="time" id="pickuptime" name="pickuptime" required aria-required="true">
                     </div>
 
-                    <!-- Mapbox Map Container - Always Visible -->
+                    <!-- Google Maps Container - Always Visible -->
                     <div class="map-container active" id="mapContainer">
-                        <div id="mapbox-map"></div>
+                        <div id="google-map" style="width: 100%; height: 400px; border-radius: 8px; border: 2px solid var(--border-color); box-shadow: 0 4px 15px rgba(0, 240, 255, 0.2);"></div>
                         <div class="route-info" id="routeInfo">
                             <h5>📍 Route Summary</h5>
                             <div class="route-stats">
@@ -1432,6 +1431,78 @@
         destinationInput.addEventListener('input', scheduleUpdate);
         originInput.addEventListener('change', updateRoute);
         destinationInput.addEventListener('change', updateRoute);
+    })();
+
+
+    // Google Maps Integration
+    (function initGoogleMaps() {
+        let map = null;
+        const originInput = document.getElementById('origin');
+        const destinationInput = document.getElementById('destination');
+        const mapElement = document.getElementById('google-map');
+        const distanceValue = document.getElementById('distanceValue');
+        const timeValue = document.getElementById('timeValue');
+        const routeInfo = document.getElementById('routeInfo');
+
+        function initMap() {
+            if (map) return;
+            map = new google.maps.Map(mapElement, {
+                zoom: 6,
+                center: { lat: 53.4, lng: -8.0 },
+                mapTypeId: google.maps.MapTypeId.ROADMAP,
+                styles: [{elementType:'geometry',stylers:[{color:'#242f3e'}]},{elementType:'labels.text.stroke',stylers:[{color:'#242f3e'}]},{elementType:'labels.text.fill',stylers:[{color:'#746855'}]}]
+            });
+        }
+
+        async function geocodeAddress(address) {
+            return new Promise((resolve) => {
+                const geocoder = new google.maps.Geocoder();
+                geocoder.geocode({ address: address, componentRestrictions: { country: ['ie', 'gb'] } }, (results, status) => {
+                    if (status === 'OK' && results[0]) {
+                        resolve({ lat: results[0].geometry.location.lat(), lng: results[0].geometry.location.lng() });
+                    } else {
+                        resolve(null);
+                    }
+                });
+            });
+        }
+
+        function straightLineKm(a, b) {
+            const R = 6371, rad = d => d * Math.PI / 180;
+            const dLat = rad(b.lat - a.lat), dLon = rad(b.lng - a.lng);
+            const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLon / 2) ** 2;
+            return 2 * R * Math.asin(Math.sqrt(h));
+        }
+
+        async function updateRoute() {
+            const origin = originInput.value.trim();
+            const destination = destinationInput.value.trim();
+            if (!map) initMap();
+            if (origin.length < 3 || destination.length < 3) { routeInfo.classList.remove('active'); return; }
+            routeInfo.classList.add('active');
+            distanceValue.textContent = '...';
+            timeValue.textContent = '...';
+            const [fromCoords, toCoords] = await Promise.all([geocodeAddress(origin), geocodeAddress(destination)]);
+            if (!fromCoords || !toCoords) { distanceValue.textContent = '--'; timeValue.textContent = '--'; return; }
+            map.data.forEach(feature => map.data.remove(feature));
+            new google.maps.Marker({ position: fromCoords, map: map, title: 'Pick-up', icon: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png' });
+            new google.maps.Marker({ position: toCoords, map: map, title: 'Delivery', icon: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png' });
+            new google.maps.Polyline({ path: [fromCoords, toCoords], geodesic: true, strokeColor: '#00F0FF', strokeOpacity: 0.9, strokeWeight: 3, map: map });
+            const bounds = new google.maps.LatLngBounds();
+            bounds.extend(fromCoords);
+            bounds.extend(toCoords);
+            map.fitBounds(bounds, 60);
+            const km = straightLineKm(fromCoords, toCoords);
+            const minutes = Math.round(km / 80 * 60);
+            distanceValue.textContent = km.toFixed(1) + ' km';
+            timeValue.textContent = minutes + ' min';
+        }
+
+        originInput.addEventListener('input', updateRoute);
+        originInput.addEventListener('change', updateRoute);
+        destinationInput.addEventListener('input', updateRoute);
+        destinationInput.addEventListener('change', updateRoute);
+        setTimeout(() => initMap(), 200);
     })();
 
     // Hero Video - Pause at end
