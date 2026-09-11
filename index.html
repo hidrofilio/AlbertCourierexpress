@@ -243,12 +243,21 @@
 
         .hero-slide {
             position: absolute;
-            inset: 0;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 750px;
             background-repeat: no-repeat;
             background-position: center center;
             background-size: cover;
             opacity: 0;
             transition: opacity 2.8s ease-in-out;
+        }
+
+        @media (max-width: 768px) {
+            .hero-slide {
+                height: 480px;
+            }
         }
 
         .hero-slide.active {
@@ -356,7 +365,7 @@
             background-color: transparent;
             padding: 2rem;
             border-radius: 8px;
-            border: 1px solid var(--border-color);
+            border: 1px solid rgba(10, 132, 255, 0.5);
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
             margin-top: 0;
         }
