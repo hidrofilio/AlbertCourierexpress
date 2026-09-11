@@ -460,9 +460,11 @@
 
         .progress-fill {
             height: 100%;
+            width: 100%;
             background: linear-gradient(90deg, var(--accent-color), var(--border-color));
-            width: 33.33%;
-            transition: width 0.3s ease;
+            transform: scaleX(0.3333);
+            transform-origin: left;
+            transition: transform 0.3s ease;
         }
 
         .step-indicator {
@@ -1563,8 +1565,8 @@
         document.getElementById(`step${currentStep}`).classList.add('active');
 
         // Update progress bar
-        const progress = (currentStep / totalSteps) * 100;
-        progressFill.style.width = progress + '%';
+        const progress = currentStep / totalSteps;
+        progressFill.style.transform = `scaleX(${progress})`;
 
         // Update step indicators
         document.querySelectorAll('.step-dot').forEach((dot, index) => {
