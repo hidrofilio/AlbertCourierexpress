@@ -65,6 +65,56 @@
     }
     </script>
 
+    <!-- FAQ Schema.org JSON-LD -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+            {
+                "@type": "Question",
+                "name": "What is a dedicated express courier service?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Unlike standard parcel networks that consolidate and sort shipments through multiple hubs, our dedicated service means the vehicle is assigned exclusively to your cargo. We load at your origin and drive directly to your destination with zero intermediate stops."
+                }
+            },
+            {
+                "@type": "Question",
+                "name": "How fast can you collect urgent shipments in Ireland?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Our primary base in Limerick/Shannon allows us to achieve rapid response times. We typically collect within 45 minutes in the Shannon/Limerick area, around 2 hours in Cork and Dublin, and within 5 to 6 hours for Northern Ireland (Belfast)."
+                }
+            },
+            {
+                "@type": "Question",
+                "name": "Do you handle time-critical AOG (Aircraft On Ground) logistics?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Yes. We specialize in mission-critical AOG transport, supporting major airlines and aviation partners like Ryanair and Aer Lingus with immediate, direct transport for emergency aircraft parts across all 32 counties."
+                }
+            },
+            {
+                "@type": "Question",
+                "name": "What types of vehicles are available in your fleet?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "We operate a modern, reliable fleet tailored for dedicated freight: a Ford Explorer 100% EV for small express packages (max load: 1.5m L x 1.3m W x 1.0m H) and a Ford Transit Custom for heavier cargo and standard pallets (max load: 2.8m L x 1.4m W x 1.4m H)."
+                }
+            },
+            {
+                "@type": "Question",
+                "name": "Are your transport corridors restricted to fixed routes?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "While we have established flat-rate pricing for major corridors connecting Dublin, Shannon, Cork, and Belfast, we provide custom point-to-point dedicated transport to any location across the Republic of Ireland and Northern Ireland."
+                }
+            }
+        ]
+    }
+    </script>
+
     <title>Albert Couriers | Dedicated Express Courier & 24/7 AOG Logistics Ireland</title>
 
     <!-- Google Fonts - Modern Typography -->
@@ -73,6 +123,60 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
 
     <style>
+        .faq-list {
+            max-width: 900px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .faq-item {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.2rem 1.5rem;
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            transition: border-color 0.3s ease;
+        }
+
+        .faq-item[open] {
+            border-color: var(--accent-color);
+        }
+
+        .faq-item summary {
+            cursor: pointer;
+            list-style: none;
+            font-weight: 600;
+            font-size: 1.05rem;
+            color: var(--white);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
+        .faq-item summary::-webkit-details-marker { display: none; }
+
+        .faq-item summary::after {
+            content: '+';
+            font-size: 1.5rem;
+            color: var(--accent-color);
+            flex-shrink: 0;
+            transition: transform 0.3s ease;
+        }
+
+        .faq-item[open] summary::after {
+            transform: rotate(45deg);
+        }
+
+        .faq-item p {
+            margin-top: 1rem;
+            color: var(--text-light);
+            line-height: 1.6;
+        }
+
         .hero-h1 {
             position: relative;
             z-index: 2;
@@ -1194,6 +1298,7 @@
             <li><a href="#services">Services</a></li>
             <li><a href="#about">About Us</a></li>
             <li><a href="#expertise">Expertise</a></li>
+            <li><a href="#faq">FAQ</a></li>
             <li><a href="#fleet">Our Fleet</a></li>
             <li><a href="#calculator">Quote Calculator</a></li>
             <li><a href="#contact">Contact</a></li>
@@ -1500,6 +1605,34 @@
                     <li><strong>Ideal For:</strong> Pallets, large items, and bulk commercial goods.</li>
                 </ul>
             </div>
+        </div>
+    </div>
+
+    <div class="container" id="faq">
+        <h2>Frequently Asked Questions</h2>
+        <div class="section-subtitle">Answers for our corporate clients about how our dedicated courier service works.</div>
+
+        <div class="faq-list">
+            <details class="faq-item">
+                <summary>What is a dedicated express courier service?</summary>
+                <p>Unlike standard parcel networks that consolidate and sort shipments through multiple hubs, our dedicated service means the vehicle is assigned exclusively to your cargo. We load at your origin and drive directly to your destination with zero intermediate stops.</p>
+            </details>
+            <details class="faq-item">
+                <summary>How fast can you collect urgent shipments in Ireland?</summary>
+                <p>Our primary base in Limerick/Shannon allows us to achieve rapid response times. We typically collect within 45 minutes in the Shannon/Limerick area, around 2 hours in Cork and Dublin, and within 5 to 6 hours for Northern Ireland (Belfast).</p>
+            </details>
+            <details class="faq-item">
+                <summary>Do you handle time-critical AOG (Aircraft On Ground) logistics?</summary>
+                <p>Yes. We specialize in mission-critical AOG transport, supporting major airlines and aviation partners like Ryanair and Aer Lingus with immediate, direct transport for emergency aircraft parts across all 32 counties.</p>
+            </details>
+            <details class="faq-item">
+                <summary>What types of vehicles are available in your fleet?</summary>
+                <p>We operate a modern, reliable fleet tailored for dedicated freight: a Ford Explorer 100% EV for small express packages (max load: 1.5m L x 1.3m W x 1.0m H) and a Ford Transit Custom for heavier cargo and standard pallets (max load: 2.8m L x 1.4m W x 1.4m H).</p>
+            </details>
+            <details class="faq-item">
+                <summary>Are your transport corridors restricted to fixed routes?</summary>
+                <p>While we have established flat-rate pricing for major corridors connecting Dublin, Shannon, Cork, and Belfast, we provide custom point-to-point dedicated transport to any location across the Republic of Ireland and Northern Ireland.</p>
+            </details>
         </div>
     </div>
 
