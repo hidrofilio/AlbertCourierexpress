@@ -232,7 +232,8 @@
             color: var(--white);
             text-align: center;
             padding: 8rem 2rem 3rem;
-            min-height: 550px;
+            aspect-ratio: 1168 / 784;
+            min-height: 350px;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -245,8 +246,8 @@
             position: absolute;
             inset: 0;
             background-repeat: no-repeat;
-            background-position: center bottom;
-            background-size: 100% auto;
+            background-position: center center;
+            background-size: contain;
             opacity: 0;
             transition: opacity 2.8s ease-in-out;
         }
@@ -257,12 +258,7 @@
 
         @media (max-width: 768px) {
             .hero {
-                min-height: 350px;
                 padding: 5rem 1rem 2rem;
-            }
-
-            .hero-slide {
-                background-size: contain;
             }
         }
 
