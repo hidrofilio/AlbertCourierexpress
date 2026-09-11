@@ -8,14 +8,14 @@
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Albert Courier Express Ireland - 24/7 Dedicated Express Courier Services across all 32 counties of Ireland, Republic of Ireland and Northern Ireland. Fast, reliable, and secure point-to-point delivery from Limerick.">
-    <meta name="keywords" content="dedicated courier, express delivery, transport, Ireland, Northern Ireland, AOG, logistics, same-day delivery">
+    <meta name="description" content="Albert Couriers offers dedicated, exclusive-use van courier services across all 32 counties of Ireland. Specialists in 24/7 AOG aviation logistics, medical & pharmaceutical transport, and secure palletized freight. Based in Limerick/Shannon.">
+    <meta name="keywords" content="dedicated courier, AOG logistics, aviation on ground, medical courier Ireland, palletized freight, express delivery, Ireland, Northern Ireland, same-day delivery, Limerick, Shannon">
     <meta name="author" content="Albert Courier Express Ireland">
     <meta name="robots" content="index, follow">
 
     <!-- Open Graph Meta Tags -->
-    <meta property="og:title" content="Albert Courier Express Ireland | 24/7 Dedicated Express Courier — All 32 Counties of Ireland">
-    <meta property="og:description" content="Fast, reliable, and secure dedicated point-to-point delivery across all 32 counties of Ireland, Republic of Ireland and Northern Ireland.">
+    <meta property="og:title" content="Albert Couriers | Dedicated Express Courier & 24/7 AOG Logistics Ireland">
+    <meta property="og:description" content="Dedicated, exclusive-use van courier across all 32 counties of Ireland. Specialists in AOG aviation, medical, and palletized freight logistics.">
     <meta property="og:type" content="business.business">
     <meta property="og:url" content="https://albertcourierexpress.com">
     <meta property="og:image" content="https://albertcourierexpress.com/og-image.jpg">
@@ -24,10 +24,11 @@
     <script type="application/ld+json">
     {
         "@context": "https://schema.org",
-        "@type": "LocalBusiness",
+        "@type": "LogisticsService",
         "name": "Albert Courier Express Ireland",
         "legalName": "Albert Couriers Limited",
-        "description": "24/7 Dedicated Express Courier Services across all 32 counties of Ireland",
+        "description": "Dedicated, exclusive-use van courier service across all 32 counties of Ireland, specializing in 24/7 AOG aviation logistics, medical & pharmaceutical transport, energy/industrial freight, and high-value palletized cargo.",
+        "slogan": "Dedicated Express Courier & 24/7 AOG Logistics",
         "url": "https://albertcourierexpress.com",
         "telephone": "+353874592308",
         "vatID": "IE4443513PH",
@@ -35,9 +36,13 @@
         "address": {
             "@type": "PostalAddress",
             "addressLocality": "Limerick",
+            "addressRegion": "Shannon",
             "addressCountry": "IE"
         },
-        "areaServed": ["Ireland", "Northern Ireland"],
+        "areaServed": [
+            { "@type": "Country", "name": "Ireland" },
+            { "@type": "AdministrativeArea", "name": "Northern Ireland" }
+        ],
         "geo": {
             "@type": "GeoCoordinates",
             "latitude": "52.6386",
@@ -48,16 +53,35 @@
             "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
             "opens": "00:00",
             "closes": "23:59"
-        }
+        },
+        "makesOffer": [
+            { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "AOG (Aircraft On Ground) Emergency Logistics" } },
+            { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Medical, Lab & Pharmaceutical Courier" } },
+            { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Energy & Industrial Freight" } },
+            { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "High-Value & Fine Art Freight" } }
+        ]
     }
     </script>
 
-    <title>Albert Courier Express Ireland | 24/7 Dedicated Express Courier — All 32 Counties of Ireland</title>
+    <title>Albert Couriers | Dedicated Express Courier & 24/7 AOG Logistics Ireland</title>
 
     <!-- Google Fonts - Modern Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
 
     <style>
+        .hero-h1 {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            font-size: clamp(1.6rem, 4vw, 2.6rem);
+            color: var(--white);
+            margin: 2rem auto 0;
+            padding: 0 1rem;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.6);
+        }
+
         @keyframes iconFloat {
             0%, 100% { transform: translateY(0) rotate(0deg); }
             50% { transform: translateY(-8px) rotate(-4deg); }
@@ -1174,6 +1198,8 @@
 </header>
 
 <section id="home" class="hero" role="region" aria-label="Hero section">
+
+    <h1 class="hero-h1">Dedicated Express Courier Services in Ireland</h1>
 
     <div class="container" id="calculator">
         <div class="calculator-section">
