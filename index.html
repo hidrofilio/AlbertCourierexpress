@@ -228,8 +228,6 @@
         }
 
         .hero {
-            background: url('mapaynombreempresa.jpg') no-repeat center center;
-            background-size: auto;
             position: relative;
             color: var(--white);
             text-align: center;
@@ -243,12 +241,28 @@
             margin-top: -80px;
         }
 
+        .hero-slide {
+            position: absolute;
+            inset: 0;
+            background-repeat: no-repeat;
+            background-position: center center;
+            background-size: auto;
+            opacity: 0;
+            transition: opacity 1.5s ease-in-out;
+        }
+
+        .hero-slide.active {
+            opacity: 1;
+        }
+
         @media (max-width: 768px) {
             .hero {
-                background: url('mapaynombreempresa.jpg') center center no-repeat;
-                background-size: contain;
                 min-height: 350px;
                 padding: 5rem 1rem 2rem;
+            }
+
+            .hero-slide {
+                background-size: contain;
             }
         }
 
@@ -1035,6 +1049,9 @@
 </header>
 
 <section id="home" class="hero" role="region" aria-label="Hero section">
+    <div class="hero-slide active" style="background-image:url('irlandamaslogo.jpg')"></div>
+    <div class="hero-slide" style="background-image:url('mapaynombreempresa.jpg')"></div>
+    <div class="hero-slide" style="background-image:url('Mundomaslogo.jpg')"></div>
 </section>
 
 <main id="main-content">
@@ -1822,6 +1839,19 @@
         destinationInput.addEventListener('change', refreshQuote);
 
         render();
+    })();
+
+    // Hero image carousel
+    (function heroCarousel() {
+        const slides = document.querySelectorAll('.hero-slide');
+        if (slides.length < 2) return;
+
+        let current = 0;
+        setInterval(() => {
+            slides[current].classList.remove('active');
+            current = (current + 1) % slides.length;
+            slides[current].classList.add('active');
+        }, 5000);
     })();
 
     // Hero Video - Pause at end
