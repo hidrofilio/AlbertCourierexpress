@@ -8,14 +8,14 @@
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Albert Courier Express Ireland - 24/7 Express Transport & Courier Services across Ireland & UK. Fast, reliable, and secure delivery from Limerick.">
-    <meta name="keywords" content="courier, express delivery, transport, Ireland, UK, logistics, same-day delivery">
+    <meta name="description" content="Albert Courier Express Ireland - 24/7 Dedicated Express Courier Services across all 32 counties of Ireland, Republic of Ireland and Northern Ireland. Fast, reliable, and secure point-to-point delivery from Limerick.">
+    <meta name="keywords" content="dedicated courier, express delivery, transport, Ireland, Northern Ireland, AOG, logistics, same-day delivery">
     <meta name="author" content="Albert Courier Express Ireland">
     <meta name="robots" content="index, follow">
 
     <!-- Open Graph Meta Tags -->
-    <meta property="og:title" content="Albert Courier Express Ireland | 24/7 Express Transport & Courier Services Ireland & UK">
-    <meta property="og:description" content="Fast, reliable, and secure pick-up and delivery across all of Ireland and the United Kingdom.">
+    <meta property="og:title" content="Albert Courier Express Ireland | 24/7 Dedicated Express Courier — All 32 Counties of Ireland">
+    <meta property="og:description" content="Fast, reliable, and secure dedicated point-to-point delivery across all 32 counties of Ireland, Republic of Ireland and Northern Ireland.">
     <meta property="og:type" content="business.business">
     <meta property="og:url" content="https://albertcourierexpress.com">
     <meta property="og:image" content="https://albertcourierexpress.com/og-image.jpg">
@@ -27,7 +27,7 @@
         "@type": "LocalBusiness",
         "name": "Albert Courier Express Ireland",
         "legalName": "Albert Couriers Limited",
-        "description": "24/7 Express Transport & Courier Services",
+        "description": "24/7 Dedicated Express Courier Services across all 32 counties of Ireland",
         "url": "https://albertcourierexpress.com",
         "telephone": "+353874592308",
         "vatID": "IE4443513PH",
@@ -37,6 +37,7 @@
             "addressLocality": "Limerick",
             "addressCountry": "IE"
         },
+        "areaServed": ["Ireland", "Northern Ireland"],
         "geo": {
             "@type": "GeoCoordinates",
             "latitude": "52.6386",
@@ -51,7 +52,7 @@
     }
     </script>
 
-    <title>Albert Courier Express Ireland | 24/7 Express Transport & Courier Services Ireland & UK</title>
+    <title>Albert Courier Express Ireland | 24/7 Dedicated Express Courier — All 32 Counties of Ireland</title>
 
     <!-- Google Fonts - Modern Typography -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
@@ -749,6 +750,70 @@
             font-weight: 600;
         }
 
+        .collection-eta {
+            background-color: rgba(10, 132, 255, 0.12);
+            padding: 1rem;
+            border-radius: 6px;
+            border-left: 3px solid var(--accent-color);
+            margin-bottom: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+
+        .aog-banner {
+            background-color: rgba(255, 107, 107, 0.15);
+            border: 2px solid var(--error-color);
+            border-radius: 8px;
+            padding: 1.2rem;
+            margin-top: 1rem;
+            text-align: center;
+            grid-column: 1 / -1;
+        }
+
+        .aog-banner p {
+            color: var(--white);
+            margin-bottom: 0.8rem;
+        }
+
+        .aog-banner-actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.8rem;
+        }
+
+        .aog-phone,
+        .aog-whatsapp {
+            display: inline-block;
+            padding: 0.7rem 1.4rem;
+            border-radius: 25px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: transform 0.2s;
+        }
+
+        .aog-phone {
+            background-color: var(--error-color);
+            color: var(--white);
+        }
+
+        .aog-whatsapp {
+            background-color: #25D366;
+            color: var(--white);
+        }
+
+        .aog-phone:hover,
+        .aog-whatsapp:hover {
+            transform: translateY(-2px);
+        }
+
+        .aog-note {
+            margin-top: 0.8rem;
+            font-size: 0.85rem;
+            color: var(--text-light);
+        }
+
         @media (max-width: 768px) {
             #route-map {
                 height: 340px;
@@ -1076,6 +1141,7 @@
         <ul>
             <li><a href="#home">Home</a></li>
             <li><a href="#services">Services</a></li>
+            <li><a href="#expertise">Expertise</a></li>
             <li><a href="#fleet">Our Fleet</a></li>
             <li><a href="#calculator">Quote Calculator</a></li>
             <li><a href="#contact">Contact</a></li>
@@ -1110,15 +1176,38 @@
                 <!-- STEP 1: Route & Schedule -->
                 <div class="form-step active" id="step1" data-step="1">
                     <h4>Step 1: Route & Schedule</h4>
-                    <p class="step-subtitle">Where and when do you need transport?</p>
+                    <p class="step-subtitle">Dedicated Express Courier — flat rates on our main Irish corridors</p>
 
                     <div class="form-group">
-                        <label for="origin">Pick-up Location:</label>
-                        <input type="text" id="origin" name="origin" placeholder="City, postcode, or address" required aria-required="true">
+                        <label for="originZone">Pick-up Zone:</label>
+                        <select id="originZone" name="originZone" required aria-required="true">
+                            <option value="">-- Select zone --</option>
+                            <option value="shannon">Shannon/Limerick Area</option>
+                            <option value="dublin">Dublin Area</option>
+                            <option value="cork">Cork Area</option>
+                            <option value="belfast">Belfast Area</option>
+                            <option value="other">Other Location</option>
+                        </select>
                     </div>
                     <div class="form-group">
-                        <label for="destination">Delivery Destination:</label>
-                        <input type="text" id="destination" name="destination" placeholder="Address or city of destination" required aria-required="true">
+                        <label for="destinationZone">Delivery Zone:</label>
+                        <select id="destinationZone" name="destinationZone" required aria-required="true">
+                            <option value="">-- Select zone --</option>
+                            <option value="shannon">Shannon/Limerick Area</option>
+                            <option value="dublin">Dublin Area</option>
+                            <option value="cork">Cork Area</option>
+                            <option value="belfast">Belfast Area</option>
+                            <option value="other">Other Location</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="vehicleType">Vehicle Type:</label>
+                        <select id="vehicleType" name="vehicleType" required aria-required="true">
+                            <option value="">-- Select vehicle type --</option>
+                            <option value="explorer">Light/Small Courier (Packages/Boxes)</option>
+                            <option value="transit">Heavy/Freight (Pallets/Large items)</option>
+                        </select>
+                        <p class="map-hint" id="vehicleHint">Select a vehicle to see its maximum load dimensions.</p>
                     </div>
                     <div class="form-group checkbox-group">
                         <label class="checkbox-label">
@@ -1133,6 +1222,20 @@
                     <div class="form-group" id="timeGroup">
                         <label for="pickuptime">Pick-up Time:</label>
                         <input type="time" id="pickuptime" name="pickuptime" required aria-required="true">
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="aog" name="aog">
+                            Is this an AOG / Time-Critical Emergency?
+                        </label>
+                    </div>
+                    <div class="aog-banner" id="aogBanner" hidden>
+                        <p><strong>For immediate assistance, call us directly — don't wait for this form:</strong></p>
+                        <div class="aog-banner-actions">
+                            <a href="tel:+353874592308" class="aog-phone">📞 Call +353 87 459 2308</a>
+                            <a href="https://wa.me/353874592308?text=AOG%20%2F%20Time-Critical%20emergency%20-%20I%20need%20immediate%20assistance" class="aog-whatsapp" target="_blank" rel="noopener">💬 WhatsApp Us Now</a>
+                        </div>
+                        <p class="aog-note">You can still finish and submit this form — we'll also see it as soon as it arrives.</p>
                     </div>
                 </div>
 
@@ -1157,20 +1260,6 @@
                         <label for="dimensions">Dimensions (L x W x H cm):</label>
                         <input type="text" id="dimensions" name="dimensions" placeholder="e.g., 200x150x100 cm">
                     </div>
-                    <div class="form-group">
-                        <label for="service">Service Type:</label>
-                        <select id="service" name="service" required aria-required="true">
-                            <option value="">-- Select service type --</option>
-                            <option value="aog">AOG Critical Transport</option>
-                            <option value="express-4h">Express 4-Hour Delivery</option>
-                            <option value="express-24h">Express 24-Hour Delivery</option>
-                            <option value="dedicated">Dedicated Vehicle Transport</option>
-                            <option value="standard">Standard Palletized Freight</option>
-                            <option value="temp-controlled">Temperature Controlled Transport</option>
-                            <option value="fragile">Fragile / High Value Goods</option>
-                            <option value="oversized">Oversized / Heavy Load</option>
-                        </select>
-                    </div>
                     <div class="form-group checkbox-group">
                         <label class="checkbox-label">
                             <input type="checkbox" id="tailift" name="tailift">
@@ -1186,8 +1275,16 @@
                 <!-- STEP 3: Contact & Confirmation -->
                 <div class="form-step" id="step3" data-step="3">
                     <h4>Step 3: Contact & Confirmation</h4>
-                    <p class="step-subtitle">How should we reach you with your quote?</p>
+                    <p class="step-subtitle">Exact addresses for dispatch, and how should we reach you?</p>
 
+                    <div class="form-group">
+                        <label for="pickupaddress">Exact Pick-up Address:</label>
+                        <input type="text" id="pickupaddress" name="pickupaddress" placeholder="Full address, postcode/Eircode if possible" required aria-required="true">
+                    </div>
+                    <div class="form-group">
+                        <label for="deliveryaddress">Exact Delivery Address:</label>
+                        <input type="text" id="deliveryaddress" name="deliveryaddress" placeholder="Full address, postcode/Eircode if possible" required aria-required="true">
+                    </div>
                     <div class="form-group">
                         <label for="email">Email Address:</label>
                         <input type="email" id="email" name="email" placeholder="email@company.com" required aria-required="true">
@@ -1230,6 +1327,11 @@
                         <p class="map-hint" id="mapHint">Fill in both locations above to see the route, distance and driving time.</p>
                     </div>
 
+                    <div class="collection-eta" id="collectionEta" hidden>
+                        <span class="stat-label">Estimated Collection Time</span>
+                        <span class="stat-value" id="collectionEtaText"></span>
+                    </div>
+
                     <dl class="summary-list" id="summaryList"></dl>
                     <div class="summary-price">
                         <span>Estimated price</span>
@@ -1251,26 +1353,50 @@
 <main id="main-content">
     <div class="container" id="services">
         <h2>Our Core Services</h2>
-        <div class="section-subtitle">Tailored logistics solutions designed for speed, safety, and total reliability.</div>
+        <div class="section-subtitle">A Dedicated Express Courier service — when you book with us, you get an exclusive vehicle running point-to-point, never a shared or multi-drop service.</div>
 
         <div class="grid-2">
             <div class="card">
-                <h3>Express Road Freight & Couriers</h3>
-                <p>Immediate dispatch and dedicated transport services for urgent shipments. We handle time-critical documents, high-value goods, and priority industrial loads.</p>
+                <h3>Dedicated Point-to-Point Courier</h3>
+                <p>Your shipment travels alone, in its own dedicated vehicle, direct from pick-up to delivery. No multi-drop, no shared loads, no waiting on other stops.</p>
                 <ul>
                     <li>24/7 Availability</li>
-                    <li>Direct Point-to-Point Deliveries</li>
+                    <li>Exclusive Vehicle, Direct Point-to-Point</li>
                     <li>Real-time Status Updates</li>
                 </ul>
             </div>
             <div class="card">
-                <h3>Ireland & UK Cross-Border Transport</h3>
-                <p>Seamless connectivity between Ireland and the UK. Fully equipped for cross-border logistics, ensuring your freight crosses smoothly and arrives precisely on schedule.</p>
+                <h3>All 32 Counties of Ireland</h3>
+                <p>Full coverage across the Republic of Ireland and Northern Ireland. Wherever your pick-up or delivery is on the island, our dedicated vans get there.</p>
                 <ul>
-                    <li>Nationwide Coverage in Ireland</li>
-                    <li>Regular UK Transit Routes</li>
+                    <li>Nationwide Coverage, All 32 Counties</li>
+                    <li>Republic of Ireland & Northern Ireland</li>
                     <li>Palletized & Bulk Cargo Handling</li>
                 </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="container" id="expertise">
+        <h2>Our Specialized Expertise</h2>
+        <div class="section-subtitle">Industries We Serve — trusted for time-critical, high-value and sensitive cargo across Ireland.</div>
+
+        <div class="grid-2">
+            <div class="card">
+                <h3>✈️ Aviation & AOG (Aircraft On Ground)</h3>
+                <p>Specialized in time-critical AOG logistics. We have a proven track record of securely transporting emergency aviation parts and supporting the critical supply chains of leading European airlines, including Ryanair and Aer Lingus.</p>
+            </div>
+            <div class="card">
+                <h3>⚕️ Medical, Lab & Pharmaceuticals</h3>
+                <p>Precision transport for the healthcare sector. We are highly experienced in the urgent delivery of sensitive laboratory components, medical devices, and pharmaceutical supplies, ensuring intact and timely arrivals.</p>
+            </div>
+            <div class="card">
+                <h3>⚙️ Energy & Industrial (Oil & Gas)</h3>
+                <p>Trusted by global testing and certification leaders like SGS. We provide rapid response logistics for critical industrial components, offshore drilling parts, and energy sector emergencies.</p>
+            </div>
+            <div class="card">
+                <h3>🏛️ High-Value & Fine Art Freight</h3>
+                <p>Discreet and secure dedicated transport for high-value cargo, including the careful handling and specialized palletized movement of museum artifacts and cultural exhibitions.</p>
             </div>
         </div>
     </div>
@@ -1314,7 +1440,7 @@
             <tbody>
                 <tr>
                     <td><strong>Base Location</strong></td>
-                    <td>Limerick, Ireland (Serving all Ireland & UK)</td>
+                    <td>Limerick, Ireland (Serving all 32 counties of Ireland & Northern Ireland)</td>
                 </tr>
                 <tr>
                     <td><strong>Emergency Phone / WhatsApp</strong></td>
@@ -1473,10 +1599,13 @@
         data.set('asap', document.getElementById('asap').checked ? 'Yes — as soon as possible' : 'No');
         data.set('tailift', document.getElementById('tailift').checked ? 'Yes' : 'No');
         data.set('hazardous', document.getElementById('hazardous').checked ? 'Yes' : 'No');
+        data.set('aog', document.getElementById('aog').checked ? 'YES — AOG / Time-Critical Emergency' : 'No');
 
         // Give Albert the same quote the customer saw
         const priceText = document.getElementById('estimatedPrice');
         if (priceText) data.set('estimated_price', priceText.textContent.trim());
+        const etaText = document.getElementById('collectionEtaText');
+        if (etaText && etaText.textContent.trim()) data.set('collection_eta', etaText.textContent.trim());
         const summary = document.getElementById('summaryList');
         if (summary) data.set('quote_summary', summary.textContent.replace(/\s+/g, ' ').trim());
 
@@ -1510,16 +1639,26 @@
     // Initialize form (no scroll on page load)
     updateFormStep(false);
 
+    // ===== Dedicated flat-rate zones (shared by the map and the pricing engine) =====
+    const ZONES = {
+        shannon: { label: 'Shannon/Limerick Area', ref: 'Shannon Airport, Ireland', lat: 52.7019, lon: -8.9248, eta: 'Collection within ~45 minutes' },
+        dublin: { label: 'Dublin Area', ref: 'Dublin Airport, Ireland', lat: 53.4264, lon: -6.2499, eta: 'Collection within ~2.5 hours' },
+        cork: { label: 'Cork Area', ref: 'Cork Airport, Ireland', lat: 51.8413, lon: -8.4911, eta: 'Collection within ~2 hours' },
+        belfast: { label: 'Belfast Area', ref: 'Belfast City Centre', lat: 54.5973, lon: -5.9301, eta: 'Collection within 5 to 6 hours' }
+    };
+
     // ===== Route Map (Google Maps Embed API) =====
     (function setupRouteMap() {
         const MAPS_KEY = 'AIzaSyCKsODChA9mW29pT_aKPrA7yphootmcOdw';
         const frame = document.getElementById('route-map');
         const hint = document.getElementById('mapHint');
         const mapContainer = document.getElementById('mapContainer');
-        const originInput = document.getElementById('origin');
-        const destinationInput = document.getElementById('destination');
+        const originZoneSelect = document.getElementById('originZone');
+        const destinationZoneSelect = document.getElementById('destinationZone');
+        const pickupAddressInput = document.getElementById('pickupaddress');
+        const deliveryAddressInput = document.getElementById('deliveryaddress');
 
-        if (!frame || !originInput || !destinationInput) return;
+        if (!frame || !originZoneSelect || !destinationZoneSelect) return;
 
         function routeUrl(origin, destination) {
             return 'https://www.google.com/maps/embed/v1/directions?key=' + MAPS_KEY +
@@ -1529,20 +1668,39 @@
         }
 
         function refresh() {
-            const origin = originInput.value.trim();
-            const destination = destinationInput.value.trim();
-            const hasBoth = origin.length >= 3 && destination.length >= 3;
+            const exactOrigin = pickupAddressInput ? pickupAddressInput.value.trim() : '';
+            const exactDestination = deliveryAddressInput ? deliveryAddressInput.value.trim() : '';
+            const hasExact = exactOrigin.length >= 3 && exactDestination.length >= 3;
 
-            mapContainer.classList.toggle('active', hasBoth);
+            const originZone = originZoneSelect.value;
+            const destinationZone = destinationZoneSelect.value;
+            const hasZones = originZone && destinationZone && originZone !== 'other' &&
+                destinationZone !== 'other' && originZone !== destinationZone;
 
-            if (hasBoth) {
+            let origin, destination;
+            if (hasExact) {
+                origin = exactOrigin;
+                destination = exactDestination;
+            } else if (hasZones) {
+                origin = ZONES[originZone].ref;
+                destination = ZONES[destinationZone].ref;
+            }
+
+            const show = hasExact || hasZones;
+            mapContainer.classList.toggle('active', show);
+
+            if (show) {
                 const next = routeUrl(origin, destination);
                 if (frame.src !== next) frame.src = next;
             }
 
-            hint.textContent = hasBoth
-                ? 'Distance and driving time are shown on the map above.'
-                : 'Fill in both locations above to see the route, distance and driving time.';
+            if (hasExact) {
+                hint.textContent = 'Distance and driving time are shown on the map above.';
+            } else if (hasZones) {
+                hint.textContent = 'Approximate route between the selected zones — add your exact addresses in the final step to refine it.';
+            } else {
+                hint.textContent = 'Select your pick-up and delivery zones (or enter exact addresses in the final step) to see the route.';
+            }
         }
 
         let timer;
@@ -1551,12 +1709,51 @@
             timer = setTimeout(refresh, 900);
         }
 
-        originInput.addEventListener('input', schedule);
-        destinationInput.addEventListener('input', schedule);
-        originInput.addEventListener('change', refresh);
-        destinationInput.addEventListener('change', refresh);
+        [originZoneSelect, destinationZoneSelect].forEach(el => el.addEventListener('change', refresh));
+        if (pickupAddressInput) {
+            pickupAddressInput.addEventListener('input', schedule);
+            pickupAddressInput.addEventListener('change', refresh);
+        }
+        if (deliveryAddressInput) {
+            deliveryAddressInput.addEventListener('input', schedule);
+            deliveryAddressInput.addEventListener('change', refresh);
+        }
 
         refresh();
+    })();
+
+    // ===== AOG / Time-Critical emergency banner =====
+    (function setupAogBanner() {
+        const aog = document.getElementById('aog');
+        const banner = document.getElementById('aogBanner');
+        if (!aog || !banner) return;
+
+        function apply() {
+            banner.hidden = !aog.checked;
+        }
+
+        aog.addEventListener('change', apply);
+        quoteForm.addEventListener('reset', () => setTimeout(apply, 0));
+        apply();
+    })();
+
+    // ===== Vehicle max-dimensions hint =====
+    (function setupVehicleHint() {
+        const vehicle = document.getElementById('vehicleType');
+        const hint = document.getElementById('vehicleHint');
+        if (!vehicle || !hint) return;
+
+        const DIMENSIONS = {
+            explorer: 'Max load: 1.5m L x 1.3m W x 1.0m H',
+            transit: 'Max load: 2.8m L x 1.4m W x 1.4m H'
+        };
+
+        function apply() {
+            hint.textContent = DIMENSIONS[vehicle.value] || 'Select a vehicle to see its maximum load dimensions.';
+        }
+
+        vehicle.addEventListener('change', apply);
+        apply();
     })();
 
     // ===== ASAP collection toggle =====
@@ -1599,24 +1796,53 @@
         const priceEl = document.getElementById('estimatedPrice');
         const vatEl = document.getElementById('priceVat');
         const noteEl = document.getElementById('summaryNote');
-        const originInput = document.getElementById('origin');
-        const destinationInput = document.getElementById('destination');
+        const collectionEta = document.getElementById('collectionEta');
+        const collectionEtaText = document.getElementById('collectionEtaText');
+        const originZoneSelect = document.getElementById('originZone');
+        const destinationZoneSelect = document.getElementById('destinationZone');
+        const vehicleSelect = document.getElementById('vehicleType');
+        const pickupAddressInput = document.getElementById('pickupaddress');
+        const deliveryAddressInput = document.getElementById('deliveryaddress');
 
         if (!form || !list || !priceEl) return;
 
-        // Depot in Limerick. A pick-up further than NEAR_BASE_KM from here means the
-        // van runs empty to reach it, so the job is charged at the extended rate.
-        const BASE = { lon: -8.6305, lat: 52.6638 };
-        const NEAR_BASE_KM = 50;
+        const PHONE_DISPLAY = '+353 87 459 2308';
+        const LOCAL_PRICE = 90;
 
-        const RATES = { local: 120, medium: 220, national: 320, extended: 360 };
+        // Flat dedicated-vehicle rates between our four hub zones, keyed by the
+        // two zone codes sorted alphabetically so each pair is stored once.
+        const PRICE_MATRIX = {
+            'cork|shannon': { explorer: 320, transit: 320 },
+            'dublin|shannon': { explorer: 320, transit: 360 },
+            'cork|dublin': { explorer: 340, transit: 380 },
+            'belfast|dublin': { explorer: 360, transit: 400 },
+            'belfast|shannon': { explorer: 360, transit: 400 },
+            'belfast|cork': { explorer: 480, transit: 520 }
+        };
 
-        const NOTE_DEFAULT = 'All prices exclude VAT. Indicative only — we confirm the final price after reviewing your request.';
-        const NOTE_CROSS_CHANNEL = 'Routes to Great Britain involve a ferry crossing and customs, so we price them individually. Send your request and we will reply within the hour.';
+        const VEHICLE_LABELS = {
+            explorer: 'Light/Small Courier (Ford Explorer)',
+            transit: 'Heavy/Freight (Ford Transit Custom)'
+        };
+
+        const NOTE_AWAITING = 'Select your pick-up zone, delivery zone and vehicle type to see your flat dedicated rate.';
+        const NOTE_FLAT = 'Flat dedicated-vehicle rate, prices exclude VAT. Indicative — we confirm the final price after reviewing your request.';
+        const NOTE_CUSTOM = 'Custom Dedicated Route. Please call us or use WhatsApp at ' + PHONE_DISPLAY + ' for immediate availability and pricing.';
+
+        function pairKey(a, b) {
+            return [a, b].sort().join('|');
+        }
+
+        function zoneLabel(value) {
+            if (value === 'other') return 'Other Location (custom quote)';
+            return ZONES[value] ? ZONES[value].label : value;
+        }
 
         const fields = [
-            ['origin', 'Pick-up'],
-            ['destination', 'Delivery'],
+            ['originZone', 'Pick-up Zone', zoneLabel],
+            ['destinationZone', 'Delivery Zone', zoneLabel],
+            ['vehicleType', 'Vehicle', v => VEHICLE_LABELS[v] || v],
+            ['aog', 'AOG / Time-Critical', () => 'YES — please call us'],
             ['asap', 'Collection', () => 'As soon as possible'],
             ['pickupdate', 'Date'],
             ['pickuptime', 'Time'],
@@ -1624,9 +1850,10 @@
             ['weight', 'Weight', v => v + ' kg'],
             ['pallets', 'Pallets / units'],
             ['dimensions', 'Dimensions'],
-            ['service', 'Service'],
             ['tailift', 'Tail lift'],
             ['hazardous', 'Dangerous goods'],
+            ['pickupaddress', 'Exact pick-up'],
+            ['deliveryaddress', 'Exact delivery'],
             ['company', 'Business'],
             ['email', 'Email'],
             ['phone', 'Phone'],
@@ -1634,11 +1861,11 @@
             ['message', 'Notes']
         ];
 
-        const quote = { km: null, minutes: null, price: null, status: 'idle' };
+        const quote = { km: null, minutes: null, status: 'idle' };
 
         function readValue(el) {
             if (el.type === 'checkbox') return el.checked ? 'Yes' : '';
-            if (el.tagName === 'SELECT') return el.value ? el.options[el.selectedIndex].text : '';
+            if (el.tagName === 'SELECT') return el.value;
             return el.value.trim();
         }
 
@@ -1656,18 +1883,7 @@
             if (!res.ok) return null;
 
             const data = await res.json();
-            let place = null;
-
-            if (data.length) {
-                const hit = data[0];
-                const addr = hit.address || {};
-                place = {
-                    lon: hit.lon,
-                    lat: hit.lat,
-                    countryCode: (addr.country_code || '').toLowerCase(),
-                    state: addr.state || ''
-                };
-            }
+            const place = data.length ? { lon: data[0].lon, lat: data[0].lat } : null;
 
             geoCache.set(key, place);
             return place;
@@ -1684,45 +1900,26 @@
             const best = data.routes && data.routes[0];
             if (!best) return null;
 
-            return { km: best.distance / 1000, minutes: best.duration / 60 };
-        }
-
-        // OSRM will happily route across the Irish Sea by folding a ferry into the
-        // itinerary, so Great Britain has to be excluded by country, not by distance.
-        function zoneOf(place) {
-            if (!place) return null;
-            if (place.countryCode === 'ie') return 'IE';
-            if (place.countryCode === 'gb') {
-                return /northern ireland/i.test(place.state) ? 'NI' : 'GB';
-            }
-            return 'GB';
-        }
-
-        function priceFor(fromZone, toZone, loadedKm, approachKm) {
-            if (fromZone === 'GB' || toZone === 'GB') return null;
-            if (fromZone === 'NI' || toZone === 'NI') return RATES.extended;
-
-            // Short and medium jobs are charged on distance wherever they start:
-            // they can be covered on the spot or passed to a local partner.
-            if (loadedKm < 50) return RATES.local;
-            if (loadedKm <= 100) return RATES.medium;
-
-            // A long run needs a dedicated vehicle brought to the pick-up, so one
-            // starting far from the depot carries the extended rate.
-            if (approachKm === null || approachKm > NEAR_BASE_KM) return RATES.extended;
-            return RATES.national;
+            // +30 minutes on top of the raw driving time to cover loading,
+            // paperwork and operational stops.
+            return { km: best.distance / 1000, minutes: (best.duration / 60) + 30 };
         }
 
         let quoteToken = 0;
 
         async function refreshQuote() {
-            const origin = originInput.value.trim();
-            const destination = destinationInput.value.trim();
+            const exactOrigin = pickupAddressInput ? pickupAddressInput.value.trim() : '';
+            const exactDestination = deliveryAddressInput ? deliveryAddressInput.value.trim() : '';
+            const hasExact = exactOrigin.length >= 3 && exactDestination.length >= 3;
 
-            if (origin.length < 3 || destination.length < 3) {
+            const originZone = originZoneSelect.value;
+            const destinationZone = destinationZoneSelect.value;
+            const hasZones = originZone && destinationZone && originZone !== 'other' &&
+                destinationZone !== 'other' && originZone !== destinationZone;
+
+            if (!hasExact && !hasZones) {
                 quote.km = null;
                 quote.minutes = null;
-                quote.price = null;
                 quote.status = 'idle';
                 render();
                 return;
@@ -1733,34 +1930,26 @@
             render();
 
             try {
-                const from = await geocode(origin);
-                if (token !== quoteToken) return;
+                let from, to;
 
-                const to = from ? await geocode(destination) : null;
-                if (token !== quoteToken) return;
+                if (hasExact) {
+                    from = await geocode(exactOrigin);
+                    if (token !== quoteToken) return;
 
-                const fromZone = zoneOf(from);
-                const toZone = zoneOf(to);
+                    to = from ? await geocode(exactDestination) : null;
+                    if (token !== quoteToken) return;
 
-                if (!from || !to) {
-                    quote.status = 'unavailable';
-                    render();
-                    return;
-                }
-
-                if (fromZone === 'GB' || toZone === 'GB') {
-                    quote.km = null;
-                    quote.minutes = null;
-                    quote.price = null;
-                    quote.status = 'crosschannel';
-                    render();
-                    return;
+                    if (!from || !to) {
+                        quote.status = 'unavailable';
+                        render();
+                        return;
+                    }
+                } else {
+                    from = ZONES[originZone];
+                    to = ZONES[destinationZone];
                 }
 
                 const leg = await drivingKm(from, to);
-                if (token !== quoteToken) return;
-
-                const approach = await drivingKm(BASE, from);
                 if (token !== quoteToken) return;
 
                 if (!leg) {
@@ -1771,7 +1960,6 @@
 
                 quote.km = leg.km;
                 quote.minutes = leg.minutes;
-                quote.price = priceFor(fromZone, toZone, leg.km, approach ? approach.km : null);
                 quote.status = 'ready';
             } catch (err) {
                 if (token !== quoteToken) return;
@@ -1789,11 +1977,10 @@
 
         function routeRows() {
             if (quote.status === 'loading') return [['Distance', 'Calculating...']];
-            if (quote.status === 'crosschannel') return [['Route', 'Great Britain (ferry crossing)']];
             if (quote.status === 'ready') {
                 return [
                     ['Distance', 'Approx. ' + quote.km.toFixed(1) + ' km'],
-                    ['Driving time', 'Approx. ' + formatDuration(quote.minutes)]
+                    ['Driving time', 'Approx. ' + formatDuration(quote.minutes) + ' (incl. operational buffer)']
                 ];
             }
             return [];
@@ -1808,27 +1995,46 @@
         }
 
         function renderPrice() {
-            const hasFigure = quote.status === 'ready' && quote.price !== null;
+            const originZone = originZoneSelect.value;
+            const destinationZone = destinationZoneSelect.value;
+            const vehicle = vehicleSelect.value;
 
-            if (quote.status === 'loading') {
-                priceEl.textContent = '...';
-            } else if (hasFigure) {
-                priceEl.textContent = '€' + quote.price;
+            if (!originZone || !destinationZone || !vehicle) {
+                priceEl.textContent = 'Awaiting selection…';
+                if (vatEl) vatEl.hidden = true;
+                if (noteEl) noteEl.textContent = NOTE_AWAITING;
+            } else if (originZone === 'other' || destinationZone === 'other') {
+                priceEl.textContent = 'Custom Dedicated Route';
+                if (vatEl) vatEl.hidden = true;
+                if (noteEl) noteEl.textContent = NOTE_CUSTOM;
             } else {
-                priceEl.textContent = 'On request';
+                const price = originZone === destinationZone
+                    ? LOCAL_PRICE
+                    : PRICE_MATRIX[pairKey(originZone, destinationZone)][vehicle];
+
+                priceEl.textContent = '€' + price;
+                if (vatEl) vatEl.hidden = false;
+                if (noteEl) noteEl.textContent = NOTE_FLAT;
             }
 
-            // "+ VAT" only makes sense next to an actual figure
-            if (vatEl) vatEl.hidden = !hasFigure;
-
-            if (noteEl) {
-                noteEl.textContent = quote.status === 'crosschannel' ? NOTE_CROSS_CHANNEL : NOTE_DEFAULT;
+            if (collectionEta && collectionEtaText) {
+                if (originZone && originZone !== 'other' && ZONES[originZone]) {
+                    collectionEtaText.textContent = ZONES[originZone].eta;
+                    collectionEta.hidden = false;
+                } else {
+                    collectionEta.hidden = true;
+                }
             }
         }
 
         function render() {
             list.textContent = '';
             let filled = 0;
+
+            const exactOrigin = pickupAddressInput ? pickupAddressInput.value.trim() : '';
+            const exactDestination = deliveryAddressInput ? deliveryAddressInput.value.trim() : '';
+            const hasExact = exactOrigin.length >= 3 && exactDestination.length >= 3;
+            const routeInsertAfter = hasExact ? 'deliveryaddress' : 'destinationZone';
 
             fields.forEach(([id, label, format]) => {
                 const el = document.getElementById(id);
@@ -1840,7 +2046,7 @@
                 filled++;
                 addRow(label, format ? format(value) : value);
 
-                if (id === 'destination') {
+                if (id === routeInsertAfter) {
                     routeRows().forEach(row => addRow(row[0], row[1]));
                 }
             });
@@ -1862,15 +2068,19 @@
         form.addEventListener('reset', () => setTimeout(() => {
             quote.km = null;
             quote.minutes = null;
-            quote.price = null;
             quote.status = 'idle';
             render();
         }, 0));
 
-        originInput.addEventListener('input', scheduleQuote);
-        destinationInput.addEventListener('input', scheduleQuote);
-        originInput.addEventListener('change', refreshQuote);
-        destinationInput.addEventListener('change', refreshQuote);
+        [originZoneSelect, destinationZoneSelect].forEach(el => el.addEventListener('change', refreshQuote));
+        if (pickupAddressInput) {
+            pickupAddressInput.addEventListener('input', scheduleQuote);
+            pickupAddressInput.addEventListener('change', refreshQuote);
+        }
+        if (deliveryAddressInput) {
+            deliveryAddressInput.addEventListener('input', scheduleQuote);
+            deliveryAddressInput.addEventListener('change', refreshQuote);
+        }
 
         render();
     })();
