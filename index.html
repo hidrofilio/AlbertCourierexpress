@@ -110,6 +110,12 @@
             z-index: -1;
         }
 
+        @keyframes bgSlowPan {
+            0% { transform: scale(1) translate(0, 0); }
+            50% { transform: scale(1.12) translate(-1.5%, -1%); }
+            100% { transform: scale(1) translate(0, 0); }
+        }
+
         .site-bg-slide {
             position: absolute;
             inset: 0;
@@ -118,6 +124,7 @@
             background-size: cover;
             opacity: 0;
             transition: opacity 6s ease-in-out;
+            animation: bgSlowPan 40s ease-in-out infinite;
         }
 
         .site-bg-slide.active {
