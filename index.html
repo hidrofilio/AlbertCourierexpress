@@ -85,9 +85,28 @@
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             color: var(--text-color);
             line-height: 1.6;
-            background: url('fondodepantallamasoscuro.jpg') no-repeat center center/cover fixed;
             background-color: var(--light-bg);
             font-size: 16px;
+        }
+
+        .site-bg {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+        }
+
+        .site-bg-slide {
+            position: absolute;
+            inset: 0;
+            background-repeat: no-repeat;
+            background-position: center center;
+            background-size: cover;
+            opacity: 0;
+            transition: opacity 3s ease-in-out;
+        }
+
+        .site-bg-slide.active {
+            opacity: 1;
         }
 
         /* Skip Link for Accessibility */
@@ -1042,6 +1061,11 @@
 </head>
 <body>
 
+<div class="site-bg" aria-hidden="true">
+    <div class="site-bg-slide active" style="background-image:url('fondodepantallamasoscuro.jpg')"></div>
+    <div class="site-bg-slide" style="background-image:url('imagendefondoconvehiculo.jpg')"></div>
+</div>
+
 <a href="#main-content" class="skip-link">Skip to main content</a>
 
 <header role="banner">
@@ -1861,6 +1885,18 @@
             current = (current + 1) % slides.length;
             slides[current].classList.add('active');
         }, 5000);
+    })();
+
+    (function siteBgCarousel() {
+        const slides = document.querySelectorAll('.site-bg-slide');
+        if (slides.length < 2) return;
+
+        let current = 0;
+        setInterval(() => {
+            slides[current].classList.remove('active');
+            current = (current + 1) % slides.length;
+            slides[current].classList.add('active');
+        }, 7000);
     })();
 
     // Hero Video - Pause at end
