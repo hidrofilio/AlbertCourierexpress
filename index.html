@@ -1892,10 +1892,15 @@
         const slides = document.querySelectorAll('.site-bg-slide');
         if (slides.length < 2) return;
 
-        let current = 0;
+        // Pattern: photo 1, photo 2, photo 1, photo 3, repeat
+        const sequence = slides.length >= 3 ? [0, 1, 0, 2] : [0, 1];
+        let step = 0;
+        let current = sequence[0];
+
         setInterval(() => {
             slides[current].classList.remove('active');
-            current = (current + 1) % slides.length;
+            step = (step + 1) % sequence.length;
+            current = sequence[step];
             slides[current].classList.add('active');
         }, 12000);
     })();
