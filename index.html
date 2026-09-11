@@ -58,6 +58,20 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
 
     <style>
+        @keyframes iconFloat {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-8px) rotate(-4deg); }
+        }
+        .expertise-icon {
+            display: inline-block;
+            animation: iconFloat 3s ease-in-out infinite;
+            transition: transform 0.25s ease;
+        }
+        .expertise-icon:hover {
+            transform: scale(1.35) rotate(8deg);
+            animation-play-state: paused;
+        }
+
         :root {
             --primary-color: #001F3F;
             --secondary-color: #0A3D66;
@@ -1383,19 +1397,19 @@
 
         <div class="grid-2">
             <div class="card">
-                <h3>✈️ Aviation & AOG (Aircraft On Ground)</h3>
+                <h3><span class="expertise-icon" style="animation-delay:0s">✈️</span> Aviation & AOG (Aircraft On Ground)</h3>
                 <p>Specialized in time-critical AOG logistics. We have a proven track record of securely transporting emergency aviation parts and supporting the critical supply chains of leading European airlines, including Ryanair and Aer Lingus.</p>
             </div>
             <div class="card">
-                <h3>⚕️ Medical, Lab & Pharmaceuticals</h3>
+                <h3><span class="expertise-icon" style="animation-delay:0.3s">⚕️</span> Medical, Lab & Pharmaceuticals</h3>
                 <p>Precision transport for the healthcare sector. We are highly experienced in the urgent delivery of sensitive laboratory components, medical devices, and pharmaceutical supplies, ensuring intact and timely arrivals.</p>
             </div>
             <div class="card">
-                <h3>⚙️ Energy & Industrial (Oil & Gas)</h3>
+                <h3><span class="expertise-icon" style="animation-delay:0.6s">⚙️</span> Energy & Industrial (Oil & Gas)</h3>
                 <p>Trusted by global testing and certification leaders like SGS. We provide rapid response logistics for critical industrial components, offshore drilling parts, and energy sector emergencies.</p>
             </div>
             <div class="card">
-                <h3>🏛️ High-Value & Fine Art Freight</h3>
+                <h3><span class="expertise-icon" style="animation-delay:0.9s">🏛️</span> High-Value & Fine Art Freight</h3>
                 <p>Discreet and secure dedicated transport for high-value cargo, including the careful handling and specialized palletized movement of museum artifacts and cultural exhibitions.</p>
             </div>
         </div>
