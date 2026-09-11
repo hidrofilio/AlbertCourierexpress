@@ -1343,7 +1343,7 @@
     const submitBtn = document.getElementById('submitBtn');
     const progressFill = document.getElementById('progressFill');
 
-    function updateFormStep() {
+    function updateFormStep(scrollToForm = true) {
         // Hide all steps
         document.querySelectorAll('.form-step').forEach(step => {
             step.classList.remove('active');
@@ -1370,8 +1370,10 @@
         nextBtn.style.display = currentStep < totalSteps ? 'block' : 'none';
         submitBtn.style.display = currentStep === totalSteps ? 'block' : 'none';
 
-        // Scroll to form
-        quoteForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Scroll to form (skipped on page load so the site opens at the top)
+        if (scrollToForm) {
+            quoteForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
     }
 
     function validateStep(step) {
@@ -1471,8 +1473,8 @@
         }
     });
 
-    // Initialize form
-    updateFormStep();
+    // Initialize form (no scroll on page load)
+    updateFormStep(false);
 
     // ===== Route Map (Google Maps Embed API) =====
     (function setupRouteMap() {
