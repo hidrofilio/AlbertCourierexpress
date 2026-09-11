@@ -255,13 +255,18 @@
             opacity: 1;
         }
 
+        .hero-slide-scaled {
+            background-size: 1168px 784px;
+        }
+
         @media (max-width: 768px) {
             .hero {
                 min-height: 350px;
                 padding: 5rem 1rem 2rem;
             }
 
-            .hero-slide {
+            .hero-slide,
+            .hero-slide-scaled {
                 background-size: contain;
             }
         }
@@ -1049,9 +1054,9 @@
 </header>
 
 <section id="home" class="hero" role="region" aria-label="Hero section">
-    <div class="hero-slide active" style="background-image:url('irlandamaslogo.jpg')"></div>
+    <div class="hero-slide hero-slide-scaled active" style="background-image:url('irlandamaslogo.jpg')"></div>
     <div class="hero-slide" style="background-image:url('mapaynombreempresa.jpg')"></div>
-    <div class="hero-slide" style="background-image:url('Mundomaslogo.jpg')"></div>
+    <div class="hero-slide hero-slide-scaled" style="background-image:url('Mundomaslogo.jpg')"></div>
 </section>
 
 <main id="main-content">
