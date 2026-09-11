@@ -1183,7 +1183,7 @@
                     <button type="submit" class="nav-btn submit-btn" id="submitBtn" style="display: none;">Submit Request</button>
                 </div>
 
-                <div class="quote-summary" id="quoteSummary" aria-live="polite">
+                <div class="quote-summary" id="quoteSummary" aria-live="polite" hidden>
                     <h5>Your request</h5>
 
                     <!-- Route Map -->
@@ -1560,6 +1560,7 @@
     // ===== Live request summary and quote =====
     (function setupSummary() {
         const form = document.getElementById('quoteForm');
+        const summaryPanel = document.getElementById('quoteSummary');
         const list = document.getElementById('summaryList');
         const priceEl = document.getElementById('estimatedPrice');
         const vatEl = document.getElementById('priceVat');
@@ -1810,12 +1811,7 @@
                 }
             });
 
-            if (!filled) {
-                const empty = document.createElement('p');
-                empty.className = 'summary-empty';
-                empty.textContent = 'Your details will appear here as you fill in the form.';
-                list.append(empty);
-            }
+            if (summaryPanel) summaryPanel.hidden = !filled;
 
             renderPrice();
         }
