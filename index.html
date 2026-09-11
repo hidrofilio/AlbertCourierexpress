@@ -1058,9 +1058,11 @@
             width: 100%;
             border-collapse: collapse;
             margin-top: 2rem;
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 8px;
+            background: transparent;
+            border-radius: 12px;
             border: 1px solid var(--border-color);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
             overflow: hidden;
         }
 
@@ -1071,7 +1073,7 @@
         }
 
         th {
-            background-color: rgba(0, 0, 0, 0.2);
+            background-color: transparent;
             color: var(--white);
             font-weight: 600;
             text-align: left;
@@ -1096,12 +1098,25 @@
         }
 
         footer {
-            background-color: rgba(0, 0, 0, 0.2);
+            background-color: transparent;
             border-top: 1px solid var(--border-color);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
             color: var(--white);
             text-align: center;
             padding: 3rem 2rem;
             margin-top: 4rem;
+        }
+
+        .footer-card {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 1.5rem 2rem;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            background: transparent;
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
         }
 
         .contact-info {
@@ -1675,6 +1690,7 @@
 </a>
 
 <footer role="contentinfo">
+  <div class="footer-card">
     <p class="contact-info">Emergency 24/7 Hotline: <a href="tel:+353874592308" style="color: var(--white); text-decoration: none;">+353 (87) 459 2308</a> | Based in Limerick, Ireland</p>
 
     <div class="legal-details">
@@ -1682,6 +1698,7 @@
         <p>Registered in Ireland &middot; Company No. 792955 &middot; VAT No. IE4443513PH</p>
         <p>&copy; 2026 Albert Couriers Limited. All rights reserved.</p>
     </div>
+  </div>
 </footer>
 
 <script>
