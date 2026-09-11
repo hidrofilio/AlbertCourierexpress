@@ -232,11 +232,9 @@
             color: var(--white);
             text-align: center;
             padding: 8rem 2rem 3rem;
-            aspect-ratio: 2526 / 1696;
-            min-height: 320px;
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: flex-start;
             align-items: center;
             overflow: hidden;
             margin-top: -80px;
@@ -248,7 +246,7 @@
             inset: 0;
             background-repeat: no-repeat;
             background-position: center center;
-            background-size: contain;
+            background-size: cover;
             opacity: 0;
             transition: opacity 2.8s ease-in-out;
         }
@@ -276,13 +274,6 @@
         #calculator {
             position: relative;
             z-index: 2;
-            margin-top: -770px;
-        }
-
-        @media (max-width: 768px) {
-            #calculator {
-                margin-top: -240px;
-            }
         }
 
         .hero h1 {
@@ -1060,9 +1051,7 @@
 <section id="home" class="hero" role="region" aria-label="Hero section">
     <div class="hero-slide active" style="background-image:url('irlandamaslogo.jpg')"></div>
     <div class="hero-slide" style="background-image:url('Mundomaslogo.jpg')"></div>
-</section>
 
-<main id="main-content">
     <div class="container" id="calculator">
         <div class="calculator-section">
             <div class="form-header">
@@ -1223,7 +1212,9 @@
             </form>
         </div>
     </div>
+</section>
 
+<main id="main-content">
     <div class="container" id="services">
         <h2>Our Core Services</h2>
         <div class="section-subtitle">Tailored logistics solutions designed for speed, safety, and total reliability.</div>
