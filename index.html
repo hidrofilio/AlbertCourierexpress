@@ -2153,7 +2153,7 @@
         if (slides.length < 2) return;
 
         // Pattern: photo 1, photo 2, photo 1, photo 3, repeat
-        const sequence = slides.length >= 4 ? [0, 3, 2, 1] : (slides.length >= 3 ? [0, 1, 0, 2] : [0, 1]);
+        const sequence = slides.length >= 4 ? [0, 3, 0, 2, 0, 1] : (slides.length >= 3 ? [0, 1, 0, 2] : [0, 1]);
         let step = 0;
         let current = sequence[0];
 
