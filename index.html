@@ -1205,7 +1205,7 @@
                         <select id="vehicleType" name="vehicleType" required aria-required="true">
                             <option value="">-- Select vehicle type --</option>
                             <option value="explorer">Light/Small Courier (Packages/Boxes)</option>
-                            <option value="transit">Heavy/Freight (Pallets/Large items)</option>
+                            <option value="transit">Medium Van (Pallets/Large items)</option>
                         </select>
                         <p class="map-hint" id="vehicleHint">Select a vehicle to see its maximum load dimensions.</p>
                     </div>
@@ -1417,9 +1417,9 @@
             </div>
             <div class="card">
                 <h3>Ford Transit Custom</h3>
-                <p>Heavy/Freight — a versatile dedicated van for pallets and larger items, built for secure, efficient loading and unloading.</p>
+                <p>Medium Van — a versatile dedicated van for pallets and larger items, built for secure, efficient loading and unloading.</p>
                 <ul>
-                    <li><strong>Type:</strong> Dedicated Heavy/Freight Van</li>
+                    <li><strong>Type:</strong> Dedicated Medium Van</li>
                     <li><strong>Max load:</strong> 2.8m L x 1.4m W x 1.4m H</li>
                     <li><strong>Ideal For:</strong> Pallets, large items, and bulk commercial goods.</li>
                 </ul>
@@ -1823,7 +1823,7 @@
 
         const VEHICLE_LABELS = {
             explorer: 'Light/Small Courier (Ford Explorer)',
-            transit: 'Heavy/Freight (Ford Transit Custom)'
+            transit: 'Medium Van (Ford Transit Custom)'
         };
 
         const NOTE_AWAITING = 'Select your pick-up zone, delivery zone and vehicle type to see your flat dedicated rate.';
