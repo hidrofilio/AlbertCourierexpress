@@ -1111,16 +1111,6 @@
                         <label for="pickuptime">Pick-up Time:</label>
                         <input type="time" id="pickuptime" name="pickuptime" required aria-required="true">
                     </div>
-
-                    <!-- Route Map -->
-                    <div class="map-container" id="mapContainer">
-                        <iframe id="route-map"
-                                title="Pick-up to delivery route map"
-                                loading="lazy"
-                                referrerpolicy="strict-origin-when-cross-origin"
-                                allowfullscreen></iframe>
-                        <p class="map-hint" id="mapHint">Fill in both locations above to see the route, distance and driving time.</p>
-                    </div>
                 </div>
 
                 <!-- STEP 2: Cargo Details -->
@@ -1206,6 +1196,17 @@
 
                 <div class="quote-summary" id="quoteSummary" aria-live="polite">
                     <h5>Your request</h5>
+
+                    <!-- Route Map -->
+                    <div class="map-container" id="mapContainer">
+                        <iframe id="route-map"
+                                title="Pick-up to delivery route map"
+                                loading="lazy"
+                                referrerpolicy="strict-origin-when-cross-origin"
+                                allowfullscreen></iframe>
+                        <p class="map-hint" id="mapHint">Fill in both locations above to see the route, distance and driving time.</p>
+                    </div>
+
                     <dl class="summary-list" id="summaryList"></dl>
                     <div class="summary-price">
                         <span>Estimated price</span>
