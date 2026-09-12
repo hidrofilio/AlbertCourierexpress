@@ -1117,6 +1117,7 @@
         .form-group {
             display: flex;
             flex-direction: column;
+            min-width: 0;
         }
 
         /* display:flex above would otherwise override the hidden attribute */
@@ -1143,6 +1144,9 @@
         .form-group input,
         .form-group select,
         .form-group textarea {
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
             padding: 0.8rem;
             border: 2px solid var(--border-color);
             border-radius: 12px;
