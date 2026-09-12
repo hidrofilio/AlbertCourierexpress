@@ -364,6 +364,7 @@
             line-height: 1.6;
             background-color: var(--light-bg);
             font-size: 16px;
+            overflow-x: hidden;
         }
 
         .site-bg {
@@ -908,7 +909,7 @@
 
         .summary-list {
             display: grid;
-            grid-template-columns: auto 1fr;
+            grid-template-columns: auto minmax(0, 1fr);
             gap: 0.6rem 1.5rem;
             margin: 0;
         }
@@ -916,10 +917,12 @@
         .summary-list dt {
             color: var(--text-light);
             font-size: 0.9rem;
+            overflow-wrap: anywhere;
         }
 
         .summary-list dd {
             margin: 0;
+            min-width: 0;
             color: var(--white);
             font-size: 0.95rem;
             font-weight: 600;
