@@ -681,6 +681,7 @@
         .form-header {
             text-align: center;
             margin-bottom: 2rem;
+            scroll-margin-top: 90px;
         }
 
         .form-header h3 {
@@ -1959,9 +1960,12 @@
         nextBtn.style.display = currentStep < totalSteps ? 'block' : 'none';
         submitBtn.style.display = currentStep === totalSteps ? 'block' : 'none';
 
-        // Scroll to form (skipped on page load so the site opens at the top)
+        // Scroll to the top of the form (skipped on page load so the site opens at the top).
+        // quoteForm also contains the map and summary panel, so centering the whole
+        // (tall) form would jump past the fields down toward those — anchor on the
+        // header instead so the active step stays in place.
         if (scrollToForm) {
-            quoteForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            document.querySelector('.form-header').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
     }
 
