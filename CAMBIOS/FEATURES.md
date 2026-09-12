@@ -1,343 +1,168 @@
 # 🎯 Features Técnicos - Albert Courier Express
 
+**Última actualización:** 2026-09-12 — reemplaza la versión de 2026-09-09, que describía la web previa a Netlify (colores naranja, Citroën en la flota, `LocalBusiness` genérico, formulario Netlify). Todo eso ya no existe.
+
 ## 📱 Responsividad
 
-### Breakpoints
 ```
 Desktop: 769px+
-Tablet: 600px - 768px
-Móvil: < 599px
+Móvil:   < 768px
 ```
-
-### Mobile-First Adjustments
 - Menú hamburguesa < 768px
-- Font sizes escalables
-- Padding/margin adaptativos
-- Grid 1 columna en móvil
+- Grid 1 columna en móvil (cards, formulario de 2 pasos por fila → 1)
+- `overflow-x: hidden` en `body` como red de seguridad
+- Los `<select>` y campos de formulario llevan `width:100%; min-width:0; box-sizing:border-box` para que texto largo en las opciones no fuerce overflow horizontal (bug real que ocurrió al añadir dimensiones a las opciones de vehículo)
 
 ---
 
 ## 🎨 Tipografía
 
-### Fuentes Utilizadas
 ```
 Body:     Inter (400, 500, 600, 700)
 Headings: Poppins (600, 700)
-Fallback: -apple-system, BlinkMacSystemFont, 'Segoe UI'
 ```
 
-### Escala Tipográfica
-```
-Body:      16px (base)
-P Normal:  16px - 1.1rem
-Small:     0.95rem
-Headings:
-  h1: 2.5rem (desktop), 1.8rem (móvil)
-  h2: 2.2rem (desktop), 1.8rem (móvil)
-  h3: 1.5rem
-Line Height: 1.6 - 1.8
-```
+## 🎨 Colores (unificados en azul eléctrico)
 
----
-
-## 🎨 Colores
-
-### Paleta Oficial
 ```
---primary-color:    #0b2545 (Azul oscuro)
---secondary-color:  #134074 (Azul medio)
---accent-color:     #ee6c4d (Naranja/Rojo)
---light-bg:         #f8f9fa (Gris claro)
---text-color:       #333333 (Gris oscuro)
---text-light:       #666666 (Gris medio)
---white:            #ffffff
---border-color:     #e1e4e8 (Gris borde)
---success-color:    #28a745
---error-color:      #dc3545
+--primary-color:    #001F3F
+--accent-color:     #0066FF
+--border-color:     rgba(0, 102, 255, 0.2)   (borde azul al 20% de opacidad)
+--success-color:    #0066FF
+--error-color:      #FF6B6B  (solo para el banner AOG, intencionalmente distinto)
+--text-light:       #ffffff
 ```
 
-### Uso
-- Headers: primary-color
-- CTAs: accent-color
-- Text: text-color
-- Borders: border-color
+## 🪟 Glassmorphism
 
----
-
-## ♿ Accesibilidad (WCAG 2.1 AA)
-
-### Skip Link
-```html
-<a href="#main-content" class="skip-link">Skip to main content</a>
-```
-- Visible al hacer focus (Shift+Tab)
-- Permite saltar nav directamente al contenido
-
-### Semantic HTML
-```html
-<header role="banner">
-<nav role="navigation" aria-label="Main navigation">
-<main id="main-content">
-<section role="region" aria-label="...">
-<table role="table">
-  <thead>
-    <tr>
-      <th scope="col">Header</th>
-```
-
-### ARIA Attributes
-```html
-aria-label="Toggle navigation menu"
-aria-expanded="true|false"
-aria-required="true"
-aria-label="Quote request form"
-```
-
-### Focus Management
+Todos los recuadros con texto (formularios, tabla de contacto, footer, FAQ, cards) comparten:
 ```css
-:focus-visible {
-  outline: 2px solid var(--accent-color);
-  outline-offset: 2px;
-}
+background: rgba(0, 0, 0, 0.2);   /* o transparent en tabla/footer */
+border: 1px solid var(--border-color);
+backdrop-filter: blur(12px);
+-webkit-backdrop-filter: blur(12px);
+border-radius: 8-16px;
 ```
-- Visible en todos los botones
-- Diferenciado de hover
-- Contraste AAA
+El valor de blur se ha probado en varios niveles (1px, 2px, 6px, 10px, 12px) — **12px es el valor final**.
 
-### Color Contrast
-- Normal text: 4.5:1 (AA)
-- Large text: 3:1 (AA)
-- Actualmente: 7:1+ (AAA)
+## 🎞️ Fondo animado
 
-### Form Accessibility
-```html
-<label for="email">Your Email:</label>
-<input id="email" name="email" required aria-required="true">
-```
-- Cada input tiene label asociada
-- Required y aria-required juntos
-- Validación visual clara
+- 4 fotos en `.site-bg-slide`, orden `[0, 3, 0, 2, 0, 1]` (oscura intercalada entre cada foto)
+- Transición de opacidad: 6s
+- Ken Burns (zoom+pan lento): `@keyframes bgSlowPan`, 40s por ciclo
+- Iconos de la sección Expertise: `@keyframes iconFloat`, flotan con distinto `animation-delay` cada uno
+
+---
+
+## ♿ Accesibilidad (WCAG 2.1 AA) — sin cambios de fondo desde el origen
+
+- Skip link, roles semánticos (`header`, `main`, `nav`, `table`), `aria-label`/`aria-required`
+- Foco visible, contraste alto (fondo oscuro + texto blanco)
 
 ---
 
 ## 📊 SEO
 
-### Meta Tags
-```html
-<meta name="description" content="...">
-<meta name="keywords" content="...">
-<meta name="robots" content="index, follow">
-<meta name="author" content="Albert Courier Express">
+### Schema.org JSON-LD (dos bloques en el `<head>`)
+1. **`LogisticsService`** (no `LocalBusiness` genérico): incluye `areaServed` (Ireland + Northern Ireland como entidades separadas), `makesOffer` con los 6 sectores de especialidad, `slogan`, base en Limerick/Shannon.
+2. **`FAQPage`**: las 5 preguntas/respuestas del acordeón FAQ, palabra por palabra.
+
+### Meta tags
+Title: `Albert Couriers | Dedicated Express Courier & 24/7 AOG Logistics Ireland`
+Description menciona: furgoneta dedicada, 32 condados, AOG/Medical/Palletized freight.
+
+### Encabezados
+```
+h1: "Dedicated Express Courier Services in Ireland"   (antes NO existía ningún h1 — fallo real corregido)
+h2: Our Core Services / Experience You Can Trust / Our Specialized Expertise /
+    Our Professional Fleet / Frequently Asked Questions / Contact / Send Us a Direct Message
+h3: cada sector dentro de Expertise, cada vehículo dentro de Fleet
 ```
 
-### Open Graph
-```html
-<meta property="og:title" content="...">
-<meta property="og:description" content="...">
-<meta property="og:type" content="business.business">
-<meta property="og:url" content="https://albertcourierexpress.com">
-<meta property="og:image" content="...">
-```
+### Rendimiento (Lighthouse real, no estimado)
+Tras optimizaciones: Accesibilidad 95, Buenas Prácticas 100, SEO 100, **Rendimiento 92** (subió desde 70 — principal cuello de botella siguen siendo las 4 fotos de fondo JPG sin comprimir, ~2.2MB cada una; decisión consciente del dueño de priorizar el efecto visual).
 
-### Schema.org JSON-LD
-```json
-{
-  "@context": "https://schema.org",
-  "@type": "LocalBusiness",
-  "name": "Albert Courier Express",
-  "url": "https://albertcourierexpress.com",
-  "telephone": "+353874592308",
-  "address": {
-    "@type": "PostalAddress",
-    "addressLocality": "Limerick",
-    "addressCountry": "IE"
-  },
-  "geo": {
-    "@type": "GeoCoordinates",
-    "latitude": "52.6386",
-    "longitude": "-8.6291"
-  }
-}
-```
-
-### Heading Structure
-```
-h1: "24/7 Express Transport & Courier Services"
-  ↓
-h2: "Our Core Services"
-  h3: "Express Road Freight & Couriers"
-  h3: "Ireland & UK Cross-Border Transport"
-  ↓
-h2: "Our Professional Fleet"
-  h3: "Ford Explorer Long Range"
-  h3: "Citroën Relay Luton Curtain Sider"
-  ↓
-h2: "Interactive Quote Calculator"
-h2: "Contact Albert Courier Express"
-```
+Fixes de rendimiento aplicados:
+- `preconnect` a `fonts.googleapis.com` / `fonts.gstatic.com`
+- Barra de progreso del formulario animada con `transform: scaleX()` en vez de `width` (compositor-friendly, evita repintado de layout)
+- `loading="lazy"` en el iframe del mapa
 
 ---
 
-## 📝 Formulario Netlify
+## 📝 Formularios (Web3Forms, NO Netlify)
 
-### Configuración
-```html
-<form name="quote-form" method="POST" netlify>
-  <input type="text" name="origin" required>
-  <input type="text" name="destination" required>
-  <select name="vehicle" required>
-  <input type="text" name="email" required>
-  <textarea name="message"></textarea>
-  <button type="submit">Submit</button>
-</form>
-```
+Ambos formularios postean a `https://api.web3forms.com/submit` con un `access_key` público (por diseño de Web3Forms) y un campo honeypot `botcheck` anti-spam.
 
-### netlify.toml
-```toml
-[[forms]]
-  name = "quote-form"
-  email_address = "hidrofilio@gmail.com"
-```
+**⚠️ Web3Forms bloquea `*.up.railway.app`** — los envíos solo funcionan probando desde `albertcourierexpress.com`.
 
-### Funcionalidad
-- Validación HTML (required)
-- Validación JavaScript
-- Estados: success/error
-- Emails a hidrofilio@gmail.com
-- Visible en Netlify Dashboard → Forms
+### 1. Cotizador (`#quoteForm`, 3 pasos)
+- Paso 1: zona origen/destino (desplegable), vehículo, checkbox ASAP, checkbox AOG (con banner)
+- Paso 2: mercancía, peso, pallets, dimensiones, tailift, hazardous
+- Paso 3: direcciones exactas, email, teléfono, VAT, empresa, mensaje
+- Envía también el precio calculado y el ETA de recogida que vio el cliente
 
-### Campos Capturados
-- origin: Ubicación de recogida
-- destination: Destino
-- vehicle: Tipo de vehículo
-- email: Email/teléfono cliente
-- message: Detalles adicionales
+### 2. Formulario general (`#inquiryForm`)
+- Full Name, Company (opcional), Email, Phone, Inquiry Type (desplegable: AOG/Medical/Energy/Fine Art/General), Message
+- Notificación flotante ("toast") de éxito + mensaje inline
+- Enlaces directos de llamada/WhatsApp junto al botón de envío
+
+---
+
+## 💰 Motor de precios (tarifa plana, NO por km)
+
+Ver `[[project-albert-courier]]` en memoria para la matriz completa. Resumen:
+- Misma zona: €90
+- Pares de zona (Shannon/Dublin/Cork/Belfast): matriz fija por vehículo (Explorer / Transit)
+- "Other Location": sin precio, mensaje de contacto directo
+- ETA de recogida por zona de origen (45min–6h)
+- Vehículos: **solo 2** — Ford Explorer (100% EV, Light/Small) y Ford Transit Custom (Medium Van). El Citroën Relay se eliminó por completo.
+
+---
+
+## 🗺️ Mapa
+
+Google Maps Embed API (iframe, gratis) — NO Maps JavaScript API ni Mapbox (descartados, ver memoria del proyecto). Distancia/tiempo real vía Nominatim + OSRM, con caché y debounce de 1.1s.
 
 ---
 
 ## 💬 WhatsApp Floating Button
 
-### Specifications
-```css
-Position: fixed
-Bottom: 100px (desktop), 90px (móvil)
-Right: 20px (desktop), 15px (móvil)
-Size: 60px × 60px (desktop), 55px × 55px (móvil)
-Color: #25D366 (verde WhatsApp)
-Border-radius: 50% (círculo)
-z-index: 999
 ```
-
-### WhatsApp Link
-```
-https://wa.me/353874592308?text=Hello%20Albert%20Courier%20Express.%20I%20need%20a%20quote%20for%20delivery
-```
-
-### Comportamiento
-- Desktop: Abre WhatsApp Web
-- Móvil: Abre app WhatsApp
-- Message pre-filled: "Hello Albert Courier Express..."
-- Target: "_blank" (nueva pestaña)
-
-### Estilos Interactivos
-```css
-Hover: scale(1.1), color más oscura
-Focus: outline visible
-Active: scale(0.95)
-Transition: 0.3s ease
+Position: fixed, bottom-right
+Color: #25D366
+Link: wa.me/353874592308 (mensaje pre-rellenado distinto según contexto)
 ```
 
 ---
 
-## ⚡ Performance
+## 🔐 Seguridad / Privacidad
 
-### Optimizaciones
-- CSS modular y comprimido
-- Sin librerías externas pesadas
-- Google Fonts: async loading
-- Lazy loading preparado para futuras imágenes
-
-### Lighthouse Estimates
-- Performance: 90+
-- Accessibility: 95+
-- Best Practices: 90+
-- SEO: 100
-
----
-
-## 🔐 Security
-
-### HTTPS
-- Automático via Netlify
-- Certificado SSL gratis
-
-### CSRF Protection
-- Netlify Forms previene CSRF automáticamente
-
-### Input Validation
-- HTML5 validation
-- JavaScript pre-validation
-- Sanitización en servidor (Netlify)
-
-### Privacy
-- No tracking de terceros
-- GDPR compliant
-- Sin almacenamiento de cookies innecesarias
+- HTTPS automático (Railway + Let's Encrypt)
+- Honeypot anti-spam en ambos formularios (no CAPTCHA)
+- Sin cookies de terceros ni tracking
 
 ---
 
 ## 📦 Archivos del Proyecto
 
 ```
-index.html (14KB)
-  ├── HTML Semántico
-  ├── CSS Embebido (optimizado)
-  ├── JavaScript (validación + interactividad)
-  └── Meta tags + Schema.org
-
-netlify.toml (200B)
-  ├── Build config
-  ├── Redirects
-  └── Forms config
-
-.git/ (Repositorio)
-  └── Historial de cambios
-
-CAMBIOS/ (Documentación)
-  ├── README.md
-  ├── CHANGELOG.md
-  └── FEATURES.md (este archivo)
+index.html        Todo el código (HTML + CSS + JS embebidos)
+*.jpg              Fotos de fondo, logos
+CAMBIOS/           Esta documentación
 ```
+
+**No existe** `netlify.toml` (eliminado), ni `.hero-slide` con imágenes activas (se quitaron las fotos de la portada, solo queda el fondo de pantalla general).
 
 ---
 
 ## 🚀 Deployment Pipeline
 
 ```
-Local Edit
-    ↓
-git add . → git commit → git push
-    ↓
-GitHub Repository
-    ↓
-Netlify Webhook (automático)
-    ↓
-Build & Deploy
-    ↓
-https://albertcourierexpress.com (30-60 segundos)
+Local Edit → git push → GitHub → Railway detecta el push → Build (Caddy) → Deploy
+                                                                    ↓
+                                        https://albertcourierexpress.com (~1-2 min)
 ```
 
 ---
 
-## 📞 Contacto & Soporte
-
-**Email (Formularios):** hidrofilio@gmail.com  
-**WhatsApp:** +353 (87) 459 2308  
-**Teléfono:** +353 (87) 459 2308  
-**Web:** https://albertcourierexpress.com
-
----
-
-**Documento técnico mantenido por:** Claude Code  
-**Versión:** 1.0  
-**Última actualización:** 2026-09-09
+**Última actualización:** 2026-09-12

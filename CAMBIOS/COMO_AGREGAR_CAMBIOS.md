@@ -9,9 +9,9 @@ Esta guía explica cómo registrar y documentar cada cambio que hagamos en el pr
 ### 1️⃣ **Editar el Código**
 ```bash
 # Los cambios se hacen en C:\Users\hidro\Desktop\AlbertoCourierExpress\
-# Archivos principales:
-# - index.html (la web completa)
-# - netlify.toml (configuración)
+# Archivo principal:
+# - index.html (la web completa: HTML + CSS + JS)
+# (netlify.toml ya no existe — se eliminó al migrar a Railway)
 ```
 
 ### 2️⃣ **Preparar Git**
@@ -44,10 +44,10 @@ git commit -m "✨ Add WhatsApp button"
 git push origin main
 ```
 
-### 5️⃣ **Netlify Despliega Automáticamente**
-- Espera 30-60 segundos
-- Verifica en: https://albertcourierexpress.com
-- Dashboard: https://app.netlify.com/sites/albertcourierexpress
+### 5️⃣ **Railway Despliega Automáticamente**
+- Espera 1-2 minutos
+- Verifica en: https://albertcourierexpress.com (añade `?v=N` para saltarte la caché del navegador)
+- Dashboard: https://railway.app (servicio `AlbertCourierexpress`)
 
 ### 6️⃣ **Documentar el Cambio** (IMPORTANTE!)
 Agregar una línea al archivo `CAMBIOS/CHANGELOG.md` con formato:
@@ -181,8 +181,8 @@ Antes de hacer `git push`, verifica:
 
 ## 🔍 Verificar Cambios Después de Deploy
 
-1. **Netlify Dashboard**
-   - https://app.netlify.com
+1. **Railway Dashboard**
+   - https://railway.app
    - Verifica que el deploy pasó ✅
 
 2. **Web en Vivo**
@@ -194,9 +194,9 @@ Antes de hacer `git push`, verifica:
    - https://github.com/hidrofilio/AlbertCourierexpress
    - Verifica que el commit está ahí
 
-4. **Netlify Forms** (si es cambio de formulario)
-   - https://app.netlify.com → Forms
-   - Envía un test y verifica que llega el email
+4. **Formularios (Web3Forms)** (si es cambio de formulario)
+   - Prueba SIEMPRE desde `albertcourierexpress.com`, nunca desde la URL `*.up.railway.app` (Web3Forms la bloquea)
+   - Envía un test y verifica que llega el email a hidrofilio@gmail.com
 
 ---
 
@@ -243,10 +243,10 @@ git reset --hard HEAD~1  # Descarta cambios
 ## 🚨 Importante
 
 - ⚠️ **Siempre haz `git push`** después de commit
-- ⚠️ **Documenta CADA cambio** en CHANGELOG.md
-- ⚠️ **Verifica en la web** después de deploy
+- ⚠️ **Verifica en la web** después de deploy (con `?v=N` para saltar caché)
 - ⚠️ **Prueba en móvil** también
-- ⚠️ **No edites directamente en Netlify** - siempre usa GitHub
+- ⚠️ **No hay edición directa en Railway** - siempre usa GitHub
+- ⚠️ El registro manual en CHANGELOG.md se **discontinuó el 2026-09-09** — usa `git log` como fuente real del historial
 
 ---
 
@@ -263,5 +263,5 @@ Si algo no funciona:
 
 ---
 
-**Última actualización:** 2026-09-09  
-**Versión:** 1.0
+**Última actualización:** 2026-09-12
+**Versión:** 1.1 — referencias a Netlify sustituidas por Railway/Web3Forms

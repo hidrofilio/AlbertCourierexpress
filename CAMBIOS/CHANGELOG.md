@@ -1,5 +1,11 @@
 # 📝 CHANGELOG - Historial Detallado
 
+> ⚠️ **Este registro manual se discontinuó el 2026-09-09.** Desde entonces la web pasó por muchísimos más cambios (migración de Netlify a Railway, formularios a Web3Forms, rediseño completo del modelo de negocio a tarifa plana por zonas, nueva sección de especialidades, FAQ con schema.org, formulario de contacto general, diseño glassmorphism, fixes de mobile, etc.) que **no se documentaron aquí uno a uno**.
+>
+> **La fuente real y completa del historial es `git log`** (`git log --oneline` desde la carpeta del proyecto). Los archivos [README.md](README.md) y [FEATURES.md](FEATURES.md) reflejan el estado ACTUAL de la web (actualizados 2026-09-12); esta sección de abajo es un registro histórico de los primeros commits, válido para esa fecha.
+
+---
+
 ## [Versión Final] - 2026-09-09
 
 ### ✨ Mejoras Implementadas
