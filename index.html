@@ -2635,6 +2635,34 @@
         });
         images.forEach(img => imageObserver.observe(img));
     }
+
+    // ===== Stable background height on mobile =====
+    // position:fixed + inset:0 tracks the visual viewport, which mobile browsers
+    // resize (height only) as the address bar hides/shows while scrolling. Combined
+    // with background-size:cover on the slides, that made the photo appear to zoom
+    // in/out on every scroll. Pin the height in px and only recompute it when the
+    // width actually changes (real resize/rotation), not on scroll-driven UI chrome.
+    (function stabilizeBgHeight() {
+        const bg = document.querySelector('.site-bg');
+        if (!bg) return;
+
+        let lastWidth = window.innerWidth;
+
+        function setHeight() {
+            bg.style.height = window.innerHeight + 'px';
+        }
+
+        setHeight();
+
+        window.addEventListener('resize', () => {
+            if (window.innerWidth !== lastWidth) {
+                lastWidth = window.innerWidth;
+                setHeight();
+            }
+        });
+
+        window.addEventListener('orientationchange', setHeight);
+    })();
 </script>
 
 </body>
