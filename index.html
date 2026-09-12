@@ -390,6 +390,14 @@
             animation: bgSlowPan 40s ease-in-out infinite;
         }
 
+        @media (max-width: 768px) {
+            @keyframes bgSlowPan {
+                0% { transform: scale(1) translate(0, 0); }
+                50% { transform: scale(1.04) translate(-0.5%, -0.5%); }
+                100% { transform: scale(1) translate(0, 0); }
+            }
+        }
+
         .site-bg-slide.active {
             opacity: 1;
         }
