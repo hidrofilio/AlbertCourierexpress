@@ -148,6 +148,25 @@
 const PIN = '8214';
 const STORAGE_KEY = 'cpc_progress_v1';
 const UNLOCK_KEY = 'cpc_unlocked_v1';
+const INPROGRESS_KEY = 'cpc_inprogress_v1';
+
+function saveInProgress() {
+  try {
+    localStorage.setItem(INPROGRESS_KEY, JSON.stringify({
+      topic: currentTopic,
+      questions: currentQuestions,
+      index: currentIndex,
+      score: currentScore,
+      log: sessionLog
+    }));
+  } catch(e) {}
+}
+function loadInProgress() {
+  try { return JSON.parse(localStorage.getItem(INPROGRESS_KEY)); } catch(e) { return null; }
+}
+function clearInProgress() {
+  try { localStorage.removeItem(INPROGRESS_KEY); } catch(e) {}
+}
 
 function getProgress() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch(e) { return {}; }
@@ -160,7 +179,12 @@ function tryUnlock() {
   const val = document.getElementById('pin').value.trim();
   if (val === PIN) {
     try { localStorage.setItem(UNLOCK_KEY, '1'); } catch(e) {}
-    showMenu();
+    const inProgress = loadInProgress();
+    if (inProgress && inProgress.topic && window.CPC_TEMAS[inProgress.topic]) {
+      resumeQuiz(inProgress);
+    } else {
+      showMenu();
+    }
   } else {
     document.getElementById('err').textContent = 'Código incorrecto';
     document.getElementById('pin').value = '';
@@ -245,6 +269,17 @@ function startQuiz(topicKey) {
   renderQuestion();
 }
 
+function resumeQuiz(state) {
+  currentTopic = state.topic;
+  currentQuestions = state.questions;
+  currentIndex = state.index;
+  currentScore = state.score;
+  sessionLog = state.log || [];
+  document.getElementById('quiz-title').textContent = window.CPC_TEMAS[currentTopic].title;
+  show('screen-quiz');
+  renderQuestion();
+}
+
 function formatQuestionText(entry) {
   const letters = ['A','B','C','D'];
   let out = `Pregunta: ${entry.q}\n`;
@@ -307,6 +342,7 @@ function renderQuestion() {
   document.getElementById('progress-fill').style.width = (currentIndex / total * 100) + '%';
   document.getElementById('q-count').textContent = `Pregunta ${currentIndex + 1} de ${total}`;
   document.getElementById('q-text').textContent = q.q;
+  saveInProgress();
   document.getElementById('feedback').style.display = 'none';
   document.getElementById('feedback').textContent = '';
   document.getElementById('explain').style.display = 'none';
@@ -363,6 +399,7 @@ function selectAnswer(i) {
 
   document.getElementById('copy-q-btn').hidden = false;
   document.getElementById('next-btn').hidden = false;
+  saveInProgress();
 }
 
 function nextQuestion() {
@@ -379,6 +416,7 @@ function finishQuiz() {
   const progress = getProgress();
   progress[currentTopic] = { lastScore: currentScore, lastTotal: total, date: new Date().toISOString() };
   saveProgress(progress);
+  clearInProgress();
 
   show('screen-result');
   document.getElementById('result-title').textContent = window.CPC_TEMAS[currentTopic].title;
@@ -388,13 +426,19 @@ function finishQuiz() {
 }
 
 function retryTopic() { startQuiz(currentTopic); }
-function backToMenu() { showMenu(); }
+function backToMenu() { clearInProgress(); showMenu(); }
 
 // ---- Init ----
 (function init() {
   let unlocked = false;
   try { unlocked = localStorage.getItem(UNLOCK_KEY) === '1'; } catch(e) {}
-  if (unlocked) showMenu(); else show('screen-lock');
+  if (!unlocked) { show('screen-lock'); return; }
+  const inProgress = loadInProgress();
+  if (inProgress && inProgress.topic && window.CPC_TEMAS[inProgress.topic]) {
+    resumeQuiz(inProgress);
+  } else {
+    showMenu();
+  }
 })();
 </script>
 </body>
