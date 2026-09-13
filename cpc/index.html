@@ -52,6 +52,8 @@
   }
   button:hover { box-shadow: 0 0 24px rgba(0,102,255,0.8); }
   button.secondary { background: transparent; border: 1px solid #0066FF; box-shadow: none; margin-top: 0.6rem; }
+  button.copy-btn { background: #1a3a5c; box-shadow: none; font-size: 0.85rem; padding: 0.6rem; margin-top: 0.6rem; }
+  button.copy-btn.copied { background: #1e7a3a; }
   #err { color: #FF6B6B; text-align: center; margin-bottom: 1rem; min-height: 1.2em; }
 
   .topic-list { display: flex; flex-direction: column; gap: 0.7rem; }
@@ -122,6 +124,7 @@
       <div id="options"></div>
       <div class="feedback" id="feedback"></div>
       <div class="explain" id="explain"></div>
+      <button class="copy-btn" id="copy-q-btn" onclick="copyCurrentQuestion()" hidden>📋 Copiar esta pregunta</button>
       <button id="next-btn" onclick="nextQuestion()" hidden>Siguiente →</button>
     </div>
     <button class="secondary" onclick="backToMenu()">← Volver a temas</button>
@@ -132,6 +135,7 @@
     <div class="card">
       <div class="result-score" id="result-score"></div>
       <div class="result-label">respuestas correctas</div>
+      <button class="copy-btn" id="copy-all-btn" onclick="copyAllSession()">📋 Copiar todo el test (para Gemini)</button>
       <button onclick="retryTopic()">Repetir este tema</button>
       <button class="secondary" onclick="backToMenu()">Volver a temas</button>
     </div>
@@ -222,6 +226,7 @@ let currentQuestions = [];
 let currentIndex = 0;
 let currentScore = 0;
 let answered = false;
+let sessionLog = [];
 
 function startQuiz(topicKey) {
   currentTopic = topicKey;
@@ -234,9 +239,65 @@ function startQuiz(topicKey) {
   });
   currentIndex = 0;
   currentScore = 0;
+  sessionLog = [];
   document.getElementById('quiz-title').textContent = tema.title;
   show('screen-quiz');
   renderQuestion();
+}
+
+function formatQuestionText(entry) {
+  const letters = ['A','B','C','D'];
+  let out = `Pregunta: ${entry.q}\n`;
+  entry.options.forEach((opt, i) => {
+    out += `${letters[i]}) ${opt}${i === entry.correct ? '  [CORRECTA]' : ''}\n`;
+  });
+  out += `Mi respuesta: ${letters[entry.userIndex]}) ${entry.options[entry.userIndex]} — ${entry.wasCorrect ? 'Correcta' : 'Incorrecta'}\n`;
+  out += `Explicación: ${entry.exp}\n`;
+  return out;
+}
+
+function copyToClipboard(text, btn) {
+  const done = () => {
+    if (!btn) return;
+    const original = btn.textContent;
+    btn.textContent = '✅ Copiado';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = original; btn.classList.remove('copied'); }, 1800);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+  } else {
+    fallbackCopy(text, done);
+  }
+}
+
+function fallbackCopy(text, done) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); } catch(e) {}
+  document.body.removeChild(ta);
+  if (done) done();
+}
+
+function copyCurrentQuestion() {
+  const entry = sessionLog[sessionLog.length - 1];
+  if (!entry) return;
+  const btn = document.getElementById('copy-q-btn');
+  copyToClipboard(formatQuestionText(entry), btn);
+}
+
+function copyAllSession() {
+  const tema = window.CPC_TEMAS[currentTopic];
+  let out = `TEST: ${tema.title}\n${'='.repeat(40)}\n\n`;
+  sessionLog.forEach((entry, i) => {
+    out += `--- Pregunta ${i + 1} ---\n` + formatQuestionText(entry) + '\n';
+  });
+  const btn = document.getElementById('copy-all-btn');
+  copyToClipboard(out, btn);
 }
 
 function renderQuestion() {
@@ -250,6 +311,7 @@ function renderQuestion() {
   document.getElementById('feedback').textContent = '';
   document.getElementById('explain').style.display = 'none';
   document.getElementById('explain').textContent = '';
+  document.getElementById('copy-q-btn').hidden = true;
   document.getElementById('next-btn').hidden = true;
 
   const optsDiv = document.getElementById('options');
@@ -290,6 +352,16 @@ function selectAnswer(i) {
   ex.style.display = 'block';
   ex.textContent = q.exp;
 
+  sessionLog.push({
+    q: q.q,
+    options: q.options,
+    correct: q.correct,
+    userIndex: i,
+    wasCorrect: i === q.correct,
+    exp: q.exp
+  });
+
+  document.getElementById('copy-q-btn').hidden = false;
   document.getElementById('next-btn').hidden = false;
 }
 
