@@ -1293,6 +1293,39 @@
             font-weight: 600;
         }
 
+        .whatsapp-qr-block {
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+            max-width: 480px;
+            margin: 2rem auto 0;
+            padding: 1.2rem 1.5rem;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        .whatsapp-qr-block img {
+            border-radius: 8px;
+            flex-shrink: 0;
+        }
+
+        .whatsapp-qr-block p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: var(--text-light);
+            line-height: 1.5;
+        }
+
+        @media (max-width: 600px) {
+            .whatsapp-qr-block {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+
         .review-btn {
             display: inline-flex;
             align-items: center;
@@ -1878,6 +1911,11 @@
                 </tr>
             </tbody>
         </table>
+
+        <div class="whatsapp-qr-block">
+            <img src="/whatsapp-qr.png" width="120" height="120" alt="Scan to chat with Albert Courier Express on WhatsApp" loading="lazy">
+            <p>On a computer? Scan with your phone to chat with us on WhatsApp.</p>
+        </div>
     </div>
 
     <div class="container" id="inquiry">
