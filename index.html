@@ -2774,5 +2774,43 @@
     })();
 </script>
 
+<script>
+    // Lightweight first-party analytics (self-hosted, no cookies, no third parties)
+    (function() {
+        try {
+            var sid = sessionStorage.getItem('acx_sid');
+            if (!sid) {
+                sid = Math.random().toString(36).slice(2) + Date.now().toString(36);
+                sessionStorage.setItem('acx_sid', sid);
+            }
+            var device = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'mobile' : 'desktop';
+            var startTime = Date.now();
+
+            function send(type, extra) {
+                var payload = Object.assign({
+                    type: type,
+                    path: location.pathname,
+                    ref: document.referrer || '',
+                    sid: sid,
+                    device: device
+                }, extra || {});
+                var blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+                navigator.sendBeacon('/api/track', blob);
+            }
+
+            send('pageview');
+
+            function sendDuration() {
+                send('duration', { dur: Date.now() - startTime });
+            }
+
+            document.addEventListener('visibilitychange', function() {
+                if (document.visibilityState === 'hidden') sendDuration();
+            });
+            window.addEventListener('pagehide', sendDuration);
+        } catch (e) {}
+    })();
+</script>
+
 </body>
 </html>

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Estadísticas — Albert Courier Express</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #001F3F;
+    color: #fff;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 2rem 1.2rem 4rem; }
+  h1 { font-size: 1.6rem; text-align: center; margin-bottom: 0.3rem; }
+  .subtitle { text-align: center; color: #a8c5e8; margin-bottom: 2rem; font-size: 0.95rem; }
+  .card {
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(0,102,255,0.3);
+    border-radius: 14px;
+    padding: 1.6rem;
+    backdrop-filter: blur(8px);
+    margin-bottom: 1.2rem;
+  }
+  input[type=password] {
+    width: 100%;
+    padding: 0.9rem 1rem;
+    font-size: 1.3rem;
+    letter-spacing: 4px;
+    text-align: center;
+    border-radius: 10px;
+    border: 2px solid #0066FF;
+    background: rgba(0,0,0,0.3);
+    color: #fff;
+    margin-bottom: 1rem;
+  }
+  button {
+    display: block;
+    width: 100%;
+    padding: 0.9rem;
+    font-size: 1rem;
+    font-weight: 700;
+    border: none;
+    border-radius: 10px;
+    background: #0066FF;
+    color: #fff;
+    cursor: pointer;
+  }
+  #err { color: #FF6B6B; text-align: center; margin-bottom: 1rem; min-height: 1.2em; }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; }
+  .stat-box { text-align: center; background: rgba(0,102,255,0.1); border-radius: 10px; padding: 1rem; }
+  .stat-num { font-size: 2rem; font-weight: 700; color: #4CD964; }
+  .stat-label { font-size: 0.8rem; color: #a8c5e8; margin-top: 0.3rem; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th, td { text-align: left; padding: 0.5rem 0.6rem; border-bottom: 1px solid rgba(255,255,255,0.1); }
+  th { color: #a8c5e8; font-weight: 600; }
+  .bar-row { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem; font-size: 0.85rem; }
+  .bar-label { width: 140px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-track { flex: 1; background: rgba(255,255,255,0.08); border-radius: 4px; height: 10px; overflow: hidden; }
+  .bar-fill { height: 100%; background: #0066FF; }
+  .bar-count { width: 30px; text-align: right; color: #a8c5e8; }
+
+  .table-wrap { overflow-x: auto; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="screen-lock">
+    <h1>🔒 Estadísticas</h1>
+    <p class="subtitle">Acceso privado</p>
+    <div class="card">
+      <input type="password" id="pin" maxlength="10" placeholder="••••" inputmode="numeric" autocomplete="off">
+      <div id="err"></div>
+      <button onclick="tryUnlock()">Entrar</button>
+    </div>
+  </div>
+
+  <div id="screen-dash" hidden>
+    <h1>📊 Estadísticas de la web</h1>
+    <p class="subtitle" id="lastUpdate"></p>
+
+    <div class="card">
+      <div class="stat-grid">
+        <div class="stat-box"><div class="stat-num" id="stat-pageviews">-</div><div class="stat-label">Páginas vistas</div></div>
+        <div class="stat-box"><div class="stat-num" id="stat-visitors">-</div><div class="stat-label">Visitantes únicos</div></div>
+        <div class="stat-box"><div class="stat-num" id="stat-duration">-</div><div class="stat-label">Tiempo medio (seg)</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">Páginas más visitadas</h3>
+      <div id="topPages"></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">De dónde vienen</h3>
+      <div id="topReferrers"></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">Dispositivo</h3>
+      <div id="devices"></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">Últimas visitas</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Fecha/Hora</th><th>Página</th><th>Origen</th><th>Dispositivo</th><th>Tiempo (s)</th></tr></thead>
+          <tbody id="recentBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <button onclick="loadStats()">🔄 Actualizar</button>
+  </div>
+
+</div>
+
+<script>
+const PIN_KEY = 'acx_stats_pin';
+
+function tryUnlock() {
+  const val = document.getElementById('pin').value.trim();
+  if (!val) return;
+  document.getElementById('err').textContent = 'Comprobando...';
+  fetch('/api/stats?key=' + encodeURIComponent(val))
+    .then(r => {
+      if (!r.ok) throw new Error('bad key');
+      return r.json();
+    })
+    .then(data => {
+      try { sessionStorage.setItem(PIN_KEY, val); } catch(e) {}
+      document.getElementById('err').textContent = '';
+      showDashboard(data);
+    })
+    .catch(() => {
+      document.getElementById('err').textContent = 'Código incorrecto';
+      document.getElementById('pin').value = '';
+    });
+}
+document.getElementById('pin').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
+
+function showDashboard(data) {
+  document.getElementById('screen-lock').hidden = true;
+  document.getElementById('screen-dash').hidden = false;
+  render(data);
+}
+
+function bars(container, entries, total) {
+  container.innerHTML = '';
+  if (!entries.length) { container.innerHTML = '<p style="color:#a8c5e8;">Sin datos todavía.</p>'; return; }
+  const max = Math.max(...entries.map(e => e[1]));
+  entries.forEach(([label, count]) => {
+    const row = document.createElement('div');
+    row.className = 'bar-row';
+    row.innerHTML = `<div class="bar-label" title="${label}">${label}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(count/max*100)}%"></div></div>
+      <div class="bar-count">${count}</div>`;
+    container.appendChild(row);
+  });
+}
+
+function render(data) {
+  document.getElementById('lastUpdate').textContent = 'Actualizado: ' + new Date().toLocaleString('es-ES');
+  document.getElementById('stat-pageviews').textContent = data.totalPageviews;
+  document.getElementById('stat-visitors').textContent = data.uniqueVisitors;
+  document.getElementById('stat-duration').textContent = data.avgDurationSec;
+
+  bars(document.getElementById('topPages'), data.topPages, data.totalPageviews);
+  bars(document.getElementById('topReferrers'), data.topReferrers, data.totalPageviews);
+  bars(document.getElementById('devices'), data.devices, data.totalPageviews);
+
+  const tbody = document.getElementById('recentBody');
+  tbody.innerHTML = '';
+  data.recent.forEach(r => {
+    const tr = document.createElement('tr');
+    const d = new Date(r.time);
+    tr.innerHTML = `<td>${d.toLocaleString('es-ES')}</td><td>${r.path}</td><td>${r.ref}</td><td>${r.device}</td><td>${r.durationSec || '-'}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function loadStats() {
+  const pin = sessionStorage.getItem(PIN_KEY);
+  if (!pin) return;
+  fetch('/api/stats?key=' + encodeURIComponent(pin))
+    .then(r => r.json())
+    .then(render);
+}
+
+(function init() {
+  let pin = null;
+  try { pin = sessionStorage.getItem(PIN_KEY); } catch(e) {}
+  if (pin) {
+    fetch('/api/stats?key=' + encodeURIComponent(pin))
+      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then(showDashboard)
+      .catch(() => { try { sessionStorage.removeItem(PIN_KEY); } catch(e) {} });
+  }
+})();
+</script>
+</body>
+</html>
