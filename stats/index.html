@@ -110,10 +110,39 @@
     </div>
 
     <div class="card">
+      <h3 style="margin-top:0;">Navegador</h3>
+      <div id="browsers"></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">Sistema operativo</h3>
+      <div id="operatingSystems"></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">Idioma</h3>
+      <div id="languages"></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">Clics de contacto</h3>
+      <div id="clicks"></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">Embudo de conversión</h3>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="stat-num" id="stat-quotestart">-</div><div class="stat-label">Empezaron cotizador</div></div>
+        <div class="stat-box"><div class="stat-num" id="stat-quotecomplete">-</div><div class="stat-label">Terminaron cotizador</div></div>
+        <div class="stat-box"><div class="stat-num" id="stat-inquiry">-</div><div class="stat-label">Mensajes enviados</div></div>
+      </div>
+    </div>
+
+    <div class="card">
       <h3 style="margin-top:0;">Últimas visitas</h3>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Fecha/Hora</th><th>Página</th><th>Origen</th><th>Dispositivo</th><th>Tiempo (s)</th></tr></thead>
+          <thead><tr><th>Fecha/Hora</th><th>Página</th><th>Origen</th><th>Dispositivo</th><th>Navegador</th><th>Tiempo (s)</th></tr></thead>
           <tbody id="recentBody"></tbody>
         </table>
       </div>
@@ -154,14 +183,17 @@ function showDashboard(data) {
   render(data);
 }
 
-function bars(container, entries, total) {
+const CLICK_LABELS = { call: '📞 Llamada', whatsapp: '💬 WhatsApp' };
+
+function bars(container, entries, total, labelMap) {
   container.innerHTML = '';
   if (!entries.length) { container.innerHTML = '<p style="color:#a8c5e8;">Sin datos todavía.</p>'; return; }
   const max = Math.max(...entries.map(e => e[1]));
   entries.forEach(([label, count]) => {
+    const displayLabel = (labelMap && labelMap[label]) || label;
     const row = document.createElement('div');
     row.className = 'bar-row';
-    row.innerHTML = `<div class="bar-label" title="${label}">${label}</div>
+    row.innerHTML = `<div class="bar-label" title="${displayLabel}">${displayLabel}</div>
       <div class="bar-track"><div class="bar-fill" style="width:${(count/max*100)}%"></div></div>
       <div class="bar-count">${count}</div>`;
     container.appendChild(row);
@@ -177,13 +209,22 @@ function render(data) {
   bars(document.getElementById('topPages'), data.topPages, data.totalPageviews);
   bars(document.getElementById('topReferrers'), data.topReferrers, data.totalPageviews);
   bars(document.getElementById('devices'), data.devices, data.totalPageviews);
+  bars(document.getElementById('browsers'), data.browsers || [], data.totalPageviews);
+  bars(document.getElementById('operatingSystems'), data.operatingSystems || [], data.totalPageviews);
+  bars(document.getElementById('languages'), data.languages || [], data.totalPageviews);
+  bars(document.getElementById('clicks'), data.clicks || [], data.totalPageviews, CLICK_LABELS);
+
+  const funnel = data.funnel || { quoteStarts: 0, quoteCompletes: 0, inquiryCompletes: 0 };
+  document.getElementById('stat-quotestart').textContent = funnel.quoteStarts;
+  document.getElementById('stat-quotecomplete').textContent = funnel.quoteCompletes;
+  document.getElementById('stat-inquiry').textContent = funnel.inquiryCompletes;
 
   const tbody = document.getElementById('recentBody');
   tbody.innerHTML = '';
   data.recent.forEach(r => {
     const tr = document.createElement('tr');
     const d = new Date(r.time);
-    tr.innerHTML = `<td>${d.toLocaleString('es-ES')}</td><td>${r.path}</td><td>${r.ref}</td><td>${r.device}</td><td>${r.durationSec || '-'}</td>`;
+    tr.innerHTML = `<td>${d.toLocaleString('es-ES')}</td><td>${r.path}</td><td>${r.ref}</td><td>${r.device}</td><td>${r.browser || '-'}</td><td>${r.durationSec || '-'}</td>`;
     tbody.appendChild(tr);
   });
 }

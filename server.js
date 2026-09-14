@@ -91,20 +91,42 @@ function isBot(ua) {
   return /bot|crawl|spider|slurp|facebookexternalhit|whatsapp|preview|monitor|uptime|curl|wget|python-requests|headless/i.test(ua);
 }
 
+function parseUA(ua) {
+  ua = ua || '';
+  let browser = 'Other';
+  if (/Edg\//.test(ua)) browser = 'Edge';
+  else if (/OPR\//.test(ua) || /Opera/.test(ua)) browser = 'Opera';
+  else if (/Chrome\//.test(ua)) browser = 'Chrome';
+  else if (/Firefox\//.test(ua)) browser = 'Firefox';
+  else if (/Safari\//.test(ua) && /Version\//.test(ua)) browser = 'Safari';
+
+  let os = 'Other';
+  if (/Windows/.test(ua)) os = 'Windows';
+  else if (/Android/.test(ua)) os = 'Android';
+  else if (/iPhone|iPad|iPod/.test(ua)) os = 'iOS';
+  else if (/Mac OS X/.test(ua)) os = 'macOS';
+  else if (/Linux/.test(ua)) os = 'Linux';
+
+  return { browser, os };
+}
+
 function buildStats() {
   const events = loadEvents();
-  const sessions = {}; // sid -> { path, ref, ua, firstSeen, lastSeen, maxDur, device }
+  const sessions = {}; // sid -> { path, ref, firstSeen, lastSeen, maxDur, device, browser, os, lang }
 
   events.forEach((e) => {
     if (!e || !e.sid) return;
+    if (e.type !== 'pageview' && e.type !== 'duration') return;
     const key = e.sid + '|' + (e.path || '/');
     if (!sessions[key]) {
       sessions[key] = {
         sid: e.sid,
         path: e.path || '/',
         ref: e.ref || '(direct)',
-        ua: e.ua || '',
         device: e.device || 'unknown',
+        browser: e.browser || 'Other',
+        os: e.os || 'Other',
+        lang: e.lang || 'unknown',
         firstSeen: e.ts,
         lastSeen: e.ts,
         maxDur: 0
@@ -116,6 +138,9 @@ function buildStats() {
     if (typeof e.dur === 'number' && e.dur > s.maxDur) s.maxDur = e.dur;
     if (e.ref) s.ref = e.ref;
     if (e.device) s.device = e.device;
+    if (e.browser) s.browser = e.browser;
+    if (e.os) s.os = e.os;
+    if (e.lang) s.lang = e.lang;
   });
 
   const rows = Object.values(sessions).sort((a, b) => b.firstSeen - a.firstSeen);
@@ -123,6 +148,9 @@ function buildStats() {
   const pageCounts = {};
   const refCounts = {};
   const deviceCounts = {};
+  const browserCounts = {};
+  const osCounts = {};
+  const langCounts = {};
   const uniqueSids = new Set();
   let totalDur = 0;
   let durCount = 0;
@@ -134,8 +162,31 @@ function buildStats() {
     })();
     refCounts[refLabel] = (refCounts[refLabel] || 0) + 1;
     deviceCounts[r.device] = (deviceCounts[r.device] || 0) + 1;
+    browserCounts[r.browser] = (browserCounts[r.browser] || 0) + 1;
+    osCounts[r.os] = (osCounts[r.os] || 0) + 1;
+    const langLabel = (r.lang || 'unknown').split('-')[0] || 'unknown';
+    langCounts[langLabel] = (langCounts[langLabel] || 0) + 1;
     uniqueSids.add(r.sid);
     if (r.maxDur > 0) { totalDur += r.maxDur; durCount++; }
+  });
+
+  // Raw action counts: contact clicks and quote/inquiry funnel (not tied to the page-session table above)
+  const clickCounts = {};
+  let quoteStarts = 0;
+  let quoteCompletes = 0;
+  let inquiryCompletes = 0;
+
+  events.forEach((e) => {
+    if (!e) return;
+    if (e.type === 'click' && e.action) {
+      clickCounts[e.action] = (clickCounts[e.action] || 0) + 1;
+    } else if (e.type === 'quote_start') {
+      quoteStarts++;
+    } else if (e.type === 'quote_complete') {
+      quoteCompletes++;
+    } else if (e.type === 'inquiry_complete') {
+      inquiryCompletes++;
+    }
   });
 
   const topN = (obj, n) => Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, n);
@@ -147,10 +198,17 @@ function buildStats() {
     topPages: topN(pageCounts, 10),
     topReferrers: topN(refCounts, 10),
     devices: topN(deviceCounts, 5),
+    browsers: topN(browserCounts, 6),
+    operatingSystems: topN(osCounts, 6),
+    languages: topN(langCounts, 6),
+    clicks: topN(clickCounts, 10),
+    funnel: { quoteStarts, quoteCompletes, inquiryCompletes },
     recent: rows.slice(0, 100).map((r) => ({
       path: r.path,
       ref: r.ref,
       device: r.device,
+      browser: r.browser,
+      os: r.os,
       time: new Date(r.firstSeen).toISOString(),
       durationSec: Math.round(r.maxDur / 1000)
     }))
@@ -213,14 +271,21 @@ const server = http.createServer(async (req, res) => {
         res.end();
         return;
       }
+      const { browser, os } = parseUA(ua);
+      const validTypes = ['pageview', 'duration', 'click', 'quote_start', 'quote_complete', 'inquiry_complete'];
+      const type = validTypes.includes(data.type) ? data.type : 'pageview';
       appendEvent({
         ts: Date.now(),
-        type: data.type || 'pageview',
+        type,
         path: typeof data.path === 'string' ? data.path.slice(0, 200) : '/',
         ref: typeof data.ref === 'string' ? data.ref.slice(0, 300) : '',
         sid: typeof data.sid === 'string' ? data.sid.slice(0, 60) : 'unknown',
         dur: typeof data.dur === 'number' ? Math.min(data.dur, 3 * 60 * 60 * 1000) : undefined,
         device: typeof data.device === 'string' ? data.device.slice(0, 20) : 'unknown',
+        lang: typeof data.lang === 'string' ? data.lang.slice(0, 10) : '',
+        action: typeof data.action === 'string' ? data.action.slice(0, 30) : undefined,
+        browser,
+        os,
         ip
       });
       res.writeHead(204);

@@ -2098,6 +2098,7 @@
     nextBtn.addEventListener('click', (e) => {
         e.preventDefault();
         if (validateStep(currentStep)) {
+            if (currentStep === 1 && window.acxTrack) window.acxTrack('quote_start');
             if (currentStep < totalSteps) {
                 currentStep++;
                 updateFormStep();
@@ -2160,6 +2161,7 @@
             const result = await res.json();
 
             if (result.success) {
+                if (window.acxTrack) window.acxTrack('quote_complete');
                 formStatus.textContent = '✅ Quote request sent. We\'ll contact you within 1 hour at ' + email + '.';
                 formStatus.className = 'form-status success';
                 quoteForm.reset();
@@ -2227,6 +2229,7 @@
                 const result = await res.json();
 
                 if (result.success) {
+                    if (window.acxTrack) window.acxTrack('inquiry_complete');
                     showToast('✅ Message transmitted successfully. Our 24/7 dispatch team will contact you shortly.');
                     statusEl.textContent = '✅ Message sent. We\'ll be in touch shortly.';
                     statusEl.className = 'form-status success';
@@ -2792,11 +2795,15 @@
                     path: location.pathname,
                     ref: document.referrer || '',
                     sid: sid,
-                    device: device
+                    device: device,
+                    lang: navigator.language || ''
                 }, extra || {});
                 var blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
                 navigator.sendBeacon('/api/track', blob);
             }
+
+            // Exposed so other scripts (quote calculator, inquiry form) can log funnel steps
+            window.acxTrack = send;
 
             send('pageview');
 
@@ -2808,6 +2815,15 @@
                 if (document.visibilityState === 'hidden') sendDuration();
             });
             window.addEventListener('pagehide', sendDuration);
+
+            // Track clicks on call / WhatsApp links anywhere on the page
+            document.addEventListener('click', function(ev) {
+                var a = ev.target.closest && ev.target.closest('a');
+                if (!a) return;
+                var href = a.getAttribute('href') || '';
+                if (href.indexOf('tel:') === 0) send('click', { action: 'call' });
+                else if (href.indexOf('wa.me') !== -1) send('click', { action: 'whatsapp' });
+            });
         } catch (e) {}
     })();
 </script>
