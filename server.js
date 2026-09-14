@@ -244,35 +244,6 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (req.method === 'GET' && url.startsWith('/api/debug')) {
-    const key = new URL(url, 'http://x').searchParams.get('key');
-    if (key !== STATS_KEY) {
-      res.writeHead(401);
-      res.end();
-      return;
-    }
-    let fileInfo = null;
-    let rawTail = '';
-    try {
-      const st = fs.statSync(EVENTS_FILE);
-      fileInfo = { size: st.size, mtime: st.mtime };
-      const raw = fs.readFileSync(EVENTS_FILE, 'utf8');
-      rawTail = raw.slice(-1500);
-    } catch (e) {
-      fileInfo = { error: String(e) };
-    }
-    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-cache' });
-    res.end(JSON.stringify({
-      dataDir: DATA_DIR,
-      eventsFile: EVENTS_FILE,
-      cwd: process.cwd(),
-      dirname: __dirname,
-      fileInfo,
-      rawTail
-    }, null, 2));
-    return;
-  }
-
   serveStatic(req, res, url);
 });
 
