@@ -1437,11 +1437,20 @@
             text-decoration: none;
             box-shadow: 0 4px 12px rgba(37, 211, 102, 0.4);
             z-index: 999;
-            transition: all 0.3s ease;
+            transition: opacity 0.8s ease, transform 0.8s ease, background-color 0.3s ease, box-shadow 0.3s ease;
             font-size: 1.5rem;
             color: var(--white);
             line-height: 1;
             gap: 2px;
+            opacity: 0;
+            transform: scale(0.7);
+            pointer-events: none;
+        }
+
+        .whatsapp-btn.visible {
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
         }
 
         .whatsapp-btn::before {
@@ -1961,6 +1970,12 @@
 </footer>
 
 <script>
+    // Show WhatsApp floating button after a short delay
+    setTimeout(() => {
+        const waBtn = document.querySelector('.whatsapp-btn');
+        if (waBtn) waBtn.classList.add('visible');
+    }, 5000);
+
     // Mobile Menu Toggle
     const menuToggle = document.getElementById('menuToggle');
     const nav = document.querySelector('nav');
