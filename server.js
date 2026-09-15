@@ -68,10 +68,31 @@ function readBody(req, maxBytes) {
   });
 }
 
+// buildStats() parses the whole log on every dashboard load, so the log is
+// capped. At this site's volume the cap holds years of history.
+const MAX_EVENTS = 50000;
+let appendsSinceTrimCheck = 0;
+
+function trimEvents() {
+  try {
+    const lines = fs.readFileSync(EVENTS_FILE, 'utf8').split('\n').filter(Boolean);
+    if (lines.length > MAX_EVENTS) {
+      fs.writeFileSync(EVENTS_FILE, lines.slice(-MAX_EVENTS).join('\n') + '\n');
+      console.log('Trimmed analytics log to the last ' + MAX_EVENTS + ' events');
+    }
+  } catch (e) {
+    console.error('Failed to trim events file:', e);
+  }
+}
+
 function appendEvent(evt) {
   fs.appendFile(EVENTS_FILE, JSON.stringify(evt) + '\n', (err) => {
     if (err) console.error('Failed to write event:', err);
   });
+  if (++appendsSinceTrimCheck >= 1000) {
+    appendsSinceTrimCheck = 0;
+    trimEvents();
+  }
 }
 
 function loadEvents() {
@@ -222,20 +243,62 @@ const SECURITY_HEADERS = {
   'X-XSS-Protection': '1; mode=block'
 };
 
+// Only these extensions are ever served to the public. Anything else (.js at
+// the root, .md, .jsonl, .json...) is invisible, so source and data files
+// cannot be downloaded even if they sit next to the site.
+const PUBLIC_EXTENSIONS = new Set(['.html', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.webp', '.woff', '.woff2', '.txt', '.xml']);
+
+// Paths that hold source, docs or collected data — never public.
+const BLOCKED_PREFIXES = ['data', 'CAMBIOS', 'CPC-tests', 'CPC course', 'node_modules', '.git'];
+
+function isPublicPath(relPath) {
+  const segments = relPath.split(/[\\/]+/).filter(Boolean);
+  if (segments.some((s) => s.startsWith('.'))) return false;
+  if (BLOCKED_PREFIXES.some((p) => segments[0] === p)) return false;
+
+  const ext = path.extname(relPath).toLowerCase();
+  // The quiz app ships its question bank as JS; that is the only public script.
+  if (ext === '.js') return segments[0] === 'cpc';
+  return PUBLIC_EXTENSIONS.has(ext);
+}
+
 function serveStatic(req, res, urlPath) {
-  let filePath = decodeURIComponent(urlPath.split('?')[0]);
+  let filePath;
+  try {
+    filePath = decodeURIComponent(urlPath.split('?')[0]);
+  } catch (e) {
+    res.writeHead(400);
+    res.end('Bad request');
+    return;
+  }
+  if (filePath.endsWith('/')) filePath += 'index.html';
   if (filePath === '/') filePath = '/index.html';
   let fullPath = path.join(ROOT, filePath);
 
-  if (!fullPath.startsWith(ROOT)) {
+  // ROOT + separator, so a sibling directory sharing the prefix cannot escape.
+  if (fullPath !== ROOT && !fullPath.startsWith(ROOT + path.sep)) {
     res.writeHead(403);
     res.end('Forbidden');
+    return;
+  }
+
+  const relInitial = path.relative(ROOT, fullPath);
+  // A bare directory request is resolved to its index.html below, so allow it through here.
+  if (path.extname(relInitial) && !isPublicPath(relInitial)) {
+    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('Not found');
     return;
   }
 
   fs.stat(fullPath, (err, stats) => {
     if (!err && stats.isDirectory()) {
       fullPath = path.join(fullPath, 'index.html');
+    }
+    // Re-check after a directory was resolved to its index.html.
+    if (!isPublicPath(path.relative(ROOT, fullPath))) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('Not found');
+      return;
     }
     fs.readFile(fullPath, (err2, data) => {
       if (err2) {

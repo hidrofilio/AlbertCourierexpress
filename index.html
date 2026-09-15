@@ -2827,8 +2827,14 @@
 
             send('pageview');
 
+            // Phones fire visibilitychange every time the user switches app, so
+            // only report once per 30s of new time to keep the log small.
+            var lastReported = 0;
             function sendDuration() {
-                send('duration', { dur: Date.now() - startTime });
+                var dur = Date.now() - startTime;
+                if (dur - lastReported < 30000) return;
+                lastReported = dur;
+                send('duration', { dur: dur });
             }
 
             document.addEventListener('visibilitychange', function() {
