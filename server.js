@@ -218,23 +218,43 @@ function buildStats() {
   });
 
   // Bucket by Irish local time so the charts match the hours Albert works.
-  function dublinParts(ts) {
+  // Uses formatToParts: pulling the hour out of a formatted string with a
+  // regex grabbed the "20" from the year instead.
+  const DUBLIN_FMT = (() => {
     try {
-      const d = new Date(ts).toLocaleString('en-CA', {
+      return new Intl.DateTimeFormat('en-GB', {
         timeZone: 'Europe/Dublin',
         year: 'numeric', month: '2-digit', day: '2-digit',
-        hour: '2-digit', hour12: false, weekday: 'short'
+        hour: '2-digit', hour12: false, weekday: 'long'
       });
-      const day = d.match(/\d{4}-\d{2}-\d{2}/);
-      const hour = d.match(/(\d{2}):/) || d.match(/,\s*(\d{2})/);
-      return {
-        day: day ? day[0] : new Date(ts).toISOString().slice(0, 10),
-        hour: hour ? parseInt(hour[1], 10) : new Date(ts).getUTCHours()
-      };
     } catch (e) {
-      const d = new Date(ts);
-      return { day: d.toISOString().slice(0, 10), hour: d.getUTCHours() };
+      return null;
     }
+  })();
+
+  const WEEKDAY_ES = {
+    Monday: 'Lunes', Tuesday: 'Martes', Wednesday: 'Miércoles', Thursday: 'Jueves',
+    Friday: 'Viernes', Saturday: 'Sábado', Sunday: 'Domingo'
+  };
+
+  function dublinParts(ts) {
+    const fallback = new Date(ts);
+    if (!DUBLIN_FMT) {
+      return {
+        day: fallback.toISOString().slice(0, 10),
+        hour: fallback.getUTCHours(),
+        weekday: WEEKDAYS[fallback.getUTCDay()]
+      };
+    }
+    const parts = DUBLIN_FMT.formatToParts(fallback);
+    const get = (type) => (parts.find((p) => p.type === type) || {}).value;
+    const hour = parseInt(get('hour'), 10);
+    return {
+      day: get('year') + '-' + get('month') + '-' + get('day'),
+      // hour12:false reports midnight as 24 in some engines.
+      hour: Number.isNaN(hour) ? fallback.getUTCHours() : (hour === 24 ? 0 : hour),
+      weekday: WEEKDAY_ES[get('weekday')] || WEEKDAYS[fallback.getUTCDay()]
+    };
   }
 
   const perDay = {};
@@ -243,11 +263,10 @@ function buildStats() {
   const WEEKDAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
   events.forEach((e) => {
     if (!e || e.type !== 'pageview') return;
-    const { day, hour } = dublinParts(e.ts);
+    const { day, hour, weekday } = dublinParts(e.ts);
     perDay[day] = (perDay[day] || 0) + 1;
     perHour[hour] = (perHour[hour] || 0) + 1;
-    const wd = WEEKDAYS[new Date(e.ts).getDay()];
-    perWeekday[wd] = (perWeekday[wd] || 0) + 1;
+    perWeekday[weekday] = (perWeekday[weekday] || 0) + 1;
   });
 
   // Last 14 days, including days with no traffic so gaps are visible.
