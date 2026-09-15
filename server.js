@@ -217,6 +217,56 @@ function buildStats() {
     }
   });
 
+  // Bucket by Irish local time so the charts match the hours Albert works.
+  function dublinParts(ts) {
+    try {
+      const d = new Date(ts).toLocaleString('en-CA', {
+        timeZone: 'Europe/Dublin',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', hour12: false, weekday: 'short'
+      });
+      const day = d.match(/\d{4}-\d{2}-\d{2}/);
+      const hour = d.match(/(\d{2}):/) || d.match(/,\s*(\d{2})/);
+      return {
+        day: day ? day[0] : new Date(ts).toISOString().slice(0, 10),
+        hour: hour ? parseInt(hour[1], 10) : new Date(ts).getUTCHours()
+      };
+    } catch (e) {
+      const d = new Date(ts);
+      return { day: d.toISOString().slice(0, 10), hour: d.getUTCHours() };
+    }
+  }
+
+  const perDay = {};
+  const perHour = {};
+  const perWeekday = {};
+  const WEEKDAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+  events.forEach((e) => {
+    if (!e || e.type !== 'pageview') return;
+    const { day, hour } = dublinParts(e.ts);
+    perDay[day] = (perDay[day] || 0) + 1;
+    perHour[hour] = (perHour[hour] || 0) + 1;
+    const wd = WEEKDAYS[new Date(e.ts).getDay()];
+    perWeekday[wd] = (perWeekday[wd] || 0) + 1;
+  });
+
+  // Last 14 days, including days with no traffic so gaps are visible.
+  const visitsPerDay = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86400000);
+    const key = dublinParts(d.getTime()).day;
+    visitsPerDay.push([key, perDay[key] || 0]);
+  }
+
+  const hourly = [];
+  for (let h = 0; h < 24; h++) hourly.push([String(h).padStart(2, '0') + ':00', perHour[h] || 0]);
+
+  // A visit under 10s means they landed and left without reading anything.
+  const shortVisits = rows.filter((r) => r.maxDur > 0 && r.maxDur < 10000).length;
+  const measuredVisits = rows.filter((r) => r.maxDur > 0).length;
+
+  const pct = (part, whole) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
+
   const topN = (obj, n) => Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, n);
 
   return {
@@ -231,6 +281,15 @@ function buildStats() {
     languages: topN(langCounts, 6),
     clicks: topN(clickCounts, 10),
     funnel: { quoteStarts, quoteCompletes, inquiryCompletes },
+    visitsPerDay,
+    hourly,
+    weekdays: WEEKDAYS.slice(1).concat(WEEKDAYS[0]).map((d) => [d, perWeekday[d] || 0]),
+    rates: {
+      bounce: pct(shortVisits, measuredVisits),
+      startedQuote: pct(quoteStarts, rows.length),
+      finishedQuote: pct(quoteCompletes, quoteStarts),
+      contacted: pct(quoteCompletes + inquiryCompletes + (clickCounts.call || 0) + (clickCounts.whatsapp || 0), rows.length)
+    },
     recent: rows.slice(0, 100).map((r) => ({
       path: r.path,
       ref: r.ref,

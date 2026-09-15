@@ -66,6 +66,21 @@
   .bar-count { width: 30px; text-align: right; color: #a8c5e8; }
 
   .table-wrap { overflow-x: auto; }
+
+  .vbars { display: flex; align-items: flex-end; gap: 3px; height: 130px; margin-top: 0.6rem; }
+  .vbar { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; min-width: 0; }
+  .vbar-fill { width: 100%; background: #0066FF; border-radius: 3px 3px 0 0; min-height: 2px; }
+  .vbar-fill.zero { background: rgba(255,255,255,0.12); }
+  .vbar-label { font-size: 0.6rem; color: #a8c5e8; margin-top: 0.35rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .vbar-value { font-size: 0.65rem; color: #4CD964; margin-bottom: 0.2rem; font-weight: 700; }
+
+  details.panel { background: rgba(0,0,0,0.25); border: 1px solid rgba(0,102,255,0.3); border-radius: 14px; padding: 0 1.6rem; margin-bottom: 1.2rem; }
+  details.panel[open] { padding-bottom: 1.6rem; }
+  details.panel > summary { cursor: pointer; padding: 1.3rem 0; font-size: 1.05rem; font-weight: 700; list-style: none; }
+  details.panel > summary::-webkit-details-marker { display: none; }
+  details.panel > summary::after { content: ' ▾'; color: #7fa8d9; }
+  details.panel[open] > summary::after { content: ' ▴'; }
+
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -95,6 +110,31 @@
     </div>
 
     <div class="card">
+      <h3 style="margin-top:0;">Tasas clave</h3>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="stat-num" id="rate-contacted">-</div><div class="stat-label">Visitas que contactan</div></div>
+        <div class="stat-box"><div class="stat-num" id="rate-started">-</div><div class="stat-label">Empiezan el cotizador</div></div>
+        <div class="stat-box"><div class="stat-num" id="rate-finished">-</div><div class="stat-label">Lo terminan</div></div>
+        <div class="stat-box"><div class="stat-num" id="rate-bounce">-</div><div class="stat-label">Se van en &lt;10 seg</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">Visitas por día (últimos 14)</h3>
+      <div class="vbars" id="chartDays"></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">A qué hora entran <span style="font-weight:400;font-size:0.8rem;color:#a8c5e8;">(hora de Irlanda)</span></h3>
+      <div class="vbars" id="chartHours"></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">Por día de la semana</h3>
+      <div class="vbars" id="chartWeekdays"></div>
+    </div>
+
+    <div class="card">
       <h3 style="margin-top:0;">Páginas más visitadas</h3>
       <div id="topPages"></div>
     </div>
@@ -109,20 +149,15 @@
       <div id="devices"></div>
     </div>
 
-    <div class="card">
-      <h3 style="margin-top:0;">Navegador</h3>
+    <details class="panel">
+      <summary>Detalles técnicos (navegador, sistema, idioma)</summary>
+      <h4 style="margin:0.5rem 0;">Navegador</h4>
       <div id="browsers"></div>
-    </div>
-
-    <div class="card">
-      <h3 style="margin-top:0;">Sistema operativo</h3>
+      <h4 style="margin:1.2rem 0 0.5rem;">Sistema operativo</h4>
       <div id="operatingSystems"></div>
-    </div>
-
-    <div class="card">
-      <h3 style="margin-top:0;">Idioma</h3>
+      <h4 style="margin:1.2rem 0 0.5rem;">Idioma</h4>
       <div id="languages"></div>
-    </div>
+    </details>
 
     <div class="card">
       <h3 style="margin-top:0;">Clics de contacto</h3>
@@ -138,15 +173,15 @@
       </div>
     </div>
 
-    <div class="card">
-      <h3 style="margin-top:0;">Últimas visitas</h3>
+    <details class="panel">
+      <summary>Últimas visitas <span id="recentCount" style="font-weight:400;font-size:0.85rem;color:#a8c5e8;"></span></summary>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Fecha/Hora</th><th>Página</th><th>Origen</th><th>Dispositivo</th><th>Navegador</th><th>Tiempo (s)</th></tr></thead>
           <tbody id="recentBody"></tbody>
         </table>
       </div>
-    </div>
+    </details>
 
     <button onclick="loadStats()">🔄 Actualizar</button>
   </div>
@@ -200,6 +235,21 @@ function bars(container, entries, total, labelMap) {
   });
 }
 
+function vbars(container, entries, formatLabel) {
+  container.innerHTML = '';
+  if (!entries || !entries.length) { container.innerHTML = '<p style="color:#a8c5e8;">Sin datos todavía.</p>'; return; }
+  const max = Math.max(...entries.map(e => e[1]), 1);
+  entries.forEach(([label, count]) => {
+    const col = document.createElement('div');
+    col.className = 'vbar';
+    const shown = formatLabel ? formatLabel(label) : label;
+    col.innerHTML = `<div class="vbar-value">${count || ''}</div>
+      <div class="vbar-fill${count ? '' : ' zero'}" style="height:${count ? Math.max(4, count/max*100) : 2}%"></div>
+      <div class="vbar-label" title="${label}">${shown}</div>`;
+    container.appendChild(col);
+  });
+}
+
 function render(data) {
   document.getElementById('lastUpdate').textContent = 'Actualizado: ' + new Date().toLocaleString('es-ES');
   document.getElementById('stat-pageviews').textContent = data.totalPageviews;
@@ -218,6 +268,18 @@ function render(data) {
   document.getElementById('stat-quotestart').textContent = funnel.quoteStarts;
   document.getElementById('stat-quotecomplete').textContent = funnel.quoteCompletes;
   document.getElementById('stat-inquiry').textContent = funnel.inquiryCompletes;
+
+  const rates = data.rates || {};
+  document.getElementById('rate-contacted').textContent = (rates.contacted ?? 0) + '%';
+  document.getElementById('rate-started').textContent = (rates.startedQuote ?? 0) + '%';
+  document.getElementById('rate-finished').textContent = (rates.finishedQuote ?? 0) + '%';
+  document.getElementById('rate-bounce').textContent = (rates.bounce ?? 0) + '%';
+
+  vbars(document.getElementById('chartDays'), data.visitsPerDay, d => d.slice(8) + '/' + d.slice(5, 7));
+  vbars(document.getElementById('chartHours'), data.hourly, h => h.slice(0, 2));
+  vbars(document.getElementById('chartWeekdays'), data.weekdays, d => d.slice(0, 3));
+
+  document.getElementById('recentCount').textContent = '(' + (data.recent || []).length + ')';
 
   const tbody = document.getElementById('recentBody');
   tbody.innerHTML = '';
