@@ -177,7 +177,6 @@ function buildStats() {
   let durCount = 0;
 
   rows.forEach((r) => {
-    pageCounts[r.path] = (pageCounts[r.path] || 0) + 1;
     const refLabel = r.ref === '(direct)' || !r.ref ? '(direct)' : (() => {
       try { return new URL(r.ref).hostname; } catch (e) { return r.ref.slice(0, 40); }
     })();
@@ -191,14 +190,22 @@ function buildStats() {
     if (r.maxDur > 0) { totalDur += r.maxDur; durCount++; }
   });
 
-  // Raw action counts: contact clicks and quote/inquiry funnel (not tied to the page-session table above)
+  // Counted from the raw events, so a visitor reloading the page counts each
+  // time. The session table above collapses those into one row, which on a
+  // one-page site made pageviews and unique visitors read as the same number.
   const clickCounts = {};
+  let pageviewCount = 0;
   let quoteStarts = 0;
   let quoteCompletes = 0;
   let inquiryCompletes = 0;
 
   events.forEach((e) => {
     if (!e) return;
+    if (e.type === 'pageview') {
+      pageviewCount++;
+      const p = e.path || '/';
+      pageCounts[p] = (pageCounts[p] || 0) + 1;
+    }
     if (e.type === 'click' && e.action) {
       clickCounts[e.action] = (clickCounts[e.action] || 0) + 1;
     } else if (e.type === 'quote_start') {
@@ -213,7 +220,7 @@ function buildStats() {
   const topN = (obj, n) => Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, n);
 
   return {
-    totalPageviews: rows.length,
+    totalPageviews: pageviewCount,
     uniqueVisitors: uniqueSids.size,
     avgDurationSec: durCount ? Math.round((totalDur / durCount) / 1000) : 0,
     topPages: topN(pageCounts, 10),
