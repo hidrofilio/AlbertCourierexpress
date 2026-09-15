@@ -2741,13 +2741,6 @@
         }, 12000);
     })();
 
-    // Hero Video - Pause at end
-    const heroVideo = document.getElementById('heroVideo');
-    if (heroVideo) {
-        heroVideo.addEventListener('ended', () => {
-            heroVideo.pause();
-        });
-    }
 
     // Lazy load images for performance
     if ('IntersectionObserver' in window) {
