@@ -1198,6 +1198,16 @@
             transition: border-color 0.3s;
         }
 
+        /* iOS Safari renders date/time with a native control whose intrinsic
+           width ignores width:100%, pushing them outside the form card. */
+        .form-group input[type="date"],
+        .form-group input[type="time"] {
+            -webkit-appearance: none;
+            appearance: none;
+            max-width: 100%;
+            min-height: 3rem;
+        }
+
         .form-group input:focus,
         .form-group select:focus,
         .form-group textarea:focus {
