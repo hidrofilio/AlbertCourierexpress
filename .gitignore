@@ -1,2 +1,8 @@
 node_modules/
 data/
+
+# Material privado — el repositorio de GitHub es PÚBLICO.
+# Nada de esto debe subirse: contiene información comercial y personal.
+NEGOCIO/
+CPC-tests/
+CPC course/
