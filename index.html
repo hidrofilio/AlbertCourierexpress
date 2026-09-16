@@ -2641,14 +2641,20 @@
         // Which corridors people price up, including those who never submit.
         // Once per unique combination so toggling selections doesn't inflate it.
         const loggedRoutes = new Set();
+        let routeTimer;
         function logRoute(originZone, destinationZone, vehicle) {
-            const combo = originZone + '>' + destinationZone + '|' + vehicle;
-            if (loggedRoutes.has(combo) || !window.acxTrack) return;
-            loggedRoutes.add(combo);
-            window.acxTrack('quote_route', {
-                route: originZone + '>' + destinationZone,
-                vehicle: vehicle
-            });
+            // Wait, so combinations merely passed through while changing a
+            // dropdown are not recorded as routes anyone actually looked at.
+            clearTimeout(routeTimer);
+            routeTimer = setTimeout(() => {
+                const combo = originZone + '>' + destinationZone + '|' + vehicle;
+                if (loggedRoutes.has(combo) || !window.acxTrack) return;
+                loggedRoutes.add(combo);
+                window.acxTrack('quote_route', {
+                    route: originZone + '>' + destinationZone,
+                    vehicle: vehicle
+                });
+            }, 1500);
         }
 
         function renderPrice() {
