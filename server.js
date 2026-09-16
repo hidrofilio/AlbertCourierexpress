@@ -6,6 +6,9 @@ const path = require('path');
 const ROOT = __dirname;
 const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
 const EVENTS_FILE = path.join(DATA_DIR, 'events.jsonl');
+// Inbox for notes written from the phone. Claude files them into the private
+// NEGOCIO repo when working; this is the drop point, not the archive.
+const NOTES_FILE = path.join(DATA_DIR, 'notes.jsonl');
 const STATS_KEY = process.env.STATS_KEY || '8214';
 const PORT = process.env.PORT || 3000;
 
@@ -484,6 +487,61 @@ const server = http.createServer(async (req, res) => {
     const stats = buildStats();
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-cache' });
     res.end(JSON.stringify(stats));
+    return;
+  }
+
+  if (url.startsWith('/api/notes')) {
+    const key = new URL(url, 'http://x').searchParams.get('key');
+    if (key !== STATS_KEY) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'unauthorized' }));
+      return;
+    }
+
+    if (req.method === 'POST') {
+      try {
+        const body = await readBody(req, 20000);
+        const data = JSON.parse(body);
+        const text = typeof data.text === 'string' ? data.text.trim().slice(0, 10000) : '';
+        if (!text) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'empty' }));
+          return;
+        }
+        const note = {
+          ts: Date.now(),
+          topic: typeof data.topic === 'string' ? data.topic.slice(0, 40) : 'general',
+          text
+        };
+        fs.appendFileSync(NOTES_FILE, JSON.stringify(note) + '\n');
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ ok: true }));
+      } catch (e) {
+        console.error('Failed to save note:', e);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'save failed' }));
+      }
+      return;
+    }
+
+    if (req.method === 'GET') {
+      let notes = [];
+      try {
+        if (fs.existsSync(NOTES_FILE)) {
+          notes = fs.readFileSync(NOTES_FILE, 'utf8').split('\n').filter(Boolean)
+            .map((l) => { try { return JSON.parse(l); } catch (e) { return null; } })
+            .filter(Boolean);
+        }
+      } catch (e) {
+        console.error('Failed to read notes:', e);
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-cache' });
+      res.end(JSON.stringify({ notes: notes.reverse() }));
+      return;
+    }
+
+    res.writeHead(405);
+    res.end();
     return;
   }
 

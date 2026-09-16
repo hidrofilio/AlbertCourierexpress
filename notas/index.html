@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Notas">
+<title>Notas — Albert Courier Express</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #001F3F;
+    color: #fff;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 1.5rem 1.1rem 4rem; }
+  h1 { font-size: 1.4rem; text-align: center; margin-bottom: 0.2rem; }
+  .subtitle { text-align: center; color: #a8c5e8; margin-bottom: 1.5rem; font-size: 0.9rem; }
+  .card {
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(0,102,255,0.3);
+    border-radius: 14px;
+    padding: 1.3rem;
+    margin-bottom: 1rem;
+  }
+  input[type=password], select, textarea {
+    width: 100%;
+    padding: 0.9rem 1rem;
+    font-size: 1rem;
+    border-radius: 10px;
+    border: 2px solid #0066FF;
+    background: rgba(0,0,0,0.3);
+    color: #fff;
+    font-family: inherit;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  input[type=password] { font-size: 1.3rem; letter-spacing: 4px; text-align: center; margin-bottom: 1rem; }
+  textarea { min-height: 170px; resize: vertical; line-height: 1.5; }
+  label { display: block; font-size: 0.85rem; color: #a8c5e8; margin: 0 0 0.4rem; }
+  select { margin-bottom: 1rem; }
+  button {
+    display: block; width: 100%; padding: 1rem; font-size: 1rem; font-weight: 700;
+    border: none; border-radius: 10px; background: #0066FF; color: #fff;
+    cursor: pointer; margin-top: 1rem;
+  }
+  button.saved { background: #1e7a3a; }
+  button:disabled { opacity: 0.6; }
+  #err { color: #FF6B6B; text-align: center; min-height: 1.2em; margin-bottom: 0.6rem; }
+
+  .note { border-left: 3px solid #0066FF; padding: 0.7rem 0.9rem; margin-bottom: 0.8rem; background: rgba(0,102,255,0.08); border-radius: 0 8px 8px 0; }
+  .note-meta { font-size: 0.75rem; color: #7fa8d9; margin-bottom: 0.3rem; }
+  .note-text { font-size: 0.92rem; line-height: 1.5; white-space: pre-wrap; }
+  .topic-tag { background: rgba(0,102,255,0.3); padding: 0.1rem 0.5rem; border-radius: 20px; font-weight: 600; }
+
+  details.panel { background: rgba(0,0,0,0.25); border: 1px solid rgba(0,102,255,0.3); border-radius: 14px; padding: 0 1.3rem; }
+  details.panel[open] { padding-bottom: 1.3rem; }
+  details.panel > summary { cursor: pointer; padding: 1.1rem 0; font-weight: 700; list-style: none; }
+  details.panel > summary::-webkit-details-marker { display: none; }
+  details.panel > summary::after { content: ' ▾'; color: #7fa8d9; }
+  details.panel[open] > summary::after { content: ' ▴'; }
+
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="screen-lock">
+    <h1>🔒 Notas</h1>
+    <p class="subtitle">Acceso privado</p>
+    <div class="card">
+      <input type="password" id="pin" maxlength="20" placeholder="••••" inputmode="numeric" autocomplete="current-password">
+      <div id="err"></div>
+      <button onclick="tryUnlock()">Entrar</button>
+    </div>
+  </div>
+
+  <div id="screen-main" hidden>
+    <h1>📝 Notas del negocio</h1>
+    <p class="subtitle">Apunta lo que sea. Claude lo ordenará en la carpeta NEGOCIO.</p>
+
+    <div class="card">
+      <label for="topic">¿De qué va?</label>
+      <select id="topic">
+        <option value="general">General</option>
+        <option value="clientes">Clientes y captación</option>
+        <option value="rentabilidad">Rentabilidad y precios</option>
+        <option value="marketing">Marketing</option>
+        <option value="network">Contactos y partners</option>
+        <option value="web">Algo de la web</option>
+        <option value="idea">Idea suelta</option>
+      </select>
+
+      <label for="text">La nota</label>
+      <textarea id="text" placeholder="Ej: Hablé con el jefe de almacén de X, necesitan envíos a Belfast los martes. Pedir precio para retorno."></textarea>
+
+      <button id="saveBtn" onclick="saveNote()">Guardar nota</button>
+    </div>
+
+    <details class="panel">
+      <summary>Notas anteriores <span id="count" style="font-weight:400;color:#a8c5e8;font-size:0.85rem;"></span></summary>
+      <div id="notes"></div>
+    </details>
+  </div>
+
+</div>
+
+<script>
+const KEY_STORE = 'acx_notes_key';
+
+function getKey() {
+  try { return sessionStorage.getItem(KEY_STORE) || localStorage.getItem(KEY_STORE); } catch (e) { return null; }
+}
+
+function tryUnlock() {
+  const val = document.getElementById('pin').value.trim();
+  if (!val) return;
+  document.getElementById('err').textContent = 'Comprobando…';
+  fetch('/api/notes?key=' + encodeURIComponent(val))
+    .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+    .then(data => {
+      // Remembered on this phone so it is not retyped every time.
+      try { localStorage.setItem(KEY_STORE, val); } catch (e) {}
+      document.getElementById('err').textContent = '';
+      showMain(data.notes || []);
+    })
+    .catch(() => {
+      document.getElementById('err').textContent = 'Código incorrecto';
+      document.getElementById('pin').value = '';
+    });
+}
+document.getElementById('pin').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
+
+function showMain(notes) {
+  document.getElementById('screen-lock').hidden = true;
+  document.getElementById('screen-main').hidden = false;
+  renderNotes(notes);
+}
+
+function renderNotes(notes) {
+  const box = document.getElementById('notes');
+  document.getElementById('count').textContent = '(' + notes.length + ')';
+  if (!notes.length) { box.innerHTML = '<p style="color:#a8c5e8;">Todavía no hay notas.</p>'; return; }
+  box.innerHTML = '';
+  notes.forEach(n => {
+    const d = new Date(n.ts);
+    const el = document.createElement('div');
+    el.className = 'note';
+    el.innerHTML = '<div class="note-meta"><span class="topic-tag"></span> <span class="fecha"></span></div><div class="note-text"></div>';
+    el.querySelector('.topic-tag').textContent = n.topic || 'general';
+    el.querySelector('.fecha').textContent = d.toLocaleString('es-ES');
+    el.querySelector('.note-text').textContent = n.text;
+    box.appendChild(el);
+  });
+}
+
+function saveNote() {
+  const key = getKey();
+  const text = document.getElementById('text').value.trim();
+  const topic = document.getElementById('topic').value;
+  const btn = document.getElementById('saveBtn');
+  if (!text || !key) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Guardando…';
+
+  fetch('/api/notes?key=' + encodeURIComponent(key), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: text, topic: topic })
+  })
+    .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+    .then(() => {
+      document.getElementById('text').value = '';
+      btn.textContent = '✅ Guardada';
+      btn.classList.add('saved');
+      setTimeout(() => { btn.textContent = 'Guardar nota'; btn.classList.remove('saved'); btn.disabled = false; }, 2000);
+      return fetch('/api/notes?key=' + encodeURIComponent(key)).then(r => r.json()).then(d => renderNotes(d.notes || []));
+    })
+    .catch(() => {
+      btn.textContent = '⚠️ No se pudo guardar';
+      setTimeout(() => { btn.textContent = 'Guardar nota'; btn.disabled = false; }, 2500);
+    });
+}
+
+(function init() {
+  const key = getKey();
+  if (!key) return;
+  fetch('/api/notes?key=' + encodeURIComponent(key))
+    .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+    .then(d => showMain(d.notes || []))
+    .catch(() => { try { localStorage.removeItem(KEY_STORE); } catch (e) {} });
+})();
+</script>
+</body>
+</html>
