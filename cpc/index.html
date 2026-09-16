@@ -73,7 +73,9 @@
   .progress-bar { height: 6px; background: rgba(0,102,255,0.2); border-radius: 3px; overflow: hidden; margin-bottom: 1.4rem; }
   .progress-fill { height: 100%; background: #0066FF; width: 0%; transition: width 0.3s; }
   .q-count { text-align: center; color: #a8c5e8; font-size: 0.85rem; margin-bottom: 0.6rem; }
-  .q-text { font-size: 1.1rem; font-weight: 600; margin-bottom: 1.3rem; line-height: 1.5; }
+  .q-text { font-size: 1.1rem; font-weight: 600; margin-bottom: 1.3rem; line-height: 1.5; white-space: pre-line; }
+  .section-title { margin: 1.4rem 0 0.2rem; font-size: 1.05rem; color: #a8c5e8; }
+  .section-title small { display: block; font-size: 0.8rem; color: #7fa8d9; font-weight: 400; margin-top: 0.2rem; }
   .opt {
     display: block; width: 100%; text-align: left; padding: 0.9rem 1rem;
     background: rgba(0,0,0,0.2); border: 2px solid rgba(0,102,255,0.3); border-radius: 10px;
@@ -84,7 +86,7 @@
   .opt.correct { border-color: #4CD964; background: rgba(76,217,100,0.2); }
   .opt.wrong { border-color: #FF6B6B; background: rgba(255,107,107,0.2); }
   .opt[disabled] { cursor: default; }
-  .explain { background: rgba(0,102,255,0.12); border-left: 3px solid #0066FF; padding: 1rem; border-radius: 8px; margin: 1rem 0; font-size: 0.9rem; line-height: 1.6; display:none; }
+  .explain { background: rgba(0,102,255,0.12); border-left: 3px solid #0066FF; padding: 1rem; border-radius: 8px; margin: 1rem 0; font-size: 0.9rem; line-height: 1.6; display:none; white-space: pre-line; }
   .feedback { text-align: center; font-weight: 700; margin-bottom: 0.8rem; font-size: 1rem; display:none; }
   .feedback.ok { color: #4CD964; }
   .feedback.bad { color: #FF6B6B; }
@@ -222,8 +224,17 @@ function showMenu() {
   const keys = Object.keys(window.CPC_TEMAS).sort((a,b) => parseInt(a) - parseInt(b));
 
   let totalAttempts = 0, totalPct = 0;
+  let simulacrosHeaderShown = false;
   keys.forEach(key => {
     const tema = window.CPC_TEMAS[key];
+    // Keys from 101 upwards are mixed-topic mock exams, listed under their own heading
+    if (!simulacrosHeaderShown && parseInt(key) >= 100) {
+      const h = document.createElement('h2');
+      h.className = 'section-title';
+      h.innerHTML = '📝 Simulacros de examen<small>40 preguntas con temas mezclados, como en el examen real</small>';
+      list.appendChild(h);
+      simulacrosHeaderShown = true;
+    }
     const rec = progress[key];
     const pct = rec ? Math.round((rec.lastScore / rec.lastTotal) * 100) : null;
     if (rec) { totalAttempts++; totalPct += pct; }
@@ -238,7 +249,7 @@ function showMenu() {
 
   const overall = document.getElementById('overall-stats');
   if (totalAttempts > 0) {
-    overall.innerHTML = `<strong>Media general:</strong> ${Math.round(totalPct/totalAttempts)}% &nbsp;·&nbsp; ${totalAttempts}/${keys.length} temas intentados`;
+    overall.innerHTML = `<strong>Media general:</strong> ${Math.round(totalPct/totalAttempts)}% &nbsp;·&nbsp; ${totalAttempts}/${keys.length} tests intentados`;
   } else {
     overall.innerHTML = 'Aún no has hecho ningún test. ¡Elige un tema para empezar!';
   }
