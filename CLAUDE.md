@@ -42,6 +42,16 @@ Web de una empresa de transporte urgente dedicado (vehículo exclusivo punto a p
 
 **7. Precios:** tarifa plana por zona, nunca por km. La matriz la definió él; no inventes tarifas ni cambies el modelo sin que lo pida.
 
+## Si dice "lee NEGOCIO" o "mira mis notas"
+
+`NEGOCIO/` es un **repositorio privado aparte** (no está en este repo, está en `.gitignore`)
+donde vive el trabajo de negocio: rentabilidad por ruta, clientes, decisiones.
+
+Además de leer esos archivos, **recoge el buzón de notas**: Alberto apunta cosas desde el
+móvil en `/notas/` y quedan en el servidor hasta que se archivan. El procedimiento exacto
+—y la clave, que **no puede estar en este repo público**— están en `NEGOCIO/notas-recibidas.md`
+y `NEGOCIO/acceso.md`.
+
 ## Cómo le gusta trabajar
 
 - **Nada de silencios largos.** Di en una frase qué vas a hacer antes de una tanda de herramientas, y ve soltando hallazgos según aparecen.
