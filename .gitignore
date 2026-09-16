@@ -6,3 +6,8 @@ data/
 NEGOCIO/
 CPC-tests/
 CPC course/
+
+# Documentos financieros. Nunca a git, ni siquiera al repo privado.
+Facturas/
+Banco/
+*.pdf
