@@ -2188,7 +2188,15 @@
             const result = await res.json();
 
             if (result.success) {
-                if (window.acxTrack) window.acxTrack('quote_complete');
+                if (window.acxTrack) {
+                    const o = document.getElementById('originZone');
+                    const d = document.getElementById('destinationZone');
+                    const v = document.getElementById('vehicleType');
+                    window.acxTrack('quote_complete', {
+                        route: (o && d) ? o.value + '>' + d.value : '',
+                        vehicle: v ? v.value : ''
+                    });
+                }
                 formStatus.textContent = '✅ Quote request sent. We\'ll contact you within 1 hour at ' + email + '.';
                 formStatus.className = 'form-status success';
                 quoteForm.reset();
@@ -2630,10 +2638,27 @@
             list.append(term, detail);
         }
 
+        // Which corridors people price up, including those who never submit.
+        // Once per unique combination so toggling selections doesn't inflate it.
+        const loggedRoutes = new Set();
+        function logRoute(originZone, destinationZone, vehicle) {
+            const combo = originZone + '>' + destinationZone + '|' + vehicle;
+            if (loggedRoutes.has(combo) || !window.acxTrack) return;
+            loggedRoutes.add(combo);
+            window.acxTrack('quote_route', {
+                route: originZone + '>' + destinationZone,
+                vehicle: vehicle
+            });
+        }
+
         function renderPrice() {
             const originZone = originZoneSelect.value;
             const destinationZone = destinationZoneSelect.value;
             const vehicle = vehicleSelect.value;
+
+            if (originZone && destinationZone && vehicle) {
+                logRoute(originZone, destinationZone, vehicle);
+            }
 
             if (!originZone || !destinationZone || !vehicle) {
                 priceEl.textContent = 'Awaiting selection…';

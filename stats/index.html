@@ -120,6 +120,21 @@
     </div>
 
     <div class="card">
+      <h3 style="margin-top:0;">Rutas que consulta la gente</h3>
+      <p style="margin:0 0 0.8rem;color:#a8c5e8;font-size:0.85rem;">
+        Cada vez que alguien elige origen, destino y vehículo en el cotizador — incluso si luego no envía nada.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Ruta</th><th style="text-align:right;">Consultas</th><th style="text-align:right;">Pidieron presupuesto</th></tr></thead>
+          <tbody id="routesBody"></tbody>
+        </table>
+      </div>
+      <h4 style="margin:1.4rem 0 0.5rem;">Vehículo elegido</h4>
+      <div id="vehiclesQuoted"></div>
+    </div>
+
+    <div class="card">
       <h3 style="margin-top:0;">Visitas por día (últimos 14)</h3>
       <div class="vbars" id="chartDays"></div>
     </div>
@@ -219,6 +234,7 @@ function showDashboard(data) {
 }
 
 const CLICK_LABELS = { call: '📞 Llamada', whatsapp: '💬 WhatsApp' };
+const VEHICLE_LABELS = { explorer: 'Ford Explorer (EV)', transit: 'Ford Transit Custom' };
 
 function bars(container, entries, total, labelMap) {
   container.innerHTML = '';
@@ -274,6 +290,24 @@ function render(data) {
   document.getElementById('rate-started').textContent = (rates.startedQuote ?? 0) + '%';
   document.getElementById('rate-finished').textContent = (rates.finishedQuote ?? 0) + '%';
   document.getElementById('rate-bounce').textContent = (rates.bounce ?? 0) + '%';
+
+  const routesBody = document.getElementById('routesBody');
+  routesBody.innerHTML = '';
+  const routes = data.routes || [];
+  if (!routes.length) {
+    routesBody.innerHTML = '<tr><td colspan="3" style="color:#a8c5e8;">Nadie ha usado el cotizador todavía.</td></tr>';
+  } else {
+    routes.forEach(r => {
+      const tr = document.createElement('tr');
+      // Interest with nothing requested is the row worth looking at.
+      const sinPedir = r.quoted >= 3 && r.sent === 0;
+      tr.innerHTML = `<td${sinPedir ? ' style="color:#FFC107;font-weight:600;"' : ''}>${r.label}${sinPedir ? ' ⚠️' : ''}</td>
+        <td style="text-align:right;">${r.quoted}</td>
+        <td style="text-align:right;color:${r.sent ? '#4CD964' : '#a8c5e8'};">${r.sent}</td>`;
+      routesBody.appendChild(tr);
+    });
+  }
+  bars(document.getElementById('vehiclesQuoted'), data.vehiclesQuoted || [], 0, VEHICLE_LABELS);
 
   vbars(document.getElementById('chartDays'), data.visitsPerDay, d => d.slice(8) + '/' + d.slice(5, 7));
   vbars(document.getElementById('chartHours'), data.hourly, h => h.slice(0, 2));

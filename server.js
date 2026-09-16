@@ -194,6 +194,9 @@ function buildStats() {
   // time. The session table above collapses those into one row, which on a
   // one-page site made pageviews and unique visitors read as the same number.
   const clickCounts = {};
+  const routeQuoted = {};
+  const routeSent = {};
+  const vehicleQuoted = {};
   let pageviewCount = 0;
   let quoteStarts = 0;
   let quoteCompletes = 0;
@@ -210,8 +213,12 @@ function buildStats() {
       clickCounts[e.action] = (clickCounts[e.action] || 0) + 1;
     } else if (e.type === 'quote_start') {
       quoteStarts++;
+    } else if (e.type === 'quote_route') {
+      if (e.route) routeQuoted[e.route] = (routeQuoted[e.route] || 0) + 1;
+      if (e.vehicle) vehicleQuoted[e.vehicle] = (vehicleQuoted[e.vehicle] || 0) + 1;
     } else if (e.type === 'quote_complete') {
       quoteCompletes++;
+      if (e.route) routeSent[e.route] = (routeSent[e.route] || 0) + 1;
     } else if (e.type === 'inquiry_complete') {
       inquiryCompletes++;
     }
@@ -286,6 +293,24 @@ function buildStats() {
 
   const pct = (part, whole) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
 
+  const ZONE_LABELS = {
+    shannon: 'Shannon/Limerick', dublin: 'Dublin', cork: 'Cork',
+    belfast: 'Belfast', other: 'Otra ubicación'
+  };
+  const routeLabel = (code) => code.split('>').map((z) => ZONE_LABELS[z] || z).join(' → ');
+
+  // Every corridor someone priced up, with how many of those turned into a
+  // request. Interest with no requests is the signal worth acting on.
+  const routes = Object.keys(routeQuoted)
+    .map((code) => ({
+      route: code,
+      label: routeLabel(code),
+      quoted: routeQuoted[code],
+      sent: routeSent[code] || 0
+    }))
+    .sort((a, b) => b.quoted - a.quoted)
+    .slice(0, 15);
+
   const topN = (obj, n) => Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, n);
 
   return {
@@ -299,6 +324,8 @@ function buildStats() {
     operatingSystems: topN(osCounts, 6),
     languages: topN(langCounts, 6),
     clicks: topN(clickCounts, 10),
+    routes,
+    vehiclesQuoted: topN(vehicleQuoted, 5),
     funnel: { quoteStarts, quoteCompletes, inquiryCompletes },
     visitsPerDay,
     hourly,
@@ -420,7 +447,7 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       const { browser, os } = parseUA(ua);
-      const validTypes = ['pageview', 'duration', 'click', 'quote_start', 'quote_complete', 'inquiry_complete'];
+      const validTypes = ['pageview', 'duration', 'click', 'quote_start', 'quote_route', 'quote_complete', 'inquiry_complete'];
       const type = validTypes.includes(data.type) ? data.type : 'pageview';
       appendEvent({
         ts: Date.now(),
@@ -432,6 +459,8 @@ const server = http.createServer(async (req, res) => {
         device: typeof data.device === 'string' ? data.device.slice(0, 20) : 'unknown',
         lang: typeof data.lang === 'string' ? data.lang.slice(0, 10) : '',
         action: typeof data.action === 'string' ? data.action.slice(0, 30) : undefined,
+        route: typeof data.route === 'string' ? data.route.slice(0, 40) : undefined,
+        vehicle: typeof data.vehicle === 'string' ? data.vehicle.slice(0, 20) : undefined,
         browser,
         os,
         ip
