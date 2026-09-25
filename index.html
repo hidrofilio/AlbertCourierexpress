@@ -141,7 +141,7 @@
                 "name": "Are your transport corridors restricted to fixed routes?",
                 "acceptedAnswer": {
                     "@type": "Answer",
-                    "text": "While we have established flat-rate pricing for major corridors connecting Dublin, Shannon, Cork, and Belfast, we provide custom point-to-point dedicated transport to any location across the Republic of Ireland and Northern Ireland."
+                    "text": "No. We run our main corridors between Dublin, Shannon, Cork and Belfast every week, but we provide custom point-to-point dedicated transport to any location across the Republic of Ireland and Northern Ireland. Every job is priced individually: send us the pick-up and delivery points and we come straight back with your price."
                 }
             }
         ]
@@ -1002,14 +1002,8 @@
         .summary-price strong {
             font-family: 'Poppins', sans-serif;
             color: var(--accent-color);
-            font-size: 1.6rem;
-        }
-
-        .summary-vat {
-            color: var(--text-light);
-            font-size: 0.85rem;
-            font-weight: 600;
-            white-space: nowrap;
+            font-size: 1.15rem;
+            text-align: right;
         }
 
         .summary-note {
@@ -1607,7 +1601,7 @@
                 <!-- STEP 1: Route & Schedule -->
                 <div class="form-step active" id="step1" data-step="1">
                     <h4>Step 1: Route & Schedule</h4>
-                    <p class="step-subtitle">Dedicated Express Courier — flat rates on our main Irish corridors</p>
+                    <p class="step-subtitle">Dedicated Express Courier — tell us where and when, and we come straight back with your price</p>
 
                     <div class="form-group">
                         <label for="originZone">Pick-up Zone:</label>
@@ -1765,13 +1759,15 @@
 
                     <dl class="summary-list" id="summaryList"></dl>
                     <div class="summary-price">
-                        <span>Estimated price</span>
+                        <span>Price</span>
                         <span class="summary-price-figure">
-                            <strong id="estimatedPrice">On request</strong>
-                            <small class="summary-vat" id="priceVat" hidden>+ VAT</small>
+                            <strong>Quote on request</strong>
                         </span>
                     </div>
-                    <p class="summary-note" id="summaryNote">Indicative only. We confirm the final price after reviewing your request.</p>
+                    <p class="summary-note" id="summaryNote">Send the request and we reply fast with your price — 24/7.</p>
+                    <!-- Distance and driving time travel with the email so the quote takes a minute -->
+                    <input type="hidden" name="route_km" id="routeKm">
+                    <input type="hidden" name="route_time" id="routeTime">
                     <p class="summary-vat-note">VAT-registered businesses in other EU countries may be invoiced without Irish VAT under the reverse charge mechanism. Please include your VAT number with your request.</p>
                 </div>
 
@@ -1903,7 +1899,7 @@
             </details>
             <details class="faq-item">
                 <summary>Are your transport corridors restricted to fixed routes?</summary>
-                <p>While we have established flat-rate pricing for major corridors connecting Dublin, Shannon, Cork, and Belfast, we provide custom point-to-point dedicated transport to any location across the Republic of Ireland and Northern Ireland.</p>
+                <p>No. We run our main corridors between Dublin, Shannon, Cork and Belfast every week, but we provide custom point-to-point dedicated transport to any location across the Republic of Ireland and Northern Ireland. Every job is priced individually: send us the pick-up and delivery points and we come straight back with your price.</p>
             </details>
         </div>
     </div>
@@ -2171,9 +2167,8 @@
         data.set('hazardous', document.getElementById('hazardous').checked ? 'Yes' : 'No');
         data.set('aog', document.getElementById('aog').checked ? 'YES — AOG / Time-Critical Emergency' : 'No');
 
-        // Give Albert the same quote the customer saw
-        const priceText = document.getElementById('estimatedPrice');
-        if (priceText) data.set('estimated_price', priceText.textContent.trim());
+        // Give Albert what he needs to price it: the route, the distance and the
+        // driving time ride along in route_km and route_time.
         const etaText = document.getElementById('collectionEtaText');
         if (etaText && etaText.textContent.trim()) data.set('collection_eta', etaText.textContent.trim());
         const summary = document.getElementById('summaryList');
@@ -2283,7 +2278,7 @@
         });
     })();
 
-    // ===== Dedicated flat-rate zones (shared by the map and the pricing engine) =====
+    // ===== Service zones (shared by the map, the collection ETA and the route analytics) =====
     const ZONES = {
         shannon: { label: 'Shannon/Limerick Area', ref: 'Shannon Airport, Ireland', lat: 52.7019, lon: -8.9248, eta: 'Collection within ~45 minutes' },
         dublin: { label: 'Dublin Area', ref: 'Dublin Airport, Ireland', lat: 53.4264, lon: -6.2499, eta: 'Collection within ~2.5 hours' },
@@ -2437,9 +2432,9 @@
         const form = document.getElementById('quoteForm');
         const summaryPanel = document.getElementById('quoteSummary');
         const list = document.getElementById('summaryList');
-        const priceEl = document.getElementById('estimatedPrice');
-        const vatEl = document.getElementById('priceVat');
         const noteEl = document.getElementById('summaryNote');
+        const routeKmField = document.getElementById('routeKm');
+        const routeTimeField = document.getElementById('routeTime');
         const collectionEta = document.getElementById('collectionEta');
         const collectionEtaText = document.getElementById('collectionEtaText');
         const originZoneSelect = document.getElementById('originZone');
@@ -2448,34 +2443,17 @@
         const pickupAddressInput = document.getElementById('pickupaddress');
         const deliveryAddressInput = document.getElementById('deliveryaddress');
 
-        if (!form || !list || !priceEl) return;
+        if (!form || !list) return;
 
         const PHONE_DISPLAY = '+353 87 459 2308';
-        const LOCAL_PRICE = 90;
-
-        // Flat dedicated-vehicle rates between our four hub zones, keyed by the
-        // two zone codes sorted alphabetically so each pair is stored once.
-        const PRICE_MATRIX = {
-            'cork|shannon': { explorer: 320, transit: 320 },
-            'dublin|shannon': { explorer: 320, transit: 360 },
-            'cork|dublin': { explorer: 340, transit: 380 },
-            'belfast|dublin': { explorer: 360, transit: 400 },
-            'belfast|shannon': { explorer: 420, transit: 480 },
-            'belfast|cork': { explorer: 480, transit: 520 }
-        };
 
         const VEHICLE_LABELS = {
             explorer: 'Light/Small Courier (Ford Explorer)',
             transit: 'Medium Van (Ford Transit Custom)'
         };
 
-        const NOTE_AWAITING = 'Select your pick-up zone, delivery zone and vehicle type to see your flat dedicated rate.';
-        const NOTE_FLAT = 'Flat dedicated-vehicle rate, prices exclude VAT. Indicative — we confirm the final price after reviewing your request.';
-        const NOTE_CUSTOM = 'Custom Dedicated Route. Please call us or use WhatsApp at ' + PHONE_DISPLAY + ' for immediate availability and pricing.';
-
-        function pairKey(a, b) {
-            return [a, b].sort().join('|');
-        }
+        const NOTE_DEFAULT = 'Send the request and we reply fast with your price — 24/7.';
+        const NOTE_CUSTOM = 'Custom Dedicated Route. Please call us or use WhatsApp at ' + PHONE_DISPLAY + ' for immediate availability.';
 
         function zoneLabel(value) {
             if (value === 'other') return 'Other Location (custom quote)';
@@ -2657,7 +2635,10 @@
             }, 1500);
         }
 
-        function renderPrice() {
+        // The site no longer publishes prices: every job is quoted by hand. What
+        // used to hang off the price still matters, so it lives on here — the
+        // corridor analytics and the collection ETA.
+        function updateRouteInfo() {
             const originZone = originZoneSelect.value;
             const destinationZone = destinationZoneSelect.value;
             const vehicle = vehicleSelect.value;
@@ -2666,22 +2647,10 @@
                 logRoute(originZone, destinationZone, vehicle);
             }
 
-            if (!originZone || !destinationZone || !vehicle) {
-                priceEl.textContent = 'Awaiting selection…';
-                if (vatEl) vatEl.hidden = true;
-                if (noteEl) noteEl.textContent = NOTE_AWAITING;
-            } else if (originZone === 'other' || destinationZone === 'other') {
-                priceEl.textContent = 'Custom Dedicated Route';
-                if (vatEl) vatEl.hidden = true;
-                if (noteEl) noteEl.textContent = NOTE_CUSTOM;
-            } else {
-                const price = originZone === destinationZone
-                    ? LOCAL_PRICE
-                    : PRICE_MATRIX[pairKey(originZone, destinationZone)][vehicle];
-
-                priceEl.textContent = '€' + price;
-                if (vatEl) vatEl.hidden = false;
-                if (noteEl) noteEl.textContent = NOTE_FLAT;
+            if (noteEl) {
+                noteEl.textContent = (originZone === 'other' || destinationZone === 'other')
+                    ? NOTE_CUSTOM
+                    : NOTE_DEFAULT;
             }
 
             if (collectionEta && collectionEtaText) {
@@ -2720,7 +2689,12 @@
 
             if (summaryPanel) summaryPanel.hidden = !filled;
 
-            renderPrice();
+            // Carry the distance and time into the email, so the quote takes a minute
+            const ready = quote.status === 'ready';
+            if (routeKmField) routeKmField.value = ready ? quote.km.toFixed(1) + ' km' : '';
+            if (routeTimeField) routeTimeField.value = ready ? formatDuration(quote.minutes) : '';
+
+            updateRouteInfo();
         }
 
         let quoteTimer;

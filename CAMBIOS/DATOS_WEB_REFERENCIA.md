@@ -66,24 +66,34 @@ Cualquier otro punto = "Other Location" → sin precio automático, se pide cont
 
 ---
 
-## 4. Precios (tarifa plana por zona, NO por km)
+## 4. Precios: **ya no se publican** (26/09/2026)
 
-**Todos los precios son SIN IVA** (la web lo marca con "+ VAT").
+**La web no da precios.** El cliente rellena la solicitud (recogida, entrega, fecha, carga,
+vehículo y contacto) y Alberto responde con un presupuesto hecho a mano, según el trabajo que
+tenga esa semana. Decisión suya del 25/09.
 
-| Ruta | Ford Explorer (EV) | Ford Transit Custom |
-|---|---|---|
-| Dentro de la misma zona | **€90** | **€90** |
-| Cork ↔ Shannon/Limerick | €320 | €320 |
-| Dublin ↔ Shannon/Limerick | €320 | €360 |
-| Cork ↔ Dublin | €340 | €380 |
-| Belfast ↔ Dublin | €360 | €400 |
-| Belfast ↔ Shannon/Limerick | €420 | €480 |
-| Belfast ↔ Cork | €480 | €520 |
+Lo que ve el cliente en el resumen:
+
+| Antes | Ahora |
+|---|---|
+| "Estimated price — €320 + VAT" | **"Price — Quote on request"** |
+| "Indicative only. We confirm the final price…" | **"Send the request and we reply fast with your price — 24/7."** |
+| Subtítulo: *"flat rates on our main Irish corridors"* | *"tell us where and when, and we come straight back with your price"* |
+
+**La tabla de tarifas se ha borrado del código** (`PRICE_MATRIX`, `LOCAL_PRICE`, `renderPrice`).
+Estaba a la vista de cualquiera en el código público de la página, aunque no se mostrara.
+
+**La tarifa interna** (lo que conviene cobrar de verdad, con el suelo por hora) vive solo en el
+repo privado: `NEGOCIO/rentabilidad.md`.
+
+**Lo que sí sigue:**
+- **Distancia y tiempo de conducción:** se calculan igual y se le mandan a Alberto en el correo
+  (`route_km` y `route_time`), para poder presupuestar en un minuto.
+- **Tiempo estimado de recogida por zona** (los ~45 min de Shannon, etc.).
+- **Analítica de qué rutas consulta la gente**, que es la mejor pista de dónde hay demanda.
 
 **Nota legal que aparece en la web:** empresas con VAT de otros países UE pueden facturarse sin IVA
 irlandés bajo el mecanismo de inversión del sujeto pasivo (reverse charge), indicando su número de VAT.
-
-**Aviso mostrado al cliente:** "Indicative only. We confirm the final price after reviewing your request."
 
 ---
 

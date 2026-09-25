@@ -26,7 +26,7 @@ Web de una empresa de transporte urgente dedicado (vehículo exclusivo punto a p
 
 **1. Nunca sirvas archivos nuevos sin pensar.** `server.js` solo entrega extensiones de una lista blanca, y bloquea `data/`, `CAMBIOS/` y los `.js` fuera de `cpc/`. Esto existe porque el servidor llegó a exponer públicamente el código fuente y el registro entero de visitantes. Si añades un tipo de archivo público, revisa `isPublicPath()`.
 
-**2. No hay Node instalado en la máquina local**, así que no puedes ejecutar ni probar `server.js` antes de desplegar. Para validar la sintaxis sin desplegar a ciegas, usa Edge headless:
+**2. No hay Node instalado en la máquina local**, así que no puedes ejecutar ni probar `server.js` antes de desplegar. *(En una sesión en la nube sí lo hay: allí usa `node --check server.js`, y no habrá Edge.)* Para validar la sintaxis en el ordenador de Alberto sin desplegar a ciegas, usa Edge headless:
 ```powershell
 # genera un HTML que hace new Function(<codigo en base64>) y vuelca el resultado
 & "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --headless=new --disable-gpu --no-sandbox --allow-file-access-from-files --user-data-dir=<perfil> --virtual-time-budget=6000 --dump-dom "file:///<ruta>"
@@ -40,7 +40,7 @@ Web de una empresa de transporte urgente dedicado (vehículo exclusivo punto a p
 
 **6. Formularios:** Web3Forms (clave pública por diseño). **Bloquea `*.up.railway.app`** — pruébalos solo desde el dominio propio.
 
-**7. Precios:** tarifa plana por zona, nunca por km. La matriz la definió él; no inventes tarifas ni cambies el modelo sin que lo pida.
+**7. Precios: la web ya no publica ninguno** (26/09/2026). El cliente manda la solicitud y Alberto responde con un presupuesto hecho a mano, según el trabajo que tenga esa semana. La tabla de tarifas se borró del código — **no la vuelvas a meter** ni publiques cifras. Lo que sí viaja en el correo del formulario es la ruta, los km y el tiempo. La tarifa interna está en el repo privado (`NEGOCIO/rentabilidad.md`), nunca aquí.
 
 ## Si dice "lee NEGOCIO" o "mira mis notas"
 
