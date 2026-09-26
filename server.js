@@ -9,8 +9,19 @@ const EVENTS_FILE = path.join(DATA_DIR, 'events.jsonl');
 // Inbox for notes written from the phone. Claude files them into the private
 // NEGOCIO repo when working; this is the drop point, not the archive.
 const NOTES_FILE = path.join(DATA_DIR, 'notes.jsonl');
-const STATS_KEY = process.env.STATS_KEY || '8214';
+// La clave vive SOLO en la variable STATS_KEY de Railway: este repositorio es
+// público. Si la variable no está puesta, no entra nadie — es preferible quedarse
+// fuera un rato a dejar el buzón de notas abierto de par en par.
+const STATS_KEY = process.env.STATS_KEY || '';
 const PORT = process.env.PORT || 3000;
+
+// Al rechazar, decimos si Railway nos está pasando la variable — nunca su valor.
+// Sirve para distinguir "la clave es otra" de "la variable no llega", que es el
+// fallo que ya nos despistó dos veces.
+function refuse(res) {
+  res.writeHead(401, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' });
+  res.end(JSON.stringify({ error: 'unauthorized', key_configured: Boolean(STATS_KEY) }));
+}
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(EVENTS_FILE)) fs.writeFileSync(EVENTS_FILE, '');
@@ -479,9 +490,8 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'GET' && url.startsWith('/api/stats')) {
     const key = new URL(url, 'http://x').searchParams.get('key');
-    if (key !== STATS_KEY) {
-      res.writeHead(401, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'unauthorized' }));
+    if (!STATS_KEY || key !== STATS_KEY) {
+      refuse(res);
       return;
     }
     const stats = buildStats();
@@ -492,9 +502,8 @@ const server = http.createServer(async (req, res) => {
 
   if (url.startsWith('/api/notes')) {
     const key = new URL(url, 'http://x').searchParams.get('key');
-    if (key !== STATS_KEY) {
-      res.writeHead(401, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'unauthorized' }));
+    if (!STATS_KEY || key !== STATS_KEY) {
+      refuse(res);
       return;
     }
 

@@ -16,8 +16,8 @@ Web de una empresa de transporte urgente dedicado (vehículo exclusivo punto a p
 
 - **`index.html`** — toda la web (HTML + CSS + JS en un solo archivo)
 - **`server.js`** — servidor Node sin dependencias. Sirve los archivos estáticos **y** las analíticas propias. No es un sitio estático: Railway lo arranca con `npm start`.
-- **`cpc/`** — app privada de tests del dueño (PIN 8214), sin relación con el negocio
-- **`stats/`** — panel de analíticas (misma puerta con PIN, clave real en la variable `STATS_KEY` de Railway)
+- **`cpc/`** — app de tests del dueño, sin relación con el negocio
+- **`stats/`** y **`notas/`** — panel de analíticas y buzón de notas. **La clave no se escribe nunca aquí**: vive en la variable `STATS_KEY` de Railway, y apuntada en el repo privado (`NEGOCIO/acceso.md`)
 - **`data/events.jsonl`** — registro de visitas, en un volumen persistente de Railway montado en `/app/data`. **No está en git.**
 
 **Despliegue:** `git push` → Railway construye y publica en 1-2 minutos. No hay otro paso.
