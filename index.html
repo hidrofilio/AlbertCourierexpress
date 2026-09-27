@@ -685,6 +685,18 @@
         details.container > summary:hover::after {
             opacity: 0.8;
         }
+        /* Collapsed: every section looks the same — clean, just a thin divider,
+           so the background photo shows through evenly across the whole list. */
+        details.container:not([open]) {
+            border-top: 1px solid var(--border-color);
+        }
+        /* Expanded: sections that were always tinted (About, Fleet) get their
+           tint back, same as before this section became collapsible. */
+        details.container.tinted[open] {
+            background-color: rgba(0, 0, 0, 0.2);
+            border-top: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+        }
 
         h2 {
             font-family: 'Poppins', sans-serif;
@@ -1835,7 +1847,7 @@
         </div>
     </details>
 
-    <details class="container" id="about" style="background-color: rgba(0, 0, 0, 0.2); border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);">
+    <details class="container tinted" id="about">
         <summary><h2>Experience You Can Trust</h2></summary>
         <div class="grid-2">
             <div class="card">
@@ -1881,7 +1893,7 @@
         </div>
     </details>
 
-    <details class="container" id="fleet" style="background-color: rgba(0, 0, 0, 0.2); max-width: 100%; padding: 4rem 10%; border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);">
+    <details class="container tinted" id="fleet" style="max-width: 100%; padding: 4rem 10%;">
         <summary><h2>Our Professional Fleet</h2></summary>
         <div class="section-subtitle">Modern, well-maintained vehicles ready for any logistical challenge.</div>
 
