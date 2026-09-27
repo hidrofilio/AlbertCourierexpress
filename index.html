@@ -654,6 +654,36 @@
             max-width: 1200px;
             margin: 0 auto;
             padding: 4rem 2rem;
+            scroll-margin-top: 90px;
+        }
+
+        /* Collapsible sections: every .container that is a <details> element */
+        details.container > summary {
+            cursor: pointer;
+            list-style: none;
+            position: relative;
+            padding-right: 2.5rem;
+        }
+        details.container > summary::-webkit-details-marker,
+        details.container > summary::marker {
+            display: none;
+        }
+        details.container > summary::after {
+            content: '▾';
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--accent-color);
+            font-size: 1.5rem;
+            line-height: 1;
+            transition: transform 0.2s ease;
+        }
+        details.container[open] > summary::after {
+            transform: translateY(-50%) rotate(180deg);
+        }
+        details.container > summary:hover::after {
+            opacity: 0.8;
         }
 
         h2 {
@@ -1779,8 +1809,8 @@
 </section>
 
 <main id="main-content">
-    <div class="container" id="services">
-        <h2>Our Core Services</h2>
+    <details class="container" id="services">
+        <summary><h2>Our Core Services</h2></summary>
         <div class="section-subtitle">A Dedicated Express Courier service — when you book with us, you get an exclusive vehicle running point-to-point, never a shared or multi-drop service.</div>
 
         <div class="grid-2">
@@ -1803,10 +1833,10 @@
                 </ul>
             </div>
         </div>
-    </div>
+    </details>
 
-    <div class="container" id="about" style="background-color: rgba(0, 0, 0, 0.2); border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);">
-        <h2>Experience You Can Trust</h2>
+    <details class="container" id="about" style="background-color: rgba(0, 0, 0, 0.2); border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);">
+        <summary><h2>Experience You Can Trust</h2></summary>
         <div class="grid-2">
             <div class="card">
                 <h3>10+ Years in Transport, 5+ Years in Express</h3>
@@ -1817,10 +1847,10 @@
                 <p>We provide direct, point-to-point dedicated transport connecting all major hubs, airports, and industrial centers — including regular express routes between Dublin, Shannon, Cork, and Belfast.</p>
             </div>
         </div>
-    </div>
+    </details>
 
-    <div class="container" id="expertise">
-        <h2>Our Specialized Expertise</h2>
+    <details class="container" id="expertise">
+        <summary><h2>Our Specialized Expertise</h2></summary>
         <div class="section-subtitle">Industries We Serve — trusted for time-critical, high-value and sensitive cargo across Ireland.</div>
 
         <div class="grid-2">
@@ -1849,10 +1879,10 @@
                 <p>Emergency delivery of replacement commercial vehicle parts, heavy machinery components, and drivetrain elements to keep transport fleets and industrial operations running without interruption.</p>
             </div>
         </div>
-    </div>
+    </details>
 
-    <div class="container" id="fleet" style="background-color: rgba(0, 0, 0, 0.2); max-width: 100%; padding: 4rem 10%; border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);">
-        <h2>Our Professional Fleet</h2>
+    <details class="container" id="fleet" style="background-color: rgba(0, 0, 0, 0.2); max-width: 100%; padding: 4rem 10%; border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);">
+        <summary><h2>Our Professional Fleet</h2></summary>
         <div class="section-subtitle">Modern, well-maintained vehicles ready for any logistical challenge.</div>
 
         <div class="grid-2">
@@ -1875,10 +1905,10 @@
                 </ul>
             </div>
         </div>
-    </div>
+    </details>
 
-    <div class="container" id="faq">
-        <h2>Frequently Asked Questions</h2>
+    <details class="container" id="faq">
+        <summary><h2>Frequently Asked Questions</h2></summary>
         <div class="section-subtitle">Answers for our corporate clients about how our dedicated courier service works.</div>
 
         <div class="faq-list">
@@ -1903,10 +1933,10 @@
                 <p>No. We run our main corridors between Dublin, Shannon, Cork and Belfast every week, but we provide custom point-to-point dedicated transport to any location across the Republic of Ireland and Northern Ireland. Every job is priced individually: send us the pick-up and delivery points and we come straight back with your price.</p>
             </details>
         </div>
-    </div>
+    </details>
 
-    <div class="container" id="contact">
-        <h2>Contact Albert Courier Express Ireland</h2>
+    <details class="container" id="contact">
+        <summary><h2>Contact Albert Courier Express Ireland</h2></summary>
         <div class="section-subtitle">Available 24 hours a day, 7 days a week for all your urgent transport needs.</div>
 
         <table role="table">
@@ -1940,10 +1970,10 @@
             <img src="/whatsapp-qr.png" width="120" height="120" alt="Scan to chat with Albert Courier Express on WhatsApp" loading="lazy">
             <p>On a computer? Scan with your phone to chat with us on WhatsApp.</p>
         </div>
-    </div>
+    </details>
 
-    <div class="container" id="inquiry">
-        <h2>Send Us a Direct Message</h2>
+    <details class="container" id="inquiry">
+        <summary><h2>Send Us a Direct Message</h2></summary>
         <div class="section-subtitle">Prefer not to use the quote calculator? Send us your inquiry directly and our dispatch team will respond promptly.</div>
 
         <form class="inquiry-form" id="inquiryForm" method="POST" action="https://api.web3forms.com/submit" novalidate aria-label="General inquiry form">
@@ -2000,10 +2030,10 @@
 
             <div id="inquiryStatus" class="form-status" role="status" aria-live="polite"></div>
         </form>
-    </div>
+    </details>
 
-    <div class="container" id="partners">
-        <h2>Become a Subcontractor Partner</h2>
+    <details class="container" id="partners">
+        <summary><h2>Become a Subcontractor Partner</h2></summary>
         <div class="section-subtitle">We're a dedicated 24/7 courier covering all 32 counties. When a job falls outside our own coverage or capacity, we call on trusted owner-drivers and small courier companies. If that's you, tell us about yourself below.</div>
 
         <form class="inquiry-form" id="partnerForm" method="POST" action="https://api.web3forms.com/submit" novalidate aria-label="Partner subcontractor application form">
@@ -2062,7 +2092,7 @@
 
             <div id="partnerStatus" class="form-status" role="status" aria-live="polite"></div>
         </form>
-    </div>
+    </details>
 </main>
 
 <!-- WhatsApp Floating Button -->
@@ -2117,6 +2147,18 @@
             nav.classList.remove('active');
         });
     });
+
+    // Collapsible sections: expand the target section when its nav link is used,
+    // or when the page loads with that section already in the URL (a shared link).
+    function expandCollapsibleSection(hash) {
+        if (!hash) return;
+        const target = document.getElementById(hash.replace('#', ''));
+        if (target && target.tagName === 'DETAILS') target.open = true;
+    }
+    document.querySelectorAll('nav a[href^="#"]').forEach(link => {
+        link.addEventListener('click', () => expandCollapsibleSection(link.getAttribute('href')));
+    });
+    if (location.hash) expandCollapsibleSection(location.hash);
 
     // Multi-Step Form Wizard
     let currentStep = 1;
