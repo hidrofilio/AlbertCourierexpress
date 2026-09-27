@@ -1568,6 +1568,7 @@
             <li><a href="#fleet">Our Fleet</a></li>
             <li><a href="#faq">FAQ</a></li>
             <li><a href="#contact">Contact</a></li>
+            <li><a href="#partners">Partners</a></li>
         </ul>
     </nav>
     <a href="tel:+353874592308" class="cta-btn">Call 24/7</a>
@@ -2000,6 +2001,68 @@
             <div id="inquiryStatus" class="form-status" role="status" aria-live="polite"></div>
         </form>
     </div>
+
+    <div class="container" id="partners">
+        <h2>Become a Subcontractor Partner</h2>
+        <div class="section-subtitle">We're a dedicated 24/7 courier covering all 32 counties. When a job falls outside our own coverage or capacity, we call on trusted owner-drivers and small courier companies. If that's you, tell us about yourself below.</div>
+
+        <form class="inquiry-form" id="partnerForm" method="POST" action="https://api.web3forms.com/submit" novalidate aria-label="Partner subcontractor application form">
+            <input type="hidden" name="access_key" value="51f8ca24-f99c-4869-827a-3d13671053e9">
+            <input type="hidden" name="subject" value="New Partner/Subcontractor Application — Albert Courier Express">
+            <input type="hidden" name="from_name" value="Albert Courier Express website">
+            <input type="checkbox" name="botcheck" class="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true">
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="partName">Full Name:</label>
+                    <input type="text" id="partName" name="full_name" required aria-required="true">
+                </div>
+                <div class="form-group">
+                    <label for="partCompany">Company Name (if any):</label>
+                    <input type="text" id="partCompany" name="company_name">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="partEmail">Email Address:</label>
+                    <input type="email" id="partEmail" name="email" required aria-required="true">
+                </div>
+                <div class="form-group">
+                    <label for="partPhone">Phone Number:</label>
+                    <input type="tel" id="partPhone" name="phone" required aria-required="true">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="partArea">Area(s) Covered:</label>
+                    <input type="text" id="partArea" name="area_covered" placeholder="e.g. Cork, Kerry" required aria-required="true">
+                </div>
+                <div class="form-group">
+                    <label for="partVehicle">Vehicle Type:</label>
+                    <select id="partVehicle" name="vehicle_type" required aria-required="true">
+                        <option value="">-- Select an option --</option>
+                        <option value="Car / small vehicle">Car / small vehicle</option>
+                        <option value="Small van">Small van</option>
+                        <option value="Medium van (Transit-size)">Medium van (Transit-size)</option>
+                        <option value="Luton / box van">Luton / box van</option>
+                        <option value="7.5t+ truck">7.5t+ truck</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="partMessage">Tell us about your availability, insurance and experience:</label>
+                <textarea id="partMessage" name="message" rows="5" required aria-required="true" placeholder="Own commercial/goods-in-transit insurance, CPC/tachograph if applicable, hours available, and any relevant experience..."></textarea>
+            </div>
+
+            <button type="submit" class="inquiry-submit-btn" id="partnerSubmitBtn">Apply as a Partner</button>
+
+            <div id="partnerStatus" class="form-status" role="status" aria-live="polite"></div>
+        </form>
+    </div>
 </main>
 
 <!-- WhatsApp Floating Button -->
@@ -2269,6 +2332,71 @@
                 }
             } catch (err) {
                 statusEl.textContent = '⚠️ We could not send your message. Please call us on +353 87 459 2308.';
+                statusEl.className = 'form-status error';
+            } finally {
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+                setTimeout(() => { statusEl.className = 'form-status'; }, 8000);
+            }
+        });
+    })();
+
+    // ===== Partner / Subcontractor Application Form =====
+    (function setupPartnerForm() {
+        const partnerForm = document.getElementById('partnerForm');
+        if (!partnerForm) return;
+
+        const submitBtn = document.getElementById('partnerSubmitBtn');
+        const statusEl = document.getElementById('partnerStatus');
+
+        let toast = document.querySelector('.inquiry-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.className = 'inquiry-toast';
+            document.body.appendChild(toast);
+        }
+
+        function showToast(message) {
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 6000);
+        }
+
+        partnerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!partnerForm.checkValidity()) {
+                partnerForm.reportValidity();
+                return;
+            }
+
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Sending...';
+            submitBtn.disabled = true;
+            statusEl.textContent = '';
+            statusEl.className = 'form-status';
+
+            const data = new FormData(partnerForm);
+
+            try {
+                const res = await fetch('https://api.web3forms.com/submit', {
+                    method: 'POST',
+                    headers: { Accept: 'application/json' },
+                    body: data
+                });
+                const result = await res.json();
+
+                if (result.success) {
+                    if (window.acxTrack) window.acxTrack('partner_application_complete');
+                    showToast('✅ Application sent. We\'ll be in touch if we have work in your area.');
+                    statusEl.textContent = '✅ Application sent. We\'ll be in touch if we have work in your area.';
+                    statusEl.className = 'form-status success';
+                    partnerForm.reset();
+                } else {
+                    throw new Error(result.message || 'submission failed');
+                }
+            } catch (err) {
+                statusEl.textContent = '⚠️ We could not send your application. Please call us on +353 87 459 2308.';
                 statusEl.className = 'form-status error';
             } finally {
                 submitBtn.textContent = originalText;
