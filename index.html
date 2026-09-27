@@ -2166,6 +2166,13 @@
         if (!hash) return;
         const target = document.getElementById(hash.replace('#', ''));
         if (target && target.tagName === 'DETAILS') target.open = true;
+        // Drop the #fragment from the address bar once the jump has happened,
+        // so it doesn't linger and pull a later page refresh back down here.
+        setTimeout(() => {
+            if (location.hash === hash) {
+                history.replaceState(null, '', location.pathname + location.search);
+            }
+        }, 700);
     }
     document.querySelectorAll('nav a[href^="#"]').forEach(link => {
         link.addEventListener('click', () => expandCollapsibleSection(link.getAttribute('href')));
