@@ -84,7 +84,7 @@ Lo que ve el cliente en el resumen:
 Estaba a la vista de cualquiera en el código público de la página, aunque no se mostrara.
 
 **La tarifa interna** (lo que conviene cobrar de verdad, con el suelo por hora) vive solo en el
-repo privado: `NEGOCIO/rentabilidad.md`.
+repo privado: `NEGOCIO/dinero/rentabilidad.md`.
 
 **Lo que sí sigue:**
 - **Distancia y tiempo de conducción:** se calculan igual y se le mandan a Alberto en el correo

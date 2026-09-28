@@ -17,7 +17,7 @@ Web de una empresa de transporte urgente dedicado (vehículo exclusivo punto a p
 - **`index.html`** — toda la web (HTML + CSS + JS en un solo archivo)
 - **`server.js`** — servidor Node sin dependencias. Sirve los archivos estáticos **y** las analíticas propias. No es un sitio estático: Railway lo arranca con `npm start`.
 - **`cpc/`** — app de tests del dueño, sin relación con el negocio
-- **`stats/`** y **`notas/`** — panel de analíticas y buzón de notas. **La clave no se escribe nunca aquí**: vive en la variable `STATS_KEY` de Railway, y apuntada en el repo privado (`NEGOCIO/acceso.md`)
+- **`stats/`** y **`notas/`** — panel de analíticas y buzón de notas. **La clave no se escribe nunca aquí**: vive en la variable `STATS_KEY` de Railway, y apuntada en el repo privado (`NEGOCIO/empresa/acceso.md`)
 - **`data/events.jsonl`** — registro de visitas, en un volumen persistente de Railway montado en `/app/data`. **No está en git.**
 
 **Despliegue:** `git push` → Railway construye y publica en 1-2 minutos. No hay otro paso.
@@ -40,7 +40,7 @@ Web de una empresa de transporte urgente dedicado (vehículo exclusivo punto a p
 
 **6. Formularios:** Web3Forms (clave pública por diseño). **Bloquea `*.up.railway.app`** — pruébalos solo desde el dominio propio.
 
-**7. Precios: la web ya no publica ninguno** (26/09/2026). El cliente manda la solicitud y Alberto responde con un presupuesto hecho a mano, según el trabajo que tenga esa semana. La tabla de tarifas se borró del código — **no la vuelvas a meter** ni publiques cifras. Lo que sí viaja en el correo del formulario es la ruta, los km y el tiempo. La tarifa interna está en el repo privado (`NEGOCIO/rentabilidad.md`), nunca aquí.
+**7. Precios: la web ya no publica ninguno** (26/09/2026). El cliente manda la solicitud y Alberto responde con un presupuesto hecho a mano, según el trabajo que tenga esa semana. La tabla de tarifas se borró del código — **no la vuelvas a meter** ni publiques cifras. Lo que sí viaja en el correo del formulario es la ruta, los km y el tiempo. La tarifa interna está en el repo privado (`NEGOCIO/dinero/rentabilidad.md`), nunca aquí.
 
 ## Si dice "lee NEGOCIO" o "mira mis notas"
 
@@ -49,8 +49,8 @@ donde vive el trabajo de negocio: rentabilidad por ruta, clientes, decisiones.
 
 Además de leer esos archivos, **recoge el buzón de notas**: Alberto apunta cosas desde el
 móvil en `/notas/` y quedan en el servidor hasta que se archivan. El procedimiento exacto
-—y la clave, que **no puede estar en este repo público**— están en `NEGOCIO/notas-recibidas.md`
-y `NEGOCIO/acceso.md`.
+—y la clave, que **no puede estar en este repo público**— están en `NEGOCIO/web/notas-recibidas.md`
+y `NEGOCIO/empresa/acceso.md`.
 
 ## Cómo le gusta trabajar
 
