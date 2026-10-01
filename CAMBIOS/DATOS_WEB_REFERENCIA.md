@@ -102,7 +102,7 @@ irlandés bajo el mecanismo de inversión del sujeto pasivo (reverse charge), in
 | Vehículo | Tipo | Carga máxima | Ideal para |
 |---|---|---|---|
 | **Ford Explorer** | 100% eléctrico, courier ligero | 1,5 m L × 1,3 m A × 1,0 m H | Paquetes, cajas, piezas críticas, urbano rápido |
-| **Ford Transit Custom** | Furgoneta media dedicada | 2,8 m L × 1,4 m A × 1,4 m H | Palés, bultos grandes, mercancía comercial |
+| **Maxus Deliver 9 Luton** | Furgoneta Luton con elevadora | 3,76 m L × 2,03 m A × 2,39 m H (hasta 6 palés) | Palés, bultos grandes, mercancía comercial |
 
 ---
 
