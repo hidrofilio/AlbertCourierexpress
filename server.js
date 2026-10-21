@@ -446,8 +446,21 @@ function serveStatic(req, res, urlPath) {
   });
 }
 
+// The site lives at the bare domain. Google's business profile links to the www
+// address, which used to serve the same page and split the search ranking
+// between two addresses. Only page loads are redirected: a POST to /api/*
+// would lose its body on a 301.
+const CANONICAL_HOST = 'albertcourierexpress.com';
+
 const server = http.createServer(async (req, res) => {
   const url = req.url || '/';
+
+  const host = (req.headers.host || '').toLowerCase().split(':')[0];
+  if (host === 'www.' + CANONICAL_HOST && (req.method === 'GET' || req.method === 'HEAD')) {
+    res.writeHead(301, { Location: 'https://' + CANONICAL_HOST + url, 'Cache-Control': 'public, max-age=86400' });
+    res.end();
+    return;
+  }
 
   if (req.method === 'POST' && url === '/api/track') {
     try {
