@@ -19,7 +19,7 @@
 | Company No. (CRO) | 792955 |
 | VAT | IE4443513PH |
 | Base | Limerick / Shannon, Irlanda |
-| Dominio canónico | `https://albertcourierexpress.com` (**sin `www.`**) |
+| Dominio canónico | `https://albertcourierexpress.com` (**sin `www.`**). Desde el 21/10/2026 la web lo declara con `<link rel="canonical">` y `www.` redirige aquí con un 301 *(pendiente de que Railway lo publique)* |
 | Teléfono / WhatsApp | +353 (87) 459 2308 — 24/7/365 |
 | Email | info@albertcourierexpress.com |
 | Reseñas Google | https://g.page/r/CVWrGoZS_82eEBM/review |
@@ -76,7 +76,7 @@ Lo que ve el cliente en el resumen:
 
 | Antes | Ahora |
 |---|---|
-| "Estimated price — €320 + VAT" | **"Price — Quote on request"** |
+| "Estimated price — €… + VAT" | **"Price — Quote on request"** |
 | "Indicative only. We confirm the final price…" | **"Send the request and we reply fast with your price — 24/7."** |
 | Subtítulo: *"flat rates on our main Irish corridors"* | *"tell us where and when, and we come straight back with your price"* |
 

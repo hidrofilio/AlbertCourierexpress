@@ -1,6 +1,8 @@
 # 🎯 Features Técnicos - Albert Courier Express
 
-**Última actualización:** 2026-09-12 — reemplaza la versión de 2026-09-09, que describía la web previa a Netlify (colores naranja, Citroën en la flota, `LocalBusiness` genérico, formulario Netlify). Todo eso ya no existe.
+**Última actualización:** 2026-10-21 — reemplaza la versión de 2026-09-09, que describía la web previa a Netlify (colores naranja, Citroën en la flota, `LocalBusiness` genérico, formulario Netlify). Todo eso ya no existe.
+
+> ⚠️ Repositorio **público**: este documento no lleva precios, tarifas ni costes.
 
 ## 📱 Responsividad
 
@@ -64,12 +66,20 @@ El valor de blur se ha probado en varios niveles (1px, 2px, 6px, 10px, 12px) —
 ## 📊 SEO
 
 ### Schema.org JSON-LD (dos bloques en el `<head>`)
-1. **`LogisticsService`** (no `LocalBusiness` genérico): incluye `areaServed` (Ireland + Northern Ireland como entidades separadas), `makesOffer` con los 6 sectores de especialidad, `slogan`, base en Limerick/Shannon.
+1. **`["LogisticsService", "EmergencyService"]`** (tipo doble desde 2026-09-13, no `LocalBusiness` genérico): incluye `areaServed` (Ireland + Northern Ireland como entidades separadas), `makesOffer` con los 6 sectores de especialidad, `slogan`, base en Limerick/Shannon, `email`, `founder` (Alberto Tome Aranda) y `contactPoint` (teléfono/email/WhatsApp/idiomas/horario 24/7) — pensado para que los motores de IA (ChatGPT, Gemini, Perplexity) puedan citar la empresa como respuesta directa a búsquedas de transporte urgente.
 2. **`FAQPage`**: las 5 preguntas/respuestas del acordeón FAQ, palabra por palabra.
+
+### Texto plano para rastreadores de IA (footer)
+Bloque "Urgent Dispatch Contact" añadido en el footer — WhatsApp, email, tiempos de recogida por hub (Shannon ~45min, Dublin ~2.5h, Cork ~2h, Belfast ~5-6h) y cobertura de los 32 condados, en HTML de texto real (no imagen) para que sea indexable.
 
 ### Meta tags
 Title: `Albert Couriers | Dedicated Express Courier & 24/7 AOG Logistics Ireland`
 Description menciona: furgoneta dedicada, 32 condados, AOG/Medical/Palletized freight.
+
+### Dirección única (21/10/2026)
+- `<link rel="canonical" href="https://albertcourierexpress.com/">` en el `<head>`
+- `server.js` responde **301** a cualquier `GET`/`HEAD` que llegue a `www.albertcourierexpress.com`, hacia la misma ruta en `https://albertcourierexpress.com`. Los `POST` a `/api/*` no se redirigen (un 301 perdería el cuerpo de la petición)
+- Motivo: la ficha de Google Business enlazaba a la versión con `www`, que servía la misma página (200) sin canonical — dos direcciones compitiendo por el mismo contenido
 
 ### Encabezados
 ```
@@ -91,31 +101,35 @@ Fixes de rendimiento aplicados:
 
 ## 📝 Formularios (Web3Forms, NO Netlify)
 
-Ambos formularios postean a `https://api.web3forms.com/submit` con un `access_key` público (por diseño de Web3Forms) y un campo honeypot `botcheck` anti-spam.
+Los tres formularios postean a `https://api.web3forms.com/submit` con un `access_key` público (por diseño de Web3Forms) y un campo honeypot `botcheck` anti-spam.
 
 **⚠️ Web3Forms bloquea `*.up.railway.app`** — los envíos solo funcionan probando desde `albertcourierexpress.com`.
 
-### 1. Cotizador (`#quoteForm`, 3 pasos)
+### 1. Solicitud de transporte (`#quoteForm`, 3 pasos)
 - Paso 1: zona origen/destino (desplegable), vehículo, checkbox ASAP, checkbox AOG (con banner)
 - Paso 2: mercancía, peso, pallets, dimensiones, tailift, hazardous
 - Paso 3: direcciones exactas, email, teléfono, VAT, empresa, mensaje
-- Envía también el precio calculado y el ETA de recogida que vio el cliente
+- **No calcula ni envía precio** (desde el 26/09): el resumen dice *"Price — Quote on request"*
+- Envía el ETA de recogida que vio el cliente y, en campos ocultos, la distancia y el tiempo de la ruta (`route_km`, `route_time`)
 
 ### 2. Formulario general (`#inquiryForm`)
 - Full Name, Company (opcional), Email, Phone, Inquiry Type (desplegable: AOG/Medical/Energy/Fine Art/General), Message
 - Notificación flotante ("toast") de éxito + mensaje inline
 - Enlaces directos de llamada/WhatsApp junto al botón de envío
 
+### 3. Colaboradores / subcontratistas (`#partnerForm`, desde el 27/09)
+- Nombre, empresa, email, teléfono, zona que cubre, tipo de vehículo, mensaje
+- Llega a Gmail con el asunto *"New Partner/Subcontractor Application — Albert Courier Express"* (primera solicitud real recibida el 21/10)
+
 ---
 
-## 💰 Motor de precios (tarifa plana, NO por km)
+## 💰 Precios: la web no los publica (desde el 26/09/2026)
 
-Ver `[[project-albert-courier]]` en memoria para la matriz completa. Resumen:
-- Misma zona: €90
-- Pares de zona (Shannon/Dublin/Cork/Belfast): matriz fija por vehículo (Explorer / Transit)
-- "Other Location": sin precio, mensaje de contacto directo
-- ETA de recogida por zona de origen (45min–6h)
-- Vehículos: **solo 2** — Ford Explorer (100% EV, Light/Small) y Ford Transit Custom (Medium Van). El Citroën Relay se eliminó por completo.
+- **No hay tabla de tarifas en el código** (`PRICE_MATRIX`, `LOCAL_PRICE` y `renderPrice` se borraron): estaba a la vista en el código público aunque no se mostrara. **No volver a meterla.**
+- El cliente manda la solicitud y Alberto responde con un presupuesto hecho a mano. La tarifa interna vive solo en el repo privado `NEGOCIO/`
+- Se mantiene: ETA de recogida por zona de origen (Shannon ~45min, Dublin ~2.5h, Cork ~2h, Belfast ~5-6h) y el tiempo de trayecto real con OSRM, que suma siempre +30min de margen operativo
+- "Other Location": se pide contacto directo
+- Vehículos: **Ford Explorer** (100% EV, ligero) y **Maxus Deliver 9 Luton** con elevadora (desde el 01/10; la Transit se vendió). Ver [DATOS_WEB_REFERENCIA.md](DATOS_WEB_REFERENCIA.md#5-flota)
 
 ---
 
@@ -138,31 +152,48 @@ Link: wa.me/353874592308 (mensaje pre-rellenado distinto según contexto)
 ## 🔐 Seguridad / Privacidad
 
 - HTTPS automático (Railway + Let's Encrypt)
-- Honeypot anti-spam en ambos formularios (no CAPTCHA)
-- Sin cookies de terceros ni tracking
+- Honeypot anti-spam en los tres formularios (no CAPTCHA)
+- Sin cookies de terceros. Las analíticas son **propias**: `server.js` guarda las visitas con la IP anonimizada en `data/events.jsonl` (volumen de Railway, fuera de git) y descarta bots
+- `server.js` solo entrega extensiones de una lista blanca y bloquea `data/`, `CAMBIOS/` y los `.js` fuera de `cpc/` (ver `isPublicPath()`): el servidor llegó a exponer el código y el registro de visitas
+- `/stats/` y `/notas/` piden la clave de la variable `STATS_KEY` de Railway, que nunca se escribe en el repo
 
 ---
 
 ## 📦 Archivos del Proyecto
 
 ```
-index.html        Todo el código (HTML + CSS + JS embebidos)
-*.jpg              Fotos de fondo, logos
-CAMBIOS/           Esta documentación
+index.html              Todo el código de la web (HTML + CSS + JS embebidos)
+server.js                Servidor Node sin dependencias: web, analíticas, notas, redirección de www
+package.json             Solo "npm start" → node server.js (Node >= 18)
+stats/, notas/           Panel de analíticas y buzón de notas (con clave)
+robots.txt, sitemap.xml  Para buscadores, con la dirección sin www
+favicon.png              Icono de pestaña (globo recortado de Mundomaslogo.jpg)
+*.jpg                    Fotos de fondo, logos (Mundomaslogo.jpg, irlandamaslogo.jpg, fondos del carrusel)
+whatsapp-qr.png          QR de WhatsApp Business recortado, usado en la firma de email
+signature-vN.gif         Firma de email animada (GIF, versión N = la más reciente subida)
+email-signature.html    HTML de la firma para abrir localmente y copiar/pegar en Gmail — NO es una página pública de la web
+CAMBIOS/                 Esta documentación
+cpc/                     App privada de tests CPC del dueño (sí está en git y desplegada en /cpc/, con PIN de acceso — ver nota abajo)
 ```
 
 **No existe** `netlify.toml` (eliminado), ni `.hero-slide` con imágenes activas (se quitaron las fotos de la portada, solo queda el fondo de pantalla general).
+
+**Nota sobre `cpc/`:** app de tests aparte del negocio (examen "Transport Manager CPC – Passenger" que estudia el dueño), en `https://albertcourierexpress.com/cpc/`, protegida con PIN local (`localStorage`, no es seguridad real) y sin enlace desde el menú ni el `robots.txt`/`meta robots` la indexa. `CPC-tests/` y `CPC course/` sí son material personal (txt/pdf) que queda en la misma carpeta del proyecto pero **deliberadamente sin añadir a git** — cuidado con `git add .` en vez de añadir archivos por nombre.
 
 ---
 
 ## 🚀 Deployment Pipeline
 
 ```
-Local Edit → git push → GitHub → Railway detecta el push → Build (Caddy) → Deploy
+Local Edit → git push → GitHub → Railway detecta el push → npm start (node server.js) → Deploy
                                                                     ↓
                                         https://albertcourierexpress.com (~1-2 min)
 ```
 
+- **Comprobar que se publicó:** en Railway → Deployments debe aparecer el commit nuevo. El 21/10 el push de `5d10e58` no generó despliegue (el último era del 01/10) — si vuelve a pasar, es Railway, no el código
+- El CDN de Railway cachea 1 hora: verificar con `?nc=<número>` en la URL. Invalidar de verdad solo lo puede hacer el dueño (Railway → Settings → Purge All)
+- No hay Node en el ordenador de Alberto: la sintaxis de `server.js` se valida con Edge headless (`new Function(código)`), ver `CLAUDE.md`
+
 ---
 
-**Última actualización:** 2026-09-12
+**Última actualización:** 2026-10-21
