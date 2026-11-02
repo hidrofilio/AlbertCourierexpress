@@ -91,6 +91,15 @@
   .feedback.ok { color: #4CD964; }
   .feedback.bad { color: #FF6B6B; }
 
+  .step-lab { font-size: 0.8rem; font-weight: 700; color: #7fa8d9; text-transform: uppercase; letter-spacing: 0.03em; margin: 0.4rem 0 0.6rem; }
+  .step-res { font-weight: 600; margin: 0.2rem 0 0.9rem; line-height: 1.4; }
+  .mod-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
+  .mod-grid .opt { margin-bottom: 0; padding: 0.6rem 0.65rem; font-size: 0.85rem; }
+  .sheet-lab { font-size: 0.75rem; color: #7fa8d9; margin: 0.8rem 0 0.35rem; }
+  .opt.h-btn { display: flex; justify-content: space-between; gap: 0.6rem; padding: 0.7rem 0.9rem; margin-bottom: 0.45rem; }
+  .opt.h-btn.sub { padding-left: 1.6rem; font-size: 0.88rem; }
+  .h-pg { font-weight: 700; color: #a8c5e8; white-space: nowrap; }
+
   .result-score { text-align: center; font-size: 3rem; font-weight: 700; margin: 1rem 0 0.3rem; }
   .result-label { text-align: center; color: #a8c5e8; margin-bottom: 1.5rem; }
 
@@ -136,7 +145,7 @@
     <h1 id="result-title"></h1>
     <div class="card">
       <div class="result-score" id="result-score"></div>
-      <div class="result-label">respuestas correctas</div>
+      <div class="result-label" id="result-label">respuestas correctas</div>
       <button class="copy-btn" id="copy-all-btn" onclick="copyAllSession()">📋 Copiar todo el test (para Gemini)</button>
       <button onclick="retryTopic()">Repetir este tema</button>
       <button class="secondary" onclick="backToMenu()">Volver a temas</button>
@@ -146,6 +155,7 @@
 </div>
 
 <script src="data.js"></script>
+<script src="buscar.js"></script>
 <script>
 const PIN = '8214';
 const STORAGE_KEY = 'cpc_progress_v1';
@@ -224,7 +234,7 @@ function showMenu() {
   const keys = Object.keys(window.CPC_TEMAS).sort((a,b) => parseInt(a) - parseInt(b));
 
   let totalAttempts = 0, totalPct = 0;
-  let simulacrosHeaderShown = false;
+  let simulacrosHeaderShown = false, buscarHeaderShown = false;
   keys.forEach(key => {
     const tema = window.CPC_TEMAS[key];
     // Keys from 101 upwards are mixed-topic mock exams, listed under their own heading
@@ -234,6 +244,14 @@ function showMenu() {
       h.innerHTML = '📝 Simulacros de examen<small>40 preguntas con temas mezclados, como en el examen real</small>';
       list.appendChild(h);
       simulacrosHeaderShown = true;
+    }
+    // Keys from 201 upwards are the step-by-step "find it in the book" tests
+    if (!buscarHeaderShown && parseInt(key) >= 200) {
+      const h = document.createElement('h2');
+      h.className = 'section-title';
+      h.innerHTML = '🔎 Buscar en el libro<small>Eliges el tema y después el apartado de las hojas de resumen; al final, la página del libro</small>';
+      list.appendChild(h);
+      buscarHeaderShown = true;
     }
     const rec = progress[key];
     const pct = rec ? Math.round((rec.lastScore / rec.lastTotal) * 100) : null;
@@ -266,12 +284,16 @@ let sessionLog = [];
 function startQuiz(topicKey) {
   currentTopic = topicKey;
   const tema = window.CPC_TEMAS[topicKey];
-  currentQuestions = shuffle(tema.questions).map(q => {
-    // shuffle options too, tracking correct answer text
-    const correctText = q.options[q.correct];
-    const opts = shuffle(q.options);
-    return { q: q.q, options: opts, correct: opts.indexOf(correctText), exp: q.exp };
-  });
+  if (tema.type === 'buscar') {
+    currentQuestions = shuffle(tema.questions).map(q => ({ buscar: true, q: q.q, ans: q.ans, exp: q.exp }));
+  } else {
+    currentQuestions = shuffle(tema.questions).map(q => {
+      // shuffle options too, tracking correct answer text
+      const correctText = q.options[q.correct];
+      const opts = shuffle(q.options);
+      return { q: q.q, options: opts, correct: opts.indexOf(correctText), exp: q.exp };
+    });
+  }
   currentIndex = 0;
   currentScore = 0;
   sessionLog = [];
@@ -292,6 +314,12 @@ function resumeQuiz(state) {
 }
 
 function formatQuestionText(entry) {
+  if (entry.buscar) {
+    return `Pregunta: ${entry.q}\n` +
+      `Tema: elegí el ${entry.pickedMod} — ${entry.modOk ? 'Correcto' : 'Incorrecto (era el ' + entry.mod + ')'}\n` +
+      `Apartado: elegí «${entry.pickedH}» — ${entry.hOk ? 'Correcto' : 'Incorrecto (era «' + entry.okH + '»)'}\n` +
+      `Explicación: ${entry.exp}\n`;
+  }
   const letters = ['A','B','C','D'];
   let out = `Pregunta: ${entry.q}\n`;
   entry.options.forEach((opt, i) => {
@@ -361,6 +389,8 @@ function renderQuestion() {
   document.getElementById('copy-q-btn').hidden = true;
   document.getElementById('next-btn').hidden = true;
 
+  if (q.buscar) { renderBuscarStep1(); return; }
+
   const optsDiv = document.getElementById('options');
   optsDiv.innerHTML = '';
   const letters = ['A','B','C','D'];
@@ -413,6 +443,95 @@ function selectAnswer(i) {
   saveInProgress();
 }
 
+// ---- "Buscar en el libro": step 1 picks the module, step 2 the heading of its revision summary ----
+let bState = null;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+function resumen(n) { return (window.CPC_RESUMENES || []).find(m => m[0] === n); }
+// Finds a heading of a module's summary: { sheet, item: [title, page, section, sub, formula] }
+function findHeading(n, title) {
+  for (const [sheet, , items] of resumen(n)[3]) {
+    const item = items.find(it => it[0] === title);
+    if (item) return { sheet, item };
+  }
+  return null;
+}
+
+function renderBuscarStep1() {
+  bState = { step: 1 };
+  const optsDiv = document.getElementById('options');
+  optsDiv.innerHTML = '<div class="step-lab">Paso 1 de 2 · ¿En qué tema lo buscas?</div><div class="mod-grid" id="mod-grid"></div><div id="step2"></div>';
+  const grid = document.getElementById('mod-grid');
+  (window.CPC_RESUMENES || []).forEach(m => {
+    const b = document.createElement('button');
+    b.className = 'opt';
+    b.innerHTML = `<b>${m[0]}</b> · ${esc(m[1])}`;
+    b.onclick = () => pickModule(m[0]);
+    grid.appendChild(b);
+  });
+}
+
+function pickModule(n) {
+  if (!bState || bState.step !== 1) return;
+  const q = currentQuestions[currentIndex];
+  const okMods = q.ans.map(a => a[0]);
+  bState = { step: 2, pickedMod: n, modOk: okMods.includes(n), mod: okMods.includes(n) ? n : okMods[0] };
+  document.getElementById('mod-grid').style.display = 'none';
+  const m = resumen(bState.mod);
+  const res = bState.modOk
+    ? `✅ Tema ${m[0]} · ${esc(m[1])}`
+    : `❌ Elegiste el tema ${n}. Es el tema ${m[0]} · ${esc(m[1])}`;
+  let h = `<div class="step-res">${res}</div><div class="step-lab">Paso 2 de 2 · ¿En qué apartado de la hoja de resumen?</div>`;
+  for (const [sheet, , items] of m[3]) {
+    h += `<div class="sheet-lab">Hoja del resumen p. ${sheet}</div>`;
+    items.forEach(it => {
+      h += `<button class="opt h-btn${it[3] ? ' sub' : ''}" data-h="${esc(it[0])}"><span>${esc(it[0])}</span><span class="h-pg">p. ${esc(it[1])}</span></button>`;
+    });
+  }
+  const step2 = document.getElementById('step2');
+  step2.innerHTML = h;
+  step2.querySelectorAll('.h-btn').forEach(b => { b.onclick = () => pickHeading(b.dataset.h); });
+  saveInProgress();
+}
+
+function pickHeading(title) {
+  if (!bState || bState.step !== 2) return;
+  bState.step = 3;
+  const q = currentQuestions[currentIndex];
+  const okHeads = q.ans.filter(a => a[0] === bState.mod).map(a => a[1]);
+  const hOk = okHeads.includes(title);
+  document.querySelectorAll('.h-btn').forEach(b => {
+    b.disabled = true;
+    if (okHeads.includes(b.dataset.h)) b.classList.add('correct');
+    else if (b.dataset.h === title) b.classList.add('wrong');
+  });
+  currentScore += (bState.modOk ? 1 : 0) + (hOk ? 1 : 0);
+
+  const fb = document.getElementById('feedback');
+  fb.style.display = 'block';
+  if (bState.modOk && hOk) { fb.textContent = '✅ ¡Tema y apartado correctos!'; fb.className = 'feedback ok'; }
+  else if (bState.modOk || hOk) { fb.textContent = bState.modOk ? '🟡 Tema bien, apartado no' : '🟡 Tema no, apartado bien'; fb.className = 'feedback'; }
+  else { fb.textContent = '❌ Tema y apartado incorrectos'; fb.className = 'feedback bad'; }
+
+  const m = resumen(bState.mod);
+  const where = findHeading(bState.mod, okHeads[0]);
+  const it = where.item;
+  let text = `📖 Dónde está: tema ${m[0]} (${m[1]}) → hoja del resumen p. ${where.sheet} → «${it[0]}» → libro p. ${it[1]}` + (it[2] ? ` (sección ${it[2]})` : '');
+  if (okHeads.length > 1) text += `\nTambién vale: ${okHeads.slice(1).map(t => '«' + t + '»').join(', ')}`;
+  const others = q.ans.filter(a => a[0] !== bState.mod);
+  if (others.length) text += `\nTambién vale el tema ${others.map(a => a[0] + ' «' + a[1] + '»').join(', ')}`;
+  if (it[4]) text += `\n✎ Fórmula: ${it[4][0]}`;
+  text += `\n\n${q.exp}`;
+  const ex = document.getElementById('explain');
+  ex.style.display = 'block';
+  ex.textContent = text;
+
+  sessionLog.push({ buscar: true, q: q.q, pickedMod: bState.pickedMod, mod: bState.mod, modOk: bState.modOk,
+    pickedH: title, okH: okHeads[0], hOk, exp: text });
+  document.getElementById('copy-q-btn').hidden = false;
+  document.getElementById('next-btn').hidden = false;
+  saveInProgress();
+}
+
 function nextQuestion() {
   currentIndex++;
   if (currentIndex >= currentQuestions.length) {
@@ -423,7 +542,10 @@ function nextQuestion() {
 }
 
 function finishQuiz() {
-  const total = currentQuestions.length;
+  // In the "buscar" tests each question has two points: the module and the heading
+  const isBuscar = currentQuestions.length > 0 && currentQuestions[0].buscar;
+  const total = currentQuestions.length * (isBuscar ? 2 : 1);
+  document.getElementById('result-label').textContent = isBuscar ? 'aciertos (1 por el tema + 1 por el apartado)' : 'respuestas correctas';
   const progress = getProgress();
   progress[currentTopic] = { lastScore: currentScore, lastTotal: total, date: new Date().toISOString() };
   saveProgress(progress);
