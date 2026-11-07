@@ -290,7 +290,9 @@ function startQuiz(topicKey) {
     currentQuestions = shuffle(tema.questions).map(q => {
       // shuffle options too, tracking correct answer text
       const correctText = q.options[q.correct];
-      const opts = shuffle(q.options);
+      // "All/None of the above" only makes sense as the last option
+      const mixed = shuffle(q.options), last = o => /of the above/i.test(o);
+      const opts = mixed.filter(o => !last(o)).concat(mixed.filter(last));
       return { q: q.q, options: opts, correct: opts.indexOf(correctText), exp: q.exp };
     });
   }
