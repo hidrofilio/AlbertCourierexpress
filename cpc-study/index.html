@@ -113,6 +113,17 @@
   .feedback.bad { color: #FF8A8A; }
   .explain { background: rgba(0,102,255,0.12); border-left: 3px solid #0066FF; padding: 0.9rem 1rem; border-radius: 8px; margin: 0.6rem 0 1rem; font-size: 0.92rem; line-height: 1.6; white-space: pre-line; }
   .report-row { text-align: center; margin-top: 0.4rem; }
+  .ai-note { font-size: 0.88rem; line-height: 1.55; color: #ffe08a; border-color: rgba(255,193,7,0.45); background: rgba(255,193,7,0.08); }
+
+  /* "Find it in the book": step 1 the module, step 2 the heading of its summary sheet */
+  .step-lab { font-size: 0.8rem; font-weight: 700; color: #7fa8d9; text-transform: uppercase; letter-spacing: 0.03em; margin: 0.4rem 0 0.6rem; }
+  .step-res { font-weight: 600; margin: 0.2rem 0 0.9rem; line-height: 1.4; }
+  .mod-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
+  .mod-grid .opt { margin-bottom: 0; padding: 0.6rem 0.65rem; font-size: 0.85rem; }
+  .sheet-lab { font-size: 0.75rem; color: #7fa8d9; margin: 0.8rem 0 0.35rem; }
+  .opt.h-btn { display: flex; justify-content: space-between; gap: 0.6rem; padding: 0.7rem 0.9rem; margin-bottom: 0.45rem; }
+  .opt.h-btn.sub { padding-left: 1.6rem; font-size: 0.88rem; }
+  .h-pg { font-weight: 700; color: #a8c5e8; white-space: nowrap; }
 
   .result-score { text-align: center; font-size: 2.6rem; font-weight: 700; margin: 0.6rem 0 0.2rem; }
   .result-label { text-align: center; color: #a8c5e8; margin-bottom: 1.2rem; }
@@ -147,6 +158,9 @@
       <button onclick="goSignup()">I'm new — start</button>
       <button class="secondary" onclick="goLogin()">I already have a code</button>
       <p class="muted" style="margin:1rem 0 0;">No email and no password: you choose a nickname and get a code. Keep the code to see your progress on another phone.</p>
+    </div>
+    <div class="card ai-note">
+      🤖 <b>Made with AI.</b> All the questions, answers and explanations on this site were made with artificial intelligence, from the course book and official sources. They may contain mistakes: check with the book, and if something looks wrong, tap “Report a mistake”.
     </div>
     <div class="err" id="welcome-err" style="text-align:center;"></div>
   </div>
@@ -216,7 +230,7 @@
     </div>
     <button class="secondary" onclick="switchExam()" id="switch-btn"></button>
     <button class="secondary" onclick="logout()">Log out on this phone</button>
-    <footer>Questions written by a classmate while studying the course book.<br>They may contain mistakes — please report them.</footer>
+    <footer>🤖 Everything here was made with AI from the course book and official sources.<br>It may contain mistakes — check with the book and please report them.</footer>
   </div>
 
   <!-- Test -->
@@ -241,12 +255,12 @@
     <h1 id="result-title" style="font-size:1.2rem;"></h1>
     <div class="card">
       <div class="result-score" id="result-score"></div>
-      <div class="result-label">correct answers</div>
+      <div class="result-label" id="result-label">correct answers</div>
       <button onclick="startQuiz(currentTopic)">Try this test again</button>
       <button class="secondary" onclick="showMenu()">Back to topics</button>
     </div>
     <div class="card" id="review-card">
-      <h2>Your wrong answers</h2>
+      <h2 id="review-title">Your wrong answers</h2>
       <div id="review"></div>
     </div>
   </div>
@@ -268,6 +282,7 @@
 
 <script src="/cpc/data-en.js"></script>
 <script src="/cpc/data-goods-en.js"></script>
+<script src="/cpc/buscar-en.js"></script>
 <script>
 // ---- Question bank and how the topics are grouped by exam ----
 // The main bank comes from the course book's common and passenger pages (the haulage pages
@@ -275,18 +290,25 @@
 // were written separately from the official rules, as there is no goods book in it.
 const PASSENGER_BANK = window.CPC_TEMAS_EN || {};
 const GOODS_BANK = window.CPC_GOODS_EN || {};
-const BANK = Object.assign({}, PASSENGER_BANK, GOODS_BANK);
+// "Find it in the book" tests for the case-study paper: the answer is a module and a heading of its revision summary
+const BUSCAR_BANK = window.CPC_BUSCAR_EN || {};
+const RESUMENES = window.CPC_RESUMENES_EN || [];
+const BANK = Object.assign({}, PASSENGER_BANK, GOODS_BANK, BUSCAR_BANK);
 const byNumber = (a, b) => parseInt(a.replace(/\D/g, '')) - parseInt(b.replace(/\D/g, '')) || a.localeCompare(b);
 const PASSENGER_ONLY = ['15', '16', '18', '21', '22', '26', '28', '31', '32'].filter(k => PASSENGER_BANK[k]);
 const GOODS_ONLY = Object.keys(GOODS_BANK).sort(byNumber);
 const isMock = k => parseInt(k) >= 100;
 const COMMON = Object.keys(PASSENGER_BANK).filter(k => !isMock(k) && !PASSENGER_ONLY.includes(k)).sort(byNumber);
 const MOCKS = Object.keys(PASSENGER_BANK).filter(isMock).sort(byNumber);
-const ALL_KEYS = COMMON.concat(PASSENGER_ONLY, MOCKS, GOODS_ONLY);
+const BUSCAR = Object.keys(BUSCAR_BANK).sort(byNumber);
+const isBuscar = k => Boolean(BUSCAR_BANK[k]);
+// Summary sheets of modules that only exist for buses and coaches
+const BUSCAR_PASSENGER_MODULES = [15, 16, 18, 21, 22, 26, 28, 30, 31, 32];
+const ALL_KEYS = COMMON.concat(PASSENGER_ONLY, MOCKS, GOODS_ONLY, BUSCAR);
 const EXAM_LABEL = { goods: '🚚 Goods (road haulage) exam', passenger: '🚌 Passenger (bus and coach) exam' };
 // In the common topics and the mock exams, questions about buses and coaches are left out for goods students
 const BUS_WORDS = /\b(bus|buses|coach|coaches|passengers?|PSVs?|LPSV|SPSV|NTA|seats?|seating|fares?|minibus(es)?|D1|D\+E|D1\+E|category D|pushchairs?|tickets?|ticketing|timetables?|headway|waybills?|journey forms?|route licen[cs]es?|regular services?|occasional services?|Leap Card|Interbus|closed[- ]door|Tempo 100|Vitesse 100|domestic (rules|hours|driving|regulations)|spreadover|package (holiday|tour|travel)|SOLAS|standing passengers|school transport|tours?|excursions?)\b/i;
-const busOnly = q => BUS_WORDS.test(q.q + ' ' + q.options.join(' '));
+const busOnly = q => BUS_WORDS.test(q.q + ' ' + (q.options || []).join(' '));
 const RANDOM = 'random', RANDOM_SIZE = 40;
 
 function examNow() { return profile && profile.exam === 'goods' ? 'goods' : 'passenger'; }
@@ -294,6 +316,8 @@ function examNow() { return profile && profile.exam === 'goods' ? 'goods' : 'pas
 function topicQuestions(key) {
   if (key === RANDOM) return randomPool();
   const qs = BANK[key] ? BANK[key].questions : [];
+  // Goods students only get the find-it questions whose answer is in a module common to both exams
+  if (isBuscar(key)) return examNow() === 'goods' ? qs.filter(q => !busOnly(q) && q.ans.every(a => !BUSCAR_PASSENGER_MODULES.includes(a[0]))) : qs;
   return examNow() === 'goods' && (COMMON.includes(key) || MOCKS.includes(key)) ? qs.filter(q => !busOnly(q)) : qs;
 }
 // Every question of the student's own exam, once each: the practice exam draws 40 of them
@@ -581,10 +605,13 @@ function showMenu() {
   sec.innerHTML = '';
   const goods = profile.exam === 'goods';
   const practice = 'A new mix of 40 questions every time, from all the topics of your exam.';
+  const FIND_NOTE = 'For the case study paper: pick the module where you would look, then the heading of its revision summary sheet. You then see the book page. 2 points per question.';
   if (goods) {
     addSection(sec, 'Common to both exams', 'Same rules for goods and passenger. Questions about buses are left out.', COMMON, '');
     addSection(sec, 'Goods only', 'Lorries and haulage. Written from the official rules (EU regulations, RSA, CMR) until the haulage pages of the course book are added.', GOODS_ONLY, 'Coming soon.');
     addSection(sec, 'Practice exam', practice, [RANDOM], '');
+    // a find-it test left with only a couple of questions after removing the bus ones is not worth showing
+    addSection(sec, 'Find it in the book', FIND_NOTE, BUSCAR.filter(k => topicQuestions(k).length >= 5), '');
     addCollapsed(sec, 'Mock exams', 'Mixed topics, like the real exam. Questions about buses are left out.', MOCKS, '');
     addCollapsed(sec, 'Passenger-only topics', 'Not in the goods exam — extra practice only', PASSENGER_ONLY, '');
   } else {
@@ -592,6 +619,7 @@ function showMenu() {
     addSection(sec, 'Passenger only', 'Buses and coaches', PASSENGER_ONLY, '');
     addSection(sec, 'Mock exams', 'Mixed topics, like the real exam.', MOCKS, '');
     addSection(sec, 'Practice exam', practice, [RANDOM], '');
+    addSection(sec, 'Find it in the book', FIND_NOTE, BUSCAR, '');
     addCollapsed(sec, 'Goods-only topics', 'Not in the passenger exam — extra practice only', GOODS_ONLY, 'Coming soon.');
   }
 
@@ -631,7 +659,7 @@ function startQuiz(topic) {
   currentTopic = topic;
   let picked = shuffle(topicQuestions(topic));
   if (topic === RANDOM) picked = picked.slice(0, RANDOM_SIZE);
-  const qs = picked.map(q => [qid(q.q), optionOrder(q)]);
+  const qs = picked.map(q => [qid(q.q), q.options ? optionOrder(q) : null]);
   state.inprogress[topic] = { qs, log: [] };
   run = state.inprogress[topic];
   persist();
@@ -681,6 +709,7 @@ function renderQuestion() {
   document.getElementById('next-btn').hidden = true;
   const box = document.getElementById('options');
   box.innerHTML = '';
+  if (isBuscar(currentTopic)) { renderBuscarStep1(); return; }
   order.forEach((orig, pos) => {
     const b = document.createElement('button');
     b.className = 'opt';
@@ -688,6 +717,92 @@ function renderQuestion() {
     b.onclick = () => selectAnswer(orig);
     box.appendChild(b);
   });
+}
+
+// ---- "Find it in the book": step 1 the module, step 2 the heading of its revision summary sheet ----
+let bState = null;
+const resumen = n => RESUMENES.find(m => m[0] === n);
+// Goods students do not get the summary sheets of the bus-only modules
+const modulesForExam = () => RESUMENES.filter(m => examNow() !== 'goods' || !BUSCAR_PASSENGER_MODULES.includes(m[0]));
+function findHeading(n, title) {
+  for (const [sheet, , items] of resumen(n)[3]) {
+    const it = items.find(x => x[0] === title);
+    if (it) return { sheet, it };
+  }
+  return null;
+}
+// Where the answer is in the book, for the explanation and the review
+function whereText(q, mod) {
+  const m = resumen(mod);
+  const okHeads = q.ans.filter(a => a[0] === mod).map(a => a[1]);
+  const where = findHeading(mod, okHeads[0]);
+  const it = where.it;
+  let text = `📖 Where: module ${m[0]} (${m[1]}) → summary sheet p. ${where.sheet} → «${it[0]}» → book p. ${it[1]}` + (it[2] ? ` (section ${it[2]})` : '');
+  if (okHeads.length > 1) text += `\nAlso accepted: ${okHeads.slice(1).map(t => '«' + t + '»').join(', ')}`;
+  const others = q.ans.filter(a => a[0] !== mod);
+  if (others.length) text += `\nModule ${others.map(a => a[0] + ' «' + a[1] + '»').join(', ')} is also accepted`;
+  if (it[4]) text += `\n✎ Formula: ${it[4][0]}`;
+  return text;
+}
+function renderBuscarStep1() {
+  bState = { step: 1 };
+  const box = document.getElementById('options');
+  box.innerHTML = '<div class="step-lab">Step 1 of 2 · Which module would you look in?</div><div class="mod-grid" id="mod-grid"></div><div id="step2"></div>';
+  const grid = document.getElementById('mod-grid');
+  modulesForExam().forEach(m => {
+    const b = document.createElement('button');
+    b.className = 'opt';
+    b.innerHTML = `<b>${m[0]}</b> · ${esc(m[1])}`;
+    b.onclick = () => pickModule(m[0]);
+    grid.appendChild(b);
+  });
+}
+function pickModule(n) {
+  if (!bState || bState.step !== 1) return;
+  const { q } = current();
+  const okMods = q.ans.map(a => a[0]);
+  const modOk = okMods.includes(n);
+  bState = { step: 2, picked: n, modOk, mod: modOk ? n : okMods[0] };
+  document.getElementById('mod-grid').style.display = 'none';
+  const m = resumen(bState.mod);
+  let h = `<div class="step-res">${modOk ? `✅ Module ${m[0]} · ${esc(m[1])}` : `❌ You chose module ${n}. It is module ${m[0]} · ${esc(m[1])}`}</div>` +
+    '<div class="step-lab">Step 2 of 2 · Which heading of its revision summary?</div>';
+  for (const [sheet, , items] of m[3]) {
+    h += `<div class="sheet-lab">Summary sheet p. ${esc(sheet)}</div>`;
+    items.forEach(it => {
+      h += `<button class="opt h-btn${it[3] ? ' sub' : ''}" data-h="${esc(it[0])}"><span>${esc(it[0])}</span><span class="h-pg">p. ${esc(it[1])}</span></button>`;
+    });
+  }
+  const step2 = document.getElementById('step2');
+  step2.innerHTML = h;
+  step2.querySelectorAll('.h-btn').forEach(b => { b.onclick = () => pickHeading(b.dataset.h); });
+}
+function pickHeading(title) {
+  if (!bState || bState.step !== 2) return;
+  bState.step = 3;
+  const { i, q } = current();
+  const okHeads = q.ans.filter(a => a[0] === bState.mod).map(a => a[1]);
+  const hOk = okHeads.includes(title);
+  document.querySelectorAll('.h-btn').forEach(b => {
+    b.disabled = true;
+    if (okHeads.includes(b.dataset.h)) b.classList.add('correct');
+    else if (b.dataset.h === title) b.classList.add('wrong');
+  });
+  const points = (bState.modOk ? 1 : 0) + (hOk ? 1 : 0);
+  run.log.push([bState.picked, points, title]);
+  state.answered = (state.answered || 0) + 1;
+  answeredNow = i;
+  persist();
+  const fb = document.getElementById('answer-fb');
+  fb.hidden = false;
+  fb.textContent = points === 2 ? '✅ Module and heading correct!' : bState.modOk ? '🟡 Right module, wrong heading' : hOk ? '🟡 Wrong module, right heading' : '❌ Module and heading wrong';
+  fb.className = 'feedback ' + (points === 2 ? 'ok' : points === 0 ? 'bad' : '');
+  const ex = document.getElementById('explain');
+  ex.hidden = false;
+  ex.textContent = whereText(q, bState.mod) + '\n\n' + q.exp;
+  const next = document.getElementById('next-btn');
+  next.hidden = false;
+  next.textContent = run.log.length >= run.qs.length ? 'See my result →' : 'Next →';
 }
 
 function selectAnswer(orig) {
@@ -722,7 +837,10 @@ function nextQuestion() {
 
 function finishQuiz() {
   answeredNow = null;
-  const total = run.qs.length;
+  const buscar = isBuscar(currentTopic);
+  const total = run.qs.length * (buscar ? 2 : 1);
+  document.getElementById('result-label').textContent = buscar ? 'points (1 for the module + 1 for the heading)' : 'correct answers';
+  document.getElementById('review-title').textContent = buscar ? 'Questions to look at again' : 'Your wrong answers';
   const score = run.log.reduce((a, e) => a + e[1], 0);
   const prev = state.results[currentTopic];
   const pct = Math.round(score / total * 100);
@@ -740,15 +858,21 @@ function finishQuiz() {
   review.innerHTML = '';
   const idx = topicIndex(currentTopic);
   finished.log.forEach((e, n) => {
-    if (e[1]) return;
+    if (buscar ? e[1] === 2 : e[1]) return;
     const q = idx.get(finished.qs[n][0]);
     if (!q) return;
     const div = document.createElement('div');
     div.className = 'review-item';
     div.innerHTML = `<div class="q"></div><div class="yours"></div><div class="right"></div><div class="why"></div>`;
     div.querySelector('.q').textContent = q.q;
-    div.querySelector('.yours').textContent = '✗ Your answer: ' + q.options[e[0]];
-    div.querySelector('.right').textContent = '✓ Correct: ' + q.options[q.correct];
+    if (buscar) {
+      const m = resumen(e[0]);
+      div.querySelector('.yours').textContent = `✗ Your choice: module ${e[0]}${m ? ' (' + m[1] + ')' : ''}, «${e[2]}»`;
+      div.querySelector('.right').textContent = '✓ ' + whereText(q, q.ans[0][0]);
+    } else {
+      div.querySelector('.yours').textContent = '✗ Your answer: ' + q.options[e[0]];
+      div.querySelector('.right').textContent = '✓ Correct: ' + q.options[q.correct];
+    }
     div.querySelector('.why').textContent = q.exp;
     review.appendChild(div);
   });
