@@ -328,9 +328,12 @@ function startQuiz(topicKey) {
     currentQuestions = shuffle(tema.questions).map(q => {
       // shuffle options too, tracking correct answer text
       const correctText = q.options[q.correct];
+      // The mock-exam explanations say "Opción Correcta (A)": those keep the book's order
+      // (a unit such as "85 dB(A)" is not a letter)
+      const keep = /(^|[^A-Za-z])\([A-F](\)|,| y | and )/.test(q.exp || '') || q.options.some(o => /\b[A-F] (and|y) [A-F]\b/.test(o));
       // "All/None of the above" only makes sense as the last option
       const mixed = shuffle(q.options), last = o => /of the above/i.test(o);
-      const opts = mixed.filter(o => !last(o)).concat(mixed.filter(last));
+      const opts = keep ? q.options.slice() : mixed.filter(o => !last(o)).concat(mixed.filter(last));
       return { q: q.q, options: opts, correct: opts.indexOf(correctText), exp: q.exp };
     });
   }
