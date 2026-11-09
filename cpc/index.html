@@ -69,6 +69,7 @@
   .badge.low { background: rgba(255,107,107,0.25); color: #FF6B6B; }
   .badge.mid { background: rgba(255,193,7,0.25); color: #FFC107; }
   .badge.high { background: rgba(40,167,69,0.25); color: #4CD964; }
+  .badge.prog { background: rgba(0,102,255,0.3); color: #7fbfff; }
 
   .progress-bar { height: 6px; background: rgba(0,102,255,0.2); border-radius: 3px; overflow: hidden; margin-bottom: 1.4rem; }
   .progress-fill { height: 100%; background: #0066FF; width: 0%; transition: width 0.3s; }
@@ -138,7 +139,8 @@
       <button class="copy-btn" id="copy-q-btn" onclick="copyCurrentQuestion()" hidden>📋 Copiar esta pregunta</button>
       <button id="next-btn" onclick="nextQuestion()" hidden>Siguiente →</button>
     </div>
-    <button class="secondary" onclick="backToMenu()">← Volver a temas</button>
+    <button class="secondary" onclick="backToMenu()">← Volver a temas (se guarda lo que llevas)</button>
+    <button class="secondary" onclick="restartTopic()">↺ Empezar este test de nuevo</button>
   </div>
 
   <div id="screen-result" hidden>
@@ -160,24 +162,55 @@
 const PIN = '8214';
 const STORAGE_KEY = 'cpc_progress_v1';
 const UNLOCK_KEY = 'cpc_unlocked_v1';
-const INPROGRESS_KEY = 'cpc_inprogress_v1';
+// Every test keeps its own unfinished attempt, so leaving one to start another loses nothing
+const INPROGRESS_KEY = 'cpc_inprogress_v2';
+const LAST_TOPIC_KEY = 'cpc_last_topic_v1';
+const OLD_INPROGRESS_KEY = 'cpc_inprogress_v1';
 
+function getAllInProgress() {
+  let all = {};
+  try { all = JSON.parse(localStorage.getItem(INPROGRESS_KEY)) || {}; } catch(e) {}
+  // One-off move of the single attempt the previous version kept
+  try {
+    const old = JSON.parse(localStorage.getItem(OLD_INPROGRESS_KEY));
+    if (old && old.topic && !all[old.topic]) {
+      all[old.topic] = old;
+      localStorage.setItem(INPROGRESS_KEY, JSON.stringify(all));
+      localStorage.setItem(LAST_TOPIC_KEY, old.topic);
+    }
+    localStorage.removeItem(OLD_INPROGRESS_KEY);
+  } catch(e) {}
+  return all;
+}
 function saveInProgress() {
   try {
-    localStorage.setItem(INPROGRESS_KEY, JSON.stringify({
+    const all = getAllInProgress();
+    all[currentTopic] = {
       topic: currentTopic,
       questions: currentQuestions,
       index: currentIndex,
       score: currentScore,
       log: sessionLog
-    }));
+    };
+    localStorage.setItem(INPROGRESS_KEY, JSON.stringify(all));
+    localStorage.setItem(LAST_TOPIC_KEY, currentTopic);
   } catch(e) {}
 }
-function loadInProgress() {
-  try { return JSON.parse(localStorage.getItem(INPROGRESS_KEY)); } catch(e) { return null; }
+function loadInProgress(topic) {
+  const state = getAllInProgress()[topic];
+  return state && window.CPC_TEMAS[topic] ? state : null;
 }
-function clearInProgress() {
-  try { localStorage.removeItem(INPROGRESS_KEY); } catch(e) {}
+function clearInProgress(topic) {
+  try {
+    const all = getAllInProgress();
+    delete all[topic];
+    localStorage.setItem(INPROGRESS_KEY, JSON.stringify(all));
+  } catch(e) {}
+}
+function lastInProgress() {
+  let topic = null;
+  try { topic = localStorage.getItem(LAST_TOPIC_KEY); } catch(e) {}
+  return topic ? loadInProgress(topic) : null;
 }
 
 function getProgress() {
@@ -191,8 +224,8 @@ function tryUnlock() {
   const val = document.getElementById('pin').value.trim();
   if (val === PIN) {
     try { localStorage.setItem(UNLOCK_KEY, '1'); } catch(e) {}
-    const inProgress = loadInProgress();
-    if (inProgress && inProgress.topic && window.CPC_TEMAS[inProgress.topic]) {
+    const inProgress = lastInProgress();
+    if (inProgress) {
       resumeQuiz(inProgress);
     } else {
       showMenu();
@@ -229,6 +262,7 @@ function pctClass(pct) {
 function showMenu() {
   show('screen-menu');
   const progress = getProgress();
+  const unfinished = getAllInProgress();
   const list = document.getElementById('topic-list');
   list.innerHTML = '';
   const keys = Object.keys(window.CPC_TEMAS).sort((a,b) => parseInt(a) - parseInt(b));
@@ -257,11 +291,15 @@ function showMenu() {
     const pct = rec ? Math.round((rec.lastScore / rec.lastTotal) * 100) : null;
     if (rec) { totalAttempts++; totalPct += pct; }
 
+    const open = unfinished[key];
+    const badge = open
+      ? `<span class="badge prog">▶ Pregunta ${Math.min(open.index + 1, open.questions.length)}/${open.questions.length}</span>`
+      : `<span class="badge ${pctClass(pct)}">${pct === null ? 'Sin intentos' : pct + '%'}</span>`;
     const btn = document.createElement('div');
     btn.className = 'topic-btn';
-    btn.onclick = () => startQuiz(key);
+    btn.onclick = () => openTopic(key);
     btn.innerHTML = `<span>${tema.title} <span style="color:#7fa8d9;font-size:0.8rem;">(${tema.questions.length} preguntas)</span></span>
-      <span class="badge ${pctClass(pct)}">${pct === null ? 'Sin intentos' : pct + '%'}</span>`;
+      ${badge}`;
     list.appendChild(btn);
   });
 
@@ -304,6 +342,13 @@ function startQuiz(topicKey) {
   renderQuestion();
 }
 
+// From the menu: carry on where the test was left, or start it fresh
+function openTopic(topicKey) {
+  const state = loadInProgress(topicKey);
+  if (state) resumeQuiz(state);
+  else startQuiz(topicKey);
+}
+
 function resumeQuiz(state) {
   currentTopic = state.topic;
   currentQuestions = state.questions;
@@ -311,8 +356,17 @@ function resumeQuiz(state) {
   currentScore = state.score;
   sessionLog = state.log || [];
   document.getElementById('quiz-title').textContent = window.CPC_TEMAS[currentTopic].title;
+  // The question on screen was already answered (and scored) before leaving: move past it
+  if (sessionLog.length > currentIndex) currentIndex = sessionLog.length;
+  if (currentIndex >= currentQuestions.length) { finishQuiz(); return; }
   show('screen-quiz');
   renderQuestion();
+}
+
+function restartTopic() {
+  if (!confirm('¿Empezar este test de nuevo? Se pierde lo que llevas.')) return;
+  clearInProgress(currentTopic);
+  startQuiz(currentTopic);
 }
 
 function formatQuestionText(entry) {
@@ -551,7 +605,7 @@ function finishQuiz() {
   const progress = getProgress();
   progress[currentTopic] = { lastScore: currentScore, lastTotal: total, date: new Date().toISOString() };
   saveProgress(progress);
-  clearInProgress();
+  clearInProgress(currentTopic);
 
   show('screen-result');
   document.getElementById('result-title').textContent = window.CPC_TEMAS[currentTopic].title;
@@ -561,15 +615,19 @@ function finishQuiz() {
 }
 
 function retryTopic() { startQuiz(currentTopic); }
-function backToMenu() { clearInProgress(); showMenu(); }
+// The unfinished test stays saved; it shows in the menu as "▶ Pregunta N/M"
+function backToMenu() {
+  try { localStorage.removeItem(LAST_TOPIC_KEY); } catch(e) {}
+  showMenu();
+}
 
 // ---- Init ----
 (function init() {
   let unlocked = false;
   try { unlocked = localStorage.getItem(UNLOCK_KEY) === '1'; } catch(e) {}
   if (!unlocked) { show('screen-lock'); return; }
-  const inProgress = loadInProgress();
-  if (inProgress && inProgress.topic && window.CPC_TEMAS[inProgress.topic]) {
+  const inProgress = lastInProgress();
+  if (inProgress) {
     resumeQuiz(inProgress);
   } else {
     showMenu();
