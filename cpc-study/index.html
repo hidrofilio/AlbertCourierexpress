@@ -267,16 +267,42 @@
 </div>
 
 <script src="/cpc/data-en.js"></script>
+<script src="/cpc/data-goods-en.js"></script>
 <script>
 // ---- Question bank and how the topics are grouped by exam ----
-const BANK = window.CPC_TEMAS_EN || {};
-const ALL_KEYS = Object.keys(BANK).sort((a, b) => parseInt(a) - parseInt(b) || a.localeCompare(b));
-const PASSENGER_ONLY = ['15', '16', '18', '21', '22', '26', '28', '31', '32'];
-const GOODS_ONLY = []; // questions from the goods course book are still to be added
+// The main bank comes from the passenger course book; the goods topics (g10, g16...)
+// were written separately from the official rules, as there is no goods book in it.
+const PASSENGER_BANK = window.CPC_TEMAS_EN || {};
+const GOODS_BANK = window.CPC_GOODS_EN || {};
+const BANK = Object.assign({}, PASSENGER_BANK, GOODS_BANK);
+const byNumber = (a, b) => parseInt(a.replace(/\D/g, '')) - parseInt(b.replace(/\D/g, '')) || a.localeCompare(b);
+const PASSENGER_ONLY = ['15', '16', '18', '21', '22', '26', '28', '31', '32'].filter(k => PASSENGER_BANK[k]);
+const GOODS_ONLY = Object.keys(GOODS_BANK).sort(byNumber);
 const isMock = k => parseInt(k) >= 100;
-const COMMON = ALL_KEYS.filter(k => !isMock(k) && !PASSENGER_ONLY.includes(k) && !GOODS_ONLY.includes(k));
-const MOCKS = ALL_KEYS.filter(isMock);
+const COMMON = Object.keys(PASSENGER_BANK).filter(k => !isMock(k) && !PASSENGER_ONLY.includes(k)).sort(byNumber);
+const MOCKS = Object.keys(PASSENGER_BANK).filter(isMock).sort(byNumber);
+const ALL_KEYS = COMMON.concat(PASSENGER_ONLY, MOCKS, GOODS_ONLY);
 const EXAM_LABEL = { goods: '🚚 Goods (road haulage) exam', passenger: '🚌 Passenger (bus and coach) exam' };
+// In the common topics and the mock exams, questions about buses and coaches are left out for goods students
+const BUS_WORDS = /\b(bus|buses|coach|coaches|passengers?|PSVs?|LPSV|SPSV|NTA|seats?|seating|fares?|minibus(es)?|D1|D\+E|D1\+E|category D|pushchairs?|tickets?|ticketing|timetables?|headway|waybills?|journey forms?|route licen[cs]es?|regular services?|occasional services?|Leap Card|Interbus|closed[- ]door|Tempo 100|Vitesse 100|domestic (rules|hours|driving|regulations)|spreadover|package (holiday|tour|travel)|SOLAS|standing passengers|school transport|tours?|excursions?)\b/i;
+const busOnly = q => BUS_WORDS.test(q.q + ' ' + q.options.join(' '));
+const RANDOM = 'random', RANDOM_SIZE = 40;
+
+function examNow() { return profile && profile.exam === 'goods' ? 'goods' : 'passenger'; }
+// The questions a student gets for a topic, given their exam
+function topicQuestions(key) {
+  if (key === RANDOM) return randomPool();
+  const qs = BANK[key] ? BANK[key].questions : [];
+  return examNow() === 'goods' && (COMMON.includes(key) || MOCKS.includes(key)) ? qs.filter(q => !busOnly(q)) : qs;
+}
+// Every question of the student's own exam, once each: the practice exam draws 40 of them
+function randomPool() {
+  const keys = examNow() === 'goods' ? COMMON.concat(GOODS_ONLY) : COMMON.concat(PASSENGER_ONLY);
+  const pool = [], seen = new Set();
+  keys.forEach(k => topicQuestions(k).forEach(q => { if (!seen.has(q.q)) { seen.add(q.q); pool.push(q); } }));
+  return pool;
+}
+function topicTitle(key) { return key === RANDOM ? '🎲 Practice exam – 40 random questions' : BANK[key].title; }
 
 // Stable id for a question, so saved progress survives changes to the bank
 function qid(text) {
@@ -291,13 +317,15 @@ function qid(text) {
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
 }
 const indexCache = {};
+// All the questions a saved test can point to (the whole topic, so a test survives a change of exam)
 function topicIndex(topic) {
-  if (!indexCache[topic]) {
+  const ck = topic === RANDOM ? RANDOM + ':' + examNow() : topic;
+  if (!indexCache[ck]) {
     const m = new Map();
-    (BANK[topic] ? BANK[topic].questions : []).forEach(q => { if (!m.has(qid(q.q))) m.set(qid(q.q), q); });
-    indexCache[topic] = m;
+    (topic === RANDOM ? randomPool() : (BANK[topic] ? BANK[topic].questions : [])).forEach(q => { if (!m.has(qid(q.q))) m.set(qid(q.q), q); });
+    indexCache[ck] = m;
   }
-  return indexCache[topic];
+  return indexCache[ck];
 }
 
 // ---- Account, local copy and syncing with the server ----
@@ -479,7 +507,7 @@ async function switchExam() {
 // ---- Topics menu ----
 function pctClass(p) { return p === null ? 'none' : p < 60 ? 'low' : p < 85 ? 'mid' : 'high'; }
 function topicButton(key) {
-  const t = BANK[key];
+  const count = key === RANDOM ? RANDOM_SIZE : topicQuestions(key).length;
   const open = state.inprogress[key];
   const res = state.results[key];
   let badge;
@@ -493,7 +521,7 @@ function topicButton(key) {
   }
   const b = document.createElement('button');
   b.className = 'topic-btn';
-  b.innerHTML = `<span>${esc(t.title)} <span class="n">(${t.questions.length})</span></span>${badge}`;
+  b.innerHTML = `<span>${esc(topicTitle(key))} <span class="n">(${count})</span></span>${badge}`;
   b.onclick = () => openTopic(key);
   return b;
 }
@@ -528,21 +556,26 @@ function showMenu() {
   const sec = document.getElementById('sections');
   sec.innerHTML = '';
   const goods = profile.exam === 'goods';
-  addSection(sec, 'Common to both exams', 'Same rules for goods and passenger. Some questions use bus examples.', COMMON, '');
+  const practice = 'A new mix of 40 questions every time, from all the topics of your exam.';
   if (goods) {
-    addSection(sec, 'Goods only', '', GOODS_ONLY, 'Coming soon: questions from the goods course book are being added.');
+    addSection(sec, 'Common to both exams', 'Same rules for goods and passenger. Questions about buses are left out.', COMMON, '');
+    addSection(sec, 'Goods only', 'Lorries and haulage. Written from the official rules (EU regulations, RSA, CMR), not from a course book.', GOODS_ONLY, 'Coming soon.');
+    addSection(sec, 'Practice exam', practice, [RANDOM], '');
+    addCollapsed(sec, 'Mock exams from the passenger book', 'Questions about buses are left out', MOCKS, '');
+    addCollapsed(sec, 'Passenger-only topics', 'Not in the goods exam — extra practice only', PASSENGER_ONLY, '');
   } else {
-    addSection(sec, 'Passenger only', 'Buses and coaches', PASSENGER_ONLY.filter(k => BANK[k]), '');
+    addSection(sec, 'Common to both exams', 'Same rules for goods and passenger.', COMMON, '');
+    addSection(sec, 'Passenger only', 'Buses and coaches', PASSENGER_ONLY, '');
+    addSection(sec, 'Mock exams', 'Mixed topics, like the real exam.', MOCKS, '');
+    addSection(sec, 'Practice exam', practice, [RANDOM], '');
+    addCollapsed(sec, 'Goods-only topics', 'Not in the passenger exam — extra practice only', GOODS_ONLY, 'Coming soon.');
   }
-  addSection(sec, 'Mock exams', 'Mixed topics, like the real exam. Written from the passenger book: most questions apply to both exams.', MOCKS, '');
-  if (goods) addCollapsed(sec, 'Passenger-only topics', 'Not in the goods exam — extra practice only', PASSENGER_ONLY.filter(k => BANK[k]), '');
-  else addCollapsed(sec, 'Goods-only topics', 'Not in the passenger exam', GOODS_ONLY, 'Coming soon.');
 
-  const keys = Object.keys(state.results).filter(k => BANK[k]);
+  const keys = Object.keys(state.results).filter(k => BANK[k] || k === RANDOM);
   const overall = document.getElementById('overall');
   if (keys.length) {
     const avg = Math.round(keys.reduce((a, k) => a + state.results[k].s / state.results[k].t * 100, 0) / keys.length);
-    overall.innerHTML = `<strong>Average:</strong> ${avg}% &nbsp;·&nbsp; ${keys.length} of ${ALL_KEYS.length} tests finished`;
+    overall.innerHTML = `<strong>Average:</strong> ${avg}% &nbsp;·&nbsp; ${keys.length} ${keys.length === 1 ? 'test' : 'tests'} finished`;
   } else {
     overall.textContent = 'Pick a topic to start. You can leave a test at any time and carry on later.';
   }
@@ -572,11 +605,13 @@ function optionOrder(q) {
 
 function startQuiz(topic) {
   currentTopic = topic;
-  const qs = shuffle(BANK[topic].questions).map(q => [qid(q.q), optionOrder(q)]);
+  let picked = shuffle(topicQuestions(topic));
+  if (topic === RANDOM) picked = picked.slice(0, RANDOM_SIZE);
+  const qs = picked.map(q => [qid(q.q), optionOrder(q)]);
   state.inprogress[topic] = { qs, log: [] };
   run = state.inprogress[topic];
   persist();
-  document.getElementById('quiz-title').textContent = BANK[topic].title;
+  document.getElementById('quiz-title').textContent = topicTitle(topic);
   show('screen-quiz');
   renderQuestion();
 }
@@ -594,7 +629,7 @@ function openTopic(topic) {
   if (!saved.qs.length) { startQuiz(topic); return; }
   currentTopic = topic;
   run = saved;
-  document.getElementById('quiz-title').textContent = BANK[topic].title;
+  document.getElementById('quiz-title').textContent = topicTitle(topic);
   if (run.log.length >= run.qs.length) { finishQuiz(); return; }
   show('screen-quiz');
   renderQuestion();
@@ -671,7 +706,7 @@ function finishQuiz() {
   delete state.inprogress[currentTopic];
   persist();
 
-  document.getElementById('result-title').textContent = BANK[currentTopic].title;
+  document.getElementById('result-title').textContent = topicTitle(currentTopic);
   const el = document.getElementById('result-score');
   el.textContent = `${score}/${total} (${pct}%)`;
   el.style.color = pct >= 85 ? '#4CD964' : pct >= 60 ? '#FFC107' : '#FF8A8A';
