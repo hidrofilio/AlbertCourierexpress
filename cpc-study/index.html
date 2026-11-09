@@ -270,7 +270,8 @@
 <script src="/cpc/data-goods-en.js"></script>
 <script>
 // ---- Question bank and how the topics are grouped by exam ----
-// The main bank comes from the passenger course book; the goods topics (g10, g16...)
+// The main bank comes from the course book's common and passenger pages (the haulage pages
+// were not uploaded); the goods topics (g10, g16...)
 // were written separately from the official rules, as there is no goods book in it.
 const PASSENGER_BANK = window.CPC_TEMAS_EN || {};
 const GOODS_BANK = window.CPC_GOODS_EN || {};
@@ -559,9 +560,9 @@ function showMenu() {
   const practice = 'A new mix of 40 questions every time, from all the topics of your exam.';
   if (goods) {
     addSection(sec, 'Common to both exams', 'Same rules for goods and passenger. Questions about buses are left out.', COMMON, '');
-    addSection(sec, 'Goods only', 'Lorries and haulage. Written from the official rules (EU regulations, RSA, CMR), not from a course book.', GOODS_ONLY, 'Coming soon.');
+    addSection(sec, 'Goods only', 'Lorries and haulage. Written from the official rules (EU regulations, RSA, CMR) until the haulage pages of the course book are added.', GOODS_ONLY, 'Coming soon.');
     addSection(sec, 'Practice exam', practice, [RANDOM], '');
-    addCollapsed(sec, 'Mock exams from the passenger book', 'Questions about buses are left out', MOCKS, '');
+    addCollapsed(sec, 'Mock exams', 'Mixed topics, like the real exam. Questions about buses are left out.', MOCKS, '');
     addCollapsed(sec, 'Passenger-only topics', 'Not in the goods exam — extra practice only', PASSENGER_ONLY, '');
   } else {
     addSection(sec, 'Common to both exams', 'Same rules for goods and passenger.', COMMON, '');

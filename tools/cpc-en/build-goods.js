@@ -1,5 +1,5 @@
 // Builds cpc/data-goods-en.js from tools/cpc-en/goods/*.json
-// The goods topics are written in English from official sources (no goods course book yet),
+// The goods topics are written in English from official sources (the haulage pages of the course book were not uploaded),
 // so each file names its source and every explanation ends with a 📍 line.
 const fs = require('fs');
 const path = require('path');
