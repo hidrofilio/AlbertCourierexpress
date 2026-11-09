@@ -166,7 +166,7 @@
       <div class="err" id="signup-err"></div>
       <button id="signup-btn" onclick="doSignup()">Get my code</button>
       <button class="secondary" onclick="show('screen-welcome')">← Back</button>
-      <p class="muted" style="margin:1rem 0 0;">Only your nickname, your exam choice and your test progress are saved.</p>
+      <p class="muted" style="margin:1rem 0 0;">Only your nickname, your exam choice and your progress (tests, number of answers and study time) are saved.</p>
     </div>
   </div>
 
@@ -337,10 +337,24 @@ const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
 const lsDel = k => { try { localStorage.removeItem(k); } catch (e) {} };
 const fmtCode = c => c ? c.slice(0, 4) + '-' + c.slice(4) : '';
 const normCode = s => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-const blankState = () => ({ updated: 0, inprogress: {}, results: {} });
+const blankState = () => ({ updated: 0, inprogress: {}, results: {}, answered: 0, secs: 0 });
 function fixState(s) {
   s = (s && typeof s === 'object') ? s : {};
-  return { updated: s.updated || 0, inprogress: s.inprogress || {}, results: s.results || {} };
+  return { updated: s.updated || 0, inprogress: s.inprogress || {}, results: s.results || {},
+    answered: Number(s.answered) || 0, secs: Number(s.secs) || 0 };
+}
+
+// Study time: only while the page is on screen, and a stretch of more than
+// 10 minutes without touching anything counts as 10 (the phone was left open)
+let activeSince = null;
+function takeTime() {
+  if (!state || activeSince === null) return false;
+  const now = Date.now();
+  const secs = Math.round(Math.min(now - activeSince, 600000) / 1000);
+  activeSince = now;
+  if (secs < 1) return false;
+  state.secs = (state.secs || 0) + secs;
+  return true;
 }
 
 async function api(route, body, opts) {
@@ -367,6 +381,7 @@ function setSync(kind) {
   el.textContent = kind === 'saved' ? '✓ Progress saved' : kind === 'saving' ? 'Saving…' : kind === 'offline' ? '⚠️ Saved on this phone only — will sync when you are back online' : '';
 }
 function persist() {
+  takeTime();
   state.updated = Date.now();
   lsSet(LS_STATE + code, JSON.stringify(state));
   dirty = true;
@@ -390,9 +405,16 @@ async function pushState() {
     saving = false;
   }
 }
-// Leaving the page or switching app: send what is pending straight away
+// Leaving the page or switching app: count the time and send what is pending straight away
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden' && dirty && code) {
+  if (document.visibilityState !== 'hidden') { if (state) activeSince = Date.now(); return; }
+  if (code && state && takeTime()) {
+    state.updated = Date.now();
+    lsSet(LS_STATE + code, JSON.stringify(state));
+    dirty = true;
+  }
+  activeSince = null;
+  if (dirty && code) {
     try {
       fetch('/api/cpc-study/save', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code, state }), keepalive: true }).then(r => { if (r.ok) { dirty = false; setSync('saved'); } }).catch(() => {});
@@ -403,6 +425,7 @@ window.addEventListener('online', () => { if (dirty) pushState(); });
 
 function useAccount(c, prof, serverState) {
   code = c; profile = prof;
+  activeSince = document.visibilityState === 'hidden' ? null : Date.now();
   lsSet(LS_CODE, c);
   lsSet(LS_PROFILE, JSON.stringify(prof));
   let local = null;
@@ -492,7 +515,7 @@ async function logout() {
   const warn = dirty ? '\n\nWarning: your last answers could not be sent yet (no connection) and will be lost.' : '';
   if (!confirm('Log out on this phone? Your progress stays saved. To come back you will need your code: ' + fmtCode(code) + warn)) return;
   lsDel(LS_STATE + code); lsDel(LS_CODE); lsDel(LS_PROFILE);
-  code = null; profile = null; state = null;
+  code = null; profile = null; state = null; activeSince = null;
   show('screen-welcome');
 }
 
@@ -672,6 +695,7 @@ function selectAnswer(orig) {
   const { i, q, order } = current();
   const ok = orig === q.correct;
   run.log.push([orig, ok ? 1 : 0]);
+  state.answered = (state.answered || 0) + 1;
   answeredNow = i;
   persist();
   document.querySelectorAll('#options .opt').forEach((el, pos) => {
@@ -800,6 +824,7 @@ async function sendFeedback() {
     // Offline or server busy: carry on with the copy saved on this phone
     if (prof) {
       code = saved; profile = prof;
+      activeSince = document.visibilityState === 'hidden' ? null : Date.now();
       try { state = fixState(JSON.parse(lsGet(LS_STATE + saved) || 'null')); } catch (er) { state = blankState(); }
       showMenu();
       setSync('offline');
@@ -808,6 +833,32 @@ async function sendFeedback() {
       show('screen-welcome');
     }
   }
+})();
+</script>
+<script>
+// Visits to this page, for the site owner's stats panel: the same first-party tracker as the
+// main site (no cookies, no third parties). Time counts only while the page is on screen.
+(function () {
+  try {
+    let sid = sessionStorage.getItem('acx_sid');
+    if (!sid) { sid = Math.random().toString(36).slice(2) + Date.now().toString(36); sessionStorage.setItem('acx_sid', sid); }
+    const device = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'mobile' : 'desktop';
+    const send = (type, extra) => {
+      const body = Object.assign({ type, path: '/cpc-study/', ref: document.referrer || '', sid, device, lang: navigator.language || '' }, extra || {});
+      navigator.sendBeacon('/api/track', new Blob([JSON.stringify(body)], { type: 'application/json' }));
+    };
+    send('pageview');
+    let shownMs = 0, since = document.visibilityState === 'hidden' ? null : Date.now(), reported = 0;
+    const report = () => {
+      if (since !== null) { shownMs += Date.now() - since; since = null; }
+      // Phones hide the page every time the user switches app: report every 30 s of new time at most
+      if (shownMs - reported >= 30000) { reported = shownMs; send('duration', { dur: shownMs }); }
+    };
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') report(); else since = Date.now();
+    });
+    window.addEventListener('pagehide', report);
+  } catch (e) { /* statistics must never break the tests */ }
 })();
 </script>
 </body>

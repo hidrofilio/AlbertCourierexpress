@@ -81,6 +81,15 @@
   details.panel > summary::after { content: ' ▾'; color: #7fa8d9; }
   details.panel[open] > summary::after { content: ' ▴'; }
 
+  .cpc-link { display: block; text-align: center; color: #fff; text-decoration: none; font-size: 0.95rem; line-height: 1.5; }
+  .cpc-link strong { color: #4CD964; }
+  .section-head { font-size: 1.3rem; margin: 2.4rem 0 0.3rem; }
+  .stat-grid.compact { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.7rem; }
+  .stat-grid.compact .stat-num { font-size: 1.7rem; }
+  .section-note { margin: 0 0 1rem; color: #a8c5e8; font-size: 0.85rem; line-height: 1.5; }
+  details.inner { margin-top: 1.2rem; }
+  details.inner > summary { cursor: pointer; color: #a8c5e8; font-weight: 600; padding: 0.4rem 0; }
+
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -108,6 +117,8 @@
         <div class="stat-box"><div class="stat-num" id="stat-duration">-</div><div class="stat-label">Tiempo medio (seg)</div></div>
       </div>
     </div>
+
+    <a href="#cpc" class="card cpc-link" id="cpc-summary">🎓 Tests CPC: cargando…</a>
 
     <div class="card">
       <h3 style="margin-top:0;">Tasas clave</h3>
@@ -188,6 +199,44 @@
       </div>
     </div>
 
+    <h2 id="cpc" class="section-head">🎓 Tests CPC de los compañeros</h2>
+    <p class="section-note">albertcourierexpress.com/cpc-study/ — estas visitas no cuentan en las cifras del negocio de arriba.</p>
+
+    <div class="card">
+      <h3 style="margin-top:0;">Tráfico de la página</h3>
+      <div class="stat-grid compact">
+        <div class="stat-box"><div class="stat-num" id="cpc-visits">-</div><div class="stat-label">Visitas</div></div>
+        <div class="stat-box"><div class="stat-num" id="cpc-avg">-</div><div class="stat-label">Minutos por visita (en pantalla)</div></div>
+        <div class="stat-box"><div class="stat-num" id="cpc-hours">-</div><div class="stat-label">Horas en total con la página abierta</div></div>
+      </div>
+      <h4 style="margin:1.4rem 0 0;">Visitas por día (últimos 14)</h4>
+      <div class="vbars" id="cpc-days"></div>
+      <h4 style="margin:1.4rem 0 0.5rem;">De dónde llegan</h4>
+      <div id="cpc-refs"></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">Alumnos</h3>
+      <div class="stat-grid compact">
+        <div class="stat-box"><div class="stat-num" id="cpc-students">-</div><div class="stat-label" id="cpc-split">Apuntados</div></div>
+        <div class="stat-box"><div class="stat-num" id="cpc-week">-</div><div class="stat-label">Activos en 7 días</div></div>
+        <div class="stat-box"><div class="stat-num" id="cpc-today">-</div><div class="stat-label">Activos en 24 h</div></div>
+        <div class="stat-box"><div class="stat-num" id="cpc-answered">-</div><div class="stat-label">Preguntas contestadas</div></div>
+        <div class="stat-box"><div class="stat-num" id="cpc-studyhours">-</div><div class="stat-label">Horas de estudio</div></div>
+        <div class="stat-box"><div class="stat-num" id="cpc-feedback">-</div><div class="stat-label">Avisos de error y sugerencias</div></div>
+      </div>
+      <p class="section-note" style="margin:1rem 0 0;">Preguntas y horas de estudio se cuentan desde el 9/11/2026. Un rato de más de 10 minutos sin tocar nada cuenta como 10.</p>
+      <details class="inner">
+        <summary>Cada alumno</summary>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Apodo</th><th>Examen</th><th style="text-align:right;">Preguntas</th><th style="text-align:right;">Minutos</th><th style="text-align:right;">Tests</th><th>Última vez</th></tr></thead>
+            <tbody id="cpc-list"></tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+
     <details class="panel">
       <summary>Últimas visitas <span id="recentCount" style="font-weight:400;font-size:0.85rem;color:#a8c5e8;"></span></summary>
       <div class="table-wrap">
@@ -236,12 +285,15 @@ function showDashboard(data) {
 const CLICK_LABELS = { call: '📞 Llamada', whatsapp: '💬 WhatsApp' };
 const VEHICLE_LABELS = { explorer: 'Ford Explorer (EV)', transit: 'Ford Transit Custom' };
 
+// Pages, referrers and routes arrive from visitors' browsers: never put them in the page as HTML
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
 function bars(container, entries, total, labelMap) {
   container.innerHTML = '';
   if (!entries.length) { container.innerHTML = '<p style="color:#a8c5e8;">Sin datos todavía.</p>'; return; }
   const max = Math.max(...entries.map(e => e[1]));
   entries.forEach(([label, count]) => {
-    const displayLabel = (labelMap && labelMap[label]) || label;
+    const displayLabel = esc((labelMap && labelMap[label]) || label);
     const row = document.createElement('div');
     row.className = 'bar-row';
     row.innerHTML = `<div class="bar-label" title="${displayLabel}">${displayLabel}</div>
@@ -261,7 +313,7 @@ function vbars(container, entries, formatLabel) {
     const shown = formatLabel ? formatLabel(label) : label;
     col.innerHTML = `<div class="vbar-value">${count || ''}</div>
       <div class="vbar-fill${count ? '' : ' zero'}" style="height:${count ? Math.max(4, count/max*100) : 2}%"></div>
-      <div class="vbar-label" title="${label}">${shown}</div>`;
+      <div class="vbar-label" title="${esc(label)}">${esc(shown)}</div>`;
     container.appendChild(col);
   });
 }
@@ -301,7 +353,7 @@ function render(data) {
       const tr = document.createElement('tr');
       // Interest with nothing requested is the row worth looking at.
       const sinPedir = r.quoted >= 3 && r.sent === 0;
-      tr.innerHTML = `<td${sinPedir ? ' style="color:#FFC107;font-weight:600;"' : ''}>${r.label}${sinPedir ? ' ⚠️' : ''}</td>
+      tr.innerHTML = `<td${sinPedir ? ' style="color:#FFC107;font-weight:600;"' : ''}>${esc(r.label)}${sinPedir ? ' ⚠️' : ''}</td>
         <td style="text-align:right;">${r.quoted}</td>
         <td style="text-align:right;color:${r.sent ? '#4CD964' : '#a8c5e8'};">${r.sent}</td>`;
       routesBody.appendChild(tr);
@@ -320,8 +372,46 @@ function render(data) {
   data.recent.forEach(r => {
     const tr = document.createElement('tr');
     const d = new Date(r.time);
-    tr.innerHTML = `<td>${d.toLocaleString('es-ES')}</td><td>${r.path}</td><td>${r.ref}</td><td>${r.device}</td><td>${r.browser || '-'}</td><td>${r.durationSec || '-'}</td>`;
+    tr.innerHTML = `<td>${d.toLocaleString('es-ES')}</td><td>${esc(r.path)}</td><td>${esc(r.ref)}</td><td>${esc(r.device)}</td><td>${esc(r.browser || '-')}</td><td>${esc(r.durationSec || '-')}</td>`;
     tbody.appendChild(tr);
+  });
+
+  renderCpc(data.cpcStudy);
+}
+
+const EXAM_ES = { goods: '🚚 Mercancías', passenger: '🚌 Viajeros' };
+function renderCpc(c) {
+  const sum = document.getElementById('cpc-summary');
+  if (!c) { sum.textContent = '🎓 Tests CPC: sin datos todavía'; return; }
+  const a = c.accounts || {};
+  sum.innerHTML = `🎓 <b>Tests CPC</b> · <strong>${c.visits}</strong> visitas · <strong>${a.students || 0}</strong> alumnos · ` +
+    `<strong>${a.activeWeek || 0}</strong> activos esta semana · <strong>${c.avgMinutes}</strong> min por visita<br><span style="color:#7fbfff;">Ver detalle ↓</span>`;
+  document.getElementById('cpc-visits').textContent = c.visits;
+  document.getElementById('cpc-avg').textContent = c.avgMinutes;
+  document.getElementById('cpc-hours').textContent = c.totalHours;
+  vbars(document.getElementById('cpc-days'), c.visitsPerDay, d => d.slice(8) + '/' + d.slice(5, 7));
+  bars(document.getElementById('cpc-refs'), c.referrers || [], c.visits);
+
+  document.getElementById('cpc-students').textContent = a.students || 0;
+  document.getElementById('cpc-split').textContent = `Apuntados (${a.goods || 0} mercancías · ${a.passenger || 0} viajeros)`;
+  document.getElementById('cpc-week').textContent = a.activeWeek || 0;
+  document.getElementById('cpc-today').textContent = a.activeToday || 0;
+  document.getElementById('cpc-answered').textContent = a.answered || 0;
+  document.getElementById('cpc-studyhours').textContent = a.hours || 0;
+  document.getElementById('cpc-feedback').textContent = a.feedback || 0;
+
+  const body = document.getElementById('cpc-list');
+  body.innerHTML = '';
+  if (!(a.list || []).length) {
+    body.innerHTML = '<tr><td colspan="6" style="color:#a8c5e8;">Nadie se ha apuntado todavía.</td></tr>';
+    return;
+  }
+  a.list.forEach(u => {
+    const tr = document.createElement('tr');
+    const last = u.updated ? new Date(u.updated).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-';
+    tr.innerHTML = `<td>${esc(u.nick)}</td><td>${esc(EXAM_ES[u.exam] || u.exam)}</td><td style="text-align:right;">${esc(u.answered)}</td>` +
+      `<td style="text-align:right;">${esc(u.minutes)}</td><td style="text-align:right;">${esc(u.finished)}</td><td>${esc(last)}</td>`;
+    body.appendChild(tr);
   });
 }
 

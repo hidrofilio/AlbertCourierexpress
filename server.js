@@ -146,8 +146,52 @@ function parseUA(ua) {
   return { browser, os };
 }
 
+// The classmates' CPC test site sends its visits to the same log, but they are
+// kept out of the business figures and reported in their own section.
+const isStudyEvent = (e) => typeof e.path === 'string' && e.path.startsWith('/cpc-study');
+
+// What the students do, read from their saved progress: who signed up, when
+// they were last active, how many questions they answered and how long they studied.
+function buildStudyAccounts() {
+  const now = Date.now();
+  const DAY = 86400000;
+  const list = [];
+  let files = [];
+  try { files = fs.readdirSync(STUDY_USERS_DIR).filter((f) => f.endsWith('.json')); } catch (e) { /* none yet */ }
+  files.forEach((f) => {
+    try {
+      const u = JSON.parse(fs.readFileSync(path.join(STUDY_USERS_DIR, f), 'utf8'));
+      const st = u.state || {};
+      list.push({
+        nick: u.nick, exam: u.exam, created: u.created, updated: u.updated,
+        answered: Number(st.answered) || 0,
+        minutes: Math.round((Number(st.secs) || 0) / 60),
+        finished: Object.keys(st.results || {}).length
+      });
+    } catch (e) { /* skip a damaged file */ }
+  });
+  let feedbackCount = 0;
+  try { feedbackCount = fs.readFileSync(STUDY_FEEDBACK_FILE, 'utf8').split('\n').filter(Boolean).length; } catch (e) { /* none yet */ }
+  const sum = (k) => list.reduce((a, u) => a + u[k], 0);
+  list.sort((a, b) => (b.updated || 0) - (a.updated || 0));
+  return {
+    students: list.length,
+    goods: list.filter((u) => u.exam === 'goods').length,
+    passenger: list.filter((u) => u.exam === 'passenger').length,
+    activeToday: list.filter((u) => now - (u.updated || 0) < DAY).length,
+    activeWeek: list.filter((u) => now - (u.updated || 0) < 7 * DAY).length,
+    answered: sum('answered'),
+    hours: Math.round(sum('minutes') / 6) / 10,
+    testsFinished: sum('finished'),
+    feedback: feedbackCount,
+    list: list.slice(0, 60)
+  };
+}
+
 function buildStats() {
-  const events = loadEvents();
+  const allEvents = loadEvents();
+  const events = allEvents.filter((e) => e && !isStudyEvent(e));
+  const studyEvents = allEvents.filter((e) => e && isStudyEvent(e));
   const sessions = {}; // sid -> { path, ref, firstSeen, lastSeen, maxDur, device, browser, os, lang }
 
   events.forEach((e) => {
@@ -299,6 +343,47 @@ function buildStats() {
     visitsPerDay.push([key, perDay[key] || 0]);
   }
 
+  // ---- CPC test site traffic: one visit per browser session; time is what the page was on screen ----
+  const studyVisits = {};
+  studyEvents.forEach((e) => {
+    if (!e.sid || (e.type !== 'pageview' && e.type !== 'duration')) return;
+    const v = studyVisits[e.sid] || (studyVisits[e.sid] = { firstSeen: e.ts, maxDur: 0, ref: '', device: e.device || 'unknown', pageviews: 0 });
+    if (e.ts < v.firstSeen) v.firstSeen = e.ts;
+    if (typeof e.dur === 'number' && e.dur > v.maxDur) v.maxDur = e.dur;
+    if (e.type === 'pageview') v.pageviews++;
+    if (e.ref && !v.ref) v.ref = e.ref;
+  });
+  const studyRows = Object.values(studyVisits);
+  const studyPerDay = {};
+  const studyRefs = {};
+  const studyDevices = {};
+  let studyMs = 0;
+  let studyTimed = 0;
+  studyRows.forEach((v) => {
+    const day = dublinParts(v.firstSeen).day;
+    studyPerDay[day] = (studyPerDay[day] || 0) + 1;
+    let ref = '(directo / WhatsApp)';
+    if (v.ref) { try { ref = new URL(v.ref).hostname; } catch (e) { ref = v.ref.slice(0, 40); } }
+    studyRefs[ref] = (studyRefs[ref] || 0) + 1;
+    studyDevices[v.device] = (studyDevices[v.device] || 0) + 1;
+    if (v.maxDur > 0) { studyMs += v.maxDur; studyTimed++; }
+  });
+  const studyDays = [];
+  for (let i = 13; i >= 0; i--) {
+    const key = dublinParts(Date.now() - i * 86400000).day;
+    studyDays.push([key, studyPerDay[key] || 0]);
+  }
+  const cpcStudy = {
+    visits: studyRows.length,
+    pageviews: studyRows.reduce((a, v) => a + v.pageviews, 0),
+    avgMinutes: studyTimed ? Math.round(studyMs / studyTimed / 6000) / 10 : 0,
+    totalHours: Math.round(studyMs / 360000) / 10,
+    visitsPerDay: studyDays,
+    referrers: Object.entries(studyRefs).sort((a, b) => b[1] - a[1]).slice(0, 6),
+    devices: Object.entries(studyDevices).sort((a, b) => b[1] - a[1]),
+    accounts: buildStudyAccounts()
+  };
+
   const hourly = [];
   for (let h = 0; h < 24; h++) hourly.push([String(h).padStart(2, '0') + ':00', perHour[h] || 0]);
 
@@ -343,6 +428,7 @@ function buildStats() {
     vehiclesQuoted: topN(vehicleQuoted, 5),
     funnel: { quoteStarts, quoteCompletes, inquiryCompletes },
     visitsPerDay,
+    cpcStudy,
     hourly,
     weekdays: WEEKDAYS.slice(1).concat(WEEKDAYS[0]).map((d) => [d, perWeekday[d] || 0]),
     rates: {
