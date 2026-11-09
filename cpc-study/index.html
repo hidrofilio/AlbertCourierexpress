@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>CPC Practice Tests</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #001F3F;
+    color: #fff;
+    min-height: 100vh;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 700px; margin: 0 auto; padding: 1.6rem 1rem 4rem; }
+  h1 { font-size: 1.5rem; text-align: center; margin: 0.4rem 0 0.3rem; }
+  h2 { font-size: 1.1rem; margin: 0 0 0.8rem; }
+  p { line-height: 1.5; }
+  .subtitle { text-align: center; color: #a8c5e8; margin: 0 0 1.6rem; font-size: 0.95rem; line-height: 1.5; }
+  .card {
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(0,102,255,0.3);
+    border-radius: 14px;
+    padding: 1.3rem;
+    margin-bottom: 1rem;
+  }
+  .muted { color: #a8c5e8; font-size: 0.88rem; line-height: 1.5; }
+  label { display: block; font-weight: 600; margin: 0 0 0.5rem; }
+  input[type=text], textarea {
+    width: 100%;
+    padding: 0.85rem 1rem;
+    font-size: 1.05rem;
+    border-radius: 10px;
+    border: 2px solid #0066FF;
+    background: rgba(0,0,0,0.3);
+    color: #fff;
+    margin-bottom: 1rem;
+    font-family: inherit;
+  }
+  input.code-input { font-size: 1.4rem; letter-spacing: 3px; text-align: center; text-transform: uppercase; }
+  textarea { min-height: 120px; resize: vertical; font-size: 1rem; }
+  button {
+    display: block;
+    width: 100%;
+    padding: 0.9rem;
+    font-size: 1rem;
+    font-weight: 700;
+    border: none;
+    border-radius: 10px;
+    background: #0066FF;
+    color: #fff;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  button[disabled] { opacity: 0.6; cursor: default; }
+  button.secondary { background: transparent; border: 1px solid #0066FF; margin-top: 0.6rem; }
+  button.link { background: none; border: none; color: #7fbfff; padding: 0.5rem 0; width: auto; display: inline; font-weight: 600; font-size: 0.9rem; text-decoration: underline; }
+  .err { color: #FF8A8A; min-height: 1.2em; margin: -0.4rem 0 0.8rem; font-size: 0.92rem; }
+  .ok-msg { color: #4CD964; font-weight: 600; margin: 0.6rem 0 0; }
+
+  .exam-choice { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 1.1rem; }
+  .exam-choice button { background: rgba(0,0,0,0.2); border: 2px solid rgba(0,102,255,0.35); padding: 0.9rem 0.5rem; font-weight: 600; line-height: 1.35; }
+  .exam-choice button .big { display: block; font-size: 1.6rem; margin-bottom: 0.2rem; }
+  .exam-choice button small { display: block; color: #a8c5e8; font-weight: 400; font-size: 0.8rem; }
+  .exam-choice button.on { border-color: #4CD964; background: rgba(76,217,100,0.15); }
+
+  .code-big { font-size: 2.2rem; font-weight: 800; letter-spacing: 4px; text-align: center; margin: 0.6rem 0 0.8rem; font-family: ui-monospace, Menlo, Consolas, monospace; }
+
+  .who { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.6rem; flex-wrap: wrap; }
+  .who strong { font-size: 1.1rem; }
+  .sync { font-size: 0.8rem; color: #a8c5e8; margin-top: 0.4rem; }
+  .sync.bad { color: #FFC107; }
+
+  .section-title { margin: 1.6rem 0 0.6rem; font-size: 1.05rem; color: #a8c5e8; }
+  .section-title small { display: block; font-size: 0.8rem; color: #7fa8d9; font-weight: 400; margin-top: 0.2rem; line-height: 1.4; }
+  details { margin-top: 1.4rem; }
+  details > summary { cursor: pointer; color: #a8c5e8; font-weight: 600; padding: 0.6rem 0; }
+  details > summary small { display: block; font-weight: 400; color: #7fa8d9; font-size: 0.8rem; margin-top: 0.2rem; }
+  .topic-list { display: flex; flex-direction: column; gap: 0.6rem; }
+  .topic-btn {
+    display: flex; justify-content: space-between; align-items: center; gap: 0.6rem;
+    width: 100%;
+    background: rgba(0,0,0,0.25); border: 1px solid rgba(0,102,255,0.3);
+    border-radius: 10px; padding: 0.85rem 1rem; cursor: pointer; text-align: left;
+    color: #fff; font-size: 0.95rem; font-weight: 500;
+  }
+  .topic-btn .n { color: #7fa8d9; font-size: 0.8rem; }
+  .badge { font-weight: 700; font-size: 0.8rem; padding: 0.25rem 0.6rem; border-radius: 20px; white-space: nowrap; }
+  .badge.none { background: rgba(255,255,255,0.1); color: #a8c5e8; }
+  .badge.low { background: rgba(255,107,107,0.25); color: #FF8A8A; }
+  .badge.mid { background: rgba(255,193,7,0.25); color: #FFC107; }
+  .badge.high { background: rgba(40,167,69,0.25); color: #4CD964; }
+  .badge.prog { background: rgba(0,102,255,0.3); color: #7fbfff; }
+  .empty { color: #7fa8d9; font-size: 0.9rem; padding: 0.4rem 0; line-height: 1.5; }
+
+  .progress-bar { height: 6px; background: rgba(0,102,255,0.2); border-radius: 3px; overflow: hidden; margin-bottom: 1.2rem; }
+  .progress-fill { height: 100%; background: #0066FF; width: 0%; transition: width 0.3s; }
+  .q-count { text-align: center; color: #a8c5e8; font-size: 0.85rem; margin-bottom: 0.6rem; }
+  .q-text { font-size: 1.08rem; font-weight: 600; margin-bottom: 1.2rem; line-height: 1.5; white-space: pre-line; }
+  .opt {
+    display: block; width: 100%; text-align: left; padding: 0.85rem 1rem;
+    background: rgba(0,0,0,0.2); border: 2px solid rgba(0,102,255,0.3); border-radius: 10px;
+    color: #fff; margin-bottom: 0.65rem; font-size: 0.95rem; font-weight: 500; line-height: 1.4;
+  }
+  .opt.correct { border-color: #4CD964; background: rgba(76,217,100,0.2); }
+  .opt.wrong { border-color: #FF6B6B; background: rgba(255,107,107,0.2); }
+  .opt[disabled] { opacity: 1; }
+  .feedback { text-align: center; font-weight: 700; margin: 0.4rem 0 0.8rem; font-size: 1rem; }
+  .feedback.ok { color: #4CD964; }
+  .feedback.bad { color: #FF8A8A; }
+  .explain { background: rgba(0,102,255,0.12); border-left: 3px solid #0066FF; padding: 0.9rem 1rem; border-radius: 8px; margin: 0.6rem 0 1rem; font-size: 0.92rem; line-height: 1.6; white-space: pre-line; }
+  .report-row { text-align: center; margin-top: 0.4rem; }
+
+  .result-score { text-align: center; font-size: 2.6rem; font-weight: 700; margin: 0.6rem 0 0.2rem; }
+  .result-label { text-align: center; color: #a8c5e8; margin-bottom: 1.2rem; }
+  .review-item { border-top: 1px solid rgba(0,102,255,0.25); padding: 0.9rem 0; font-size: 0.92rem; line-height: 1.5; }
+  .review-item .q { font-weight: 600; margin-bottom: 0.4rem; white-space: pre-line; }
+  .review-item .yours { color: #FF8A8A; }
+  .review-item .right { color: #4CD964; }
+  .review-item .why { color: #c9dcf2; margin-top: 0.4rem; white-space: pre-line; }
+
+  .overlay { position: fixed; inset: 0; background: rgba(0,10,25,0.82); display: flex; align-items: flex-start; justify-content: center; padding: 1rem; overflow-y: auto; z-index: 10; }
+  .overlay .card { width: 100%; max-width: 560px; margin-top: 3vh; background: #062a52; }
+  .quote { font-size: 0.85rem; color: #a8c5e8; border-left: 3px solid rgba(0,102,255,0.5); padding-left: 0.7rem; margin: 0 0 1rem; white-space: pre-line; max-height: 7.5em; overflow: hidden; }
+
+  footer { text-align: center; color: #6f93bd; font-size: 0.8rem; margin-top: 2.4rem; line-height: 1.5; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Loading / no connection -->
+  <div id="screen-loading">
+    <h1>📘 CPC Practice Tests</h1>
+    <p class="subtitle" id="loading-msg">Loading…</p>
+  </div>
+
+  <!-- First visit -->
+  <div id="screen-welcome" hidden>
+    <h1>📘 CPC Practice Tests</h1>
+    <p class="subtitle">Practice questions for the Irish Transport Manager CPC, goods and passenger.<br>Your progress is saved test by test.</p>
+    <div class="card">
+      <button onclick="goSignup()">I'm new — start</button>
+      <button class="secondary" onclick="goLogin()">I already have a code</button>
+      <p class="muted" style="margin:1rem 0 0;">No email and no password: you choose a nickname and get a code. Keep the code to see your progress on another phone.</p>
+    </div>
+    <div class="err" id="welcome-err" style="text-align:center;"></div>
+  </div>
+
+  <!-- Sign up -->
+  <div id="screen-signup" hidden>
+    <h1>Start</h1>
+    <p class="subtitle">Two quick choices</p>
+    <div class="card">
+      <label>1. Which exam are you taking?</label>
+      <div class="exam-choice">
+        <button type="button" id="pick-goods" onclick="pickExam('goods')"><span class="big">🚚</span>Goods<small>Road haulage</small></button>
+        <button type="button" id="pick-passenger" onclick="pickExam('passenger')"><span class="big">🚌</span>Passenger<small>Bus and coach</small></button>
+      </div>
+      <label for="nick">2. Your name or a nickname</label>
+      <input type="text" id="nick" maxlength="30" autocomplete="off" placeholder="e.g. John D.">
+      <div class="err" id="signup-err"></div>
+      <button id="signup-btn" onclick="doSignup()">Get my code</button>
+      <button class="secondary" onclick="show('screen-welcome')">← Back</button>
+      <p class="muted" style="margin:1rem 0 0;">Only your nickname, your exam choice and your test progress are saved.</p>
+    </div>
+  </div>
+
+  <!-- Code shown once after sign-up -->
+  <div id="screen-code" hidden>
+    <h1>Your code</h1>
+    <div class="card" style="text-align:center;">
+      <div class="code-big" id="new-code"></div>
+      <p class="muted">Write it down or take a screenshot. You need it to continue on another phone or if this browser is cleared.</p>
+      <button class="secondary" id="copy-code-btn" onclick="copyCode()">📋 Copy the code</button>
+      <button style="margin-top:0.8rem;" onclick="showMenu()">Continue →</button>
+    </div>
+  </div>
+
+  <!-- Log in with a code -->
+  <div id="screen-login" hidden>
+    <h1>Enter your code</h1>
+    <p class="subtitle">The 8-character code you got when you started</p>
+    <div class="card">
+      <input type="text" id="code" class="code-input" maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX">
+      <div class="err" id="login-err"></div>
+      <button id="login-btn" onclick="doLogin()">Continue</button>
+      <button class="secondary" onclick="show('screen-welcome')">← Back</button>
+    </div>
+  </div>
+
+  <!-- Topics -->
+  <div id="screen-menu" hidden>
+    <h1>📘 CPC Practice Tests</h1>
+    <div class="card">
+      <div class="who">
+        <div>
+          <strong id="menu-nick"></strong>
+          <div class="muted" id="menu-exam"></div>
+        </div>
+        <div class="muted" style="text-align:right;">Your code<br><strong id="menu-code" style="color:#fff;letter-spacing:1px;"></strong></div>
+      </div>
+      <div class="sync" id="sync"></div>
+    </div>
+    <div class="card" id="overall" style="text-align:center;"></div>
+    <div id="sections"></div>
+
+    <div class="card" style="margin-top:2rem;">
+      <h2>💬 Ideas or problems?</h2>
+      <p class="muted" style="margin-top:0;">Spotted a wrong answer, a typo, or something that would make this better? Tell us. Inside a test you can also report a single question.</p>
+      <button onclick="openFeedback('idea')">Suggest an improvement</button>
+    </div>
+    <button class="secondary" onclick="switchExam()" id="switch-btn"></button>
+    <button class="secondary" onclick="logout()">Log out on this phone</button>
+    <footer>Questions written by a classmate while studying the course book.<br>They may contain mistakes — please report them.</footer>
+  </div>
+
+  <!-- Test -->
+  <div id="screen-quiz" hidden>
+    <h1 id="quiz-title" style="font-size:1.2rem;"></h1>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+    <div class="q-count" id="q-count"></div>
+    <div class="card">
+      <div class="q-text" id="q-text"></div>
+      <div id="options"></div>
+      <div class="feedback" id="answer-fb" hidden></div>
+      <div class="explain" id="explain" hidden></div>
+      <button id="next-btn" onclick="nextQuestion()" hidden>Next →</button>
+      <div class="report-row"><button class="link" onclick="openFeedback('mistake')">⚠️ Report a mistake in this question</button></div>
+    </div>
+    <button class="secondary" onclick="showMenu()">← Back to topics (your place is saved)</button>
+    <button class="secondary" onclick="restartTopic()">↺ Start this test again</button>
+  </div>
+
+  <!-- Result -->
+  <div id="screen-result" hidden>
+    <h1 id="result-title" style="font-size:1.2rem;"></h1>
+    <div class="card">
+      <div class="result-score" id="result-score"></div>
+      <div class="result-label">correct answers</div>
+      <button onclick="startQuiz(currentTopic)">Try this test again</button>
+      <button class="secondary" onclick="showMenu()">Back to topics</button>
+    </div>
+    <div class="card" id="review-card">
+      <h2>Your wrong answers</h2>
+      <div id="review"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Feedback form -->
+<div class="overlay" id="fb-overlay" hidden>
+  <div class="card">
+    <h2 id="fb-title"></h2>
+    <div class="quote" id="fb-quote" hidden></div>
+    <textarea id="fb-text" maxlength="2000"></textarea>
+    <div class="err" id="fb-err"></div>
+    <div class="ok-msg" id="fb-ok" hidden>✅ Thanks! Your message was sent.</div>
+    <button id="fb-send" onclick="sendFeedback()">Send</button>
+    <button class="secondary" onclick="closeFeedback()">Close</button>
+  </div>
+</div>
+
+<script src="/cpc/data-en.js"></script>
+<script>
+// ---- Question bank and how the topics are grouped by exam ----
+const BANK = window.CPC_TEMAS_EN || {};
+const ALL_KEYS = Object.keys(BANK).sort((a, b) => parseInt(a) - parseInt(b) || a.localeCompare(b));
+const PASSENGER_ONLY = ['15', '16', '18', '21', '22', '26', '28', '31', '32'];
+const GOODS_ONLY = []; // questions from the goods course book are still to be added
+const isMock = k => parseInt(k) >= 100;
+const COMMON = ALL_KEYS.filter(k => !isMock(k) && !PASSENGER_ONLY.includes(k) && !GOODS_ONLY.includes(k));
+const MOCKS = ALL_KEYS.filter(isMock);
+const EXAM_LABEL = { goods: '🚚 Goods (road haulage) exam', passenger: '🚌 Passenger (bus and coach) exam' };
+
+// Stable id for a question, so saved progress survives changes to the bank
+function qid(text) {
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+}
+const indexCache = {};
+function topicIndex(topic) {
+  if (!indexCache[topic]) {
+    const m = new Map();
+    (BANK[topic] ? BANK[topic].questions : []).forEach(q => { if (!m.has(qid(q.q))) m.set(qid(q.q), q); });
+    indexCache[topic] = m;
+  }
+  return indexCache[topic];
+}
+
+// ---- Account, local copy and syncing with the server ----
+const LS_CODE = 'cpcstudy_code_v1', LS_PROFILE = 'cpcstudy_profile_v1', LS_STATE = 'cpcstudy_state_v1_';
+let code = null, profile = null, state = null;
+const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+const lsDel = k => { try { localStorage.removeItem(k); } catch (e) {} };
+const fmtCode = c => c ? c.slice(0, 4) + '-' + c.slice(4) : '';
+const normCode = s => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+const blankState = () => ({ updated: 0, inprogress: {}, results: {} });
+function fixState(s) {
+  s = (s && typeof s === 'object') ? s : {};
+  return { updated: s.updated || 0, inprogress: s.inprogress || {}, results: s.results || {} };
+}
+
+async function api(route, body, opts) {
+  const r = await fetch('/api/cpc-study/' + route, Object.assign({
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+  }, opts || {}));
+  let j = {};
+  try { j = await r.json(); } catch (e) {}
+  j.status = r.status;
+  return j;
+}
+function apiError(j) {
+  if (j.status === 429) return 'Too many tries. Please wait 15 minutes and try again.';
+  if (j.status === 401) return 'That code was not found. Check it and try again.';
+  if (j.error === 'full') return 'The site is full at the moment. Please tell the person who sent you the link.';
+  return 'Something went wrong. Please try again.';
+}
+
+let saveTimer = null, dirty = false, saving = false;
+function setSync(kind) {
+  const el = document.getElementById('sync');
+  if (!el) return;
+  el.className = 'sync' + (kind === 'offline' ? ' bad' : '');
+  el.textContent = kind === 'saved' ? '✓ Progress saved' : kind === 'saving' ? 'Saving…' : kind === 'offline' ? '⚠️ Saved on this phone only — will sync when you are back online' : '';
+}
+function persist() {
+  state.updated = Date.now();
+  lsSet(LS_STATE + code, JSON.stringify(state));
+  dirty = true;
+  setSync('saving');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(pushState, 1200);
+}
+async function pushState() {
+  if (!dirty || saving || !code) return;
+  saving = true; dirty = false;
+  try {
+    const j = await api('save', { code, state });
+    if (j.status !== 200) throw new Error(j.error || 'save');
+    setSync('saved');
+  } catch (e) {
+    dirty = true;
+    setSync('offline');
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(pushState, 20000);
+  } finally {
+    saving = false;
+  }
+}
+// Leaving the page or switching app: send what is pending straight away
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden' && dirty && code) {
+    try {
+      fetch('/api/cpc-study/save', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, state }), keepalive: true }).then(r => { if (r.ok) { dirty = false; setSync('saved'); } }).catch(() => {});
+    } catch (e) {}
+  }
+});
+window.addEventListener('online', () => { if (dirty) pushState(); });
+
+function useAccount(c, prof, serverState) {
+  code = c; profile = prof;
+  lsSet(LS_CODE, c);
+  lsSet(LS_PROFILE, JSON.stringify(prof));
+  let local = null;
+  try { local = JSON.parse(lsGet(LS_STATE + c) || 'null'); } catch (e) {}
+  const srv = fixState(serverState);
+  // Keep whichever copy was changed last: this phone may have answered offline
+  if (local && (local.updated || 0) > (srv.updated || 0)) {
+    state = fixState(local);
+    dirty = true;
+    pushState();
+  } else {
+    state = srv;
+    lsSet(LS_STATE + c, JSON.stringify(state));
+    setSync('saved');
+  }
+}
+
+// ---- Screens ----
+const SCREENS = ['screen-loading', 'screen-welcome', 'screen-signup', 'screen-code', 'screen-login', 'screen-menu', 'screen-quiz', 'screen-result'];
+function show(id) {
+  SCREENS.forEach(s => { document.getElementById(s).hidden = (s !== id); });
+  window.scrollTo(0, 0);
+}
+
+let chosenExam = null;
+function goSignup() { chosenExam = null; pickExam(null); document.getElementById('signup-err').textContent = ''; show('screen-signup'); }
+function goLogin() { document.getElementById('login-err').textContent = ''; show('screen-login'); setTimeout(() => document.getElementById('code').focus(), 50); }
+function pickExam(e) {
+  chosenExam = e;
+  document.getElementById('pick-goods').classList.toggle('on', e === 'goods');
+  document.getElementById('pick-passenger').classList.toggle('on', e === 'passenger');
+}
+
+async function doSignup() {
+  const err = document.getElementById('signup-err');
+  const nick = document.getElementById('nick').value.trim();
+  if (!chosenExam) { err.textContent = 'Please choose goods or passenger.'; return; }
+  if (nick.length < 2) { err.textContent = 'Please write a name or nickname (at least 2 letters).'; return; }
+  const btn = document.getElementById('signup-btn');
+  btn.disabled = true; err.textContent = '';
+  try {
+    const j = await api('signup', { nick, exam: chosenExam });
+    if (j.status !== 200) { err.textContent = apiError(j); return; }
+    useAccount(j.code, { nick: j.nick, exam: j.exam }, blankState());
+    document.getElementById('new-code').textContent = fmtCode(j.code);
+    show('screen-code');
+  } catch (e) {
+    err.textContent = 'No connection. Please try again.';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function doLogin() {
+  const err = document.getElementById('login-err');
+  const c = normCode(document.getElementById('code').value);
+  if (c.length !== 8) { err.textContent = 'The code has 8 letters and numbers.'; return; }
+  const btn = document.getElementById('login-btn');
+  btn.disabled = true; err.textContent = '';
+  try {
+    const j = await api('login', { code: c });
+    if (j.status !== 200) { err.textContent = apiError(j); return; }
+    useAccount(c, { nick: j.nick, exam: j.exam }, j.state);
+    showMenu();
+  } catch (e) {
+    err.textContent = 'No connection. Please try again.';
+  } finally {
+    btn.disabled = false;
+  }
+}
+document.getElementById('code').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('nick').addEventListener('keydown', e => { if (e.key === 'Enter') doSignup(); });
+
+function copyText(text, btn) {
+  const done = () => { const t = btn.textContent; btn.textContent = '✅ Copied'; setTimeout(() => { btn.textContent = t; }, 1600); };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done).catch(() => {});
+  else {
+    const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+}
+function copyCode() { copyText(fmtCode(code), document.getElementById('copy-code-btn')); }
+
+async function logout() {
+  if (dirty) await pushState();
+  const warn = dirty ? '\n\nWarning: your last answers could not be sent yet (no connection) and will be lost.' : '';
+  if (!confirm('Log out on this phone? Your progress stays saved. To come back you will need your code: ' + fmtCode(code) + warn)) return;
+  lsDel(LS_STATE + code); lsDel(LS_CODE); lsDel(LS_PROFILE);
+  code = null; profile = null; state = null;
+  show('screen-welcome');
+}
+
+async function switchExam() {
+  const other = profile.exam === 'goods' ? 'passenger' : 'goods';
+  if (!confirm('Switch to the ' + (other === 'goods' ? 'goods' : 'passenger') + ' exam? Your progress is kept.')) return;
+  profile.exam = other;
+  lsSet(LS_PROFILE, JSON.stringify(profile));
+  showMenu();
+  try { await api('save', { code, exam: other }); } catch (e) {}
+}
+
+// ---- Topics menu ----
+function pctClass(p) { return p === null ? 'none' : p < 60 ? 'low' : p < 85 ? 'mid' : 'high'; }
+function topicButton(key) {
+  const t = BANK[key];
+  const open = state.inprogress[key];
+  const res = state.results[key];
+  let badge;
+  if (open && open.qs && open.qs.length) {
+    badge = `<span class="badge prog">▶ ${Math.min(open.log.length + 1, open.qs.length)}/${open.qs.length}</span>`;
+  } else if (res) {
+    const p = Math.round(res.s / res.t * 100);
+    badge = `<span class="badge ${pctClass(p)}">${p}%</span>`;
+  } else {
+    badge = '<span class="badge none">Not started</span>';
+  }
+  const b = document.createElement('button');
+  b.className = 'topic-btn';
+  b.innerHTML = `<span>${esc(t.title)} <span class="n">(${t.questions.length})</span></span>${badge}`;
+  b.onclick = () => openTopic(key);
+  return b;
+}
+function addSection(parent, title, note, keys, emptyText) {
+  const h = document.createElement('h2');
+  h.className = 'section-title';
+  h.innerHTML = esc(title) + (note ? `<small>${esc(note)}</small>` : '');
+  parent.appendChild(h);
+  const list = document.createElement('div');
+  list.className = 'topic-list';
+  if (keys.length) keys.forEach(k => list.appendChild(topicButton(k)));
+  else { const p = document.createElement('div'); p.className = 'empty'; p.textContent = emptyText; list.appendChild(p); }
+  parent.appendChild(list);
+}
+function addCollapsed(parent, title, note, keys, emptyText) {
+  const d = document.createElement('details');
+  d.innerHTML = `<summary>${esc(title)}<small>${esc(note)}</small></summary>`;
+  const inner = document.createElement('div');
+  addSection(inner, '', '', keys, emptyText);
+  inner.querySelector('.section-title').remove();
+  d.appendChild(inner);
+  parent.appendChild(d);
+}
+
+function showMenu() {
+  if (!state) { show('screen-welcome'); return; }
+  document.getElementById('menu-nick').textContent = '👋 ' + profile.nick;
+  document.getElementById('menu-exam').textContent = EXAM_LABEL[profile.exam] || '';
+  document.getElementById('menu-code').textContent = fmtCode(code);
+  document.getElementById('switch-btn').textContent = profile.exam === 'goods' ? 'Switch to the passenger exam' : 'Switch to the goods exam';
+
+  const sec = document.getElementById('sections');
+  sec.innerHTML = '';
+  const goods = profile.exam === 'goods';
+  addSection(sec, 'Common to both exams', 'Same rules for goods and passenger. Some questions use bus examples.', COMMON, '');
+  if (goods) {
+    addSection(sec, 'Goods only', '', GOODS_ONLY, 'Coming soon: questions from the goods course book are being added.');
+  } else {
+    addSection(sec, 'Passenger only', 'Buses and coaches', PASSENGER_ONLY.filter(k => BANK[k]), '');
+  }
+  addSection(sec, 'Mock exams', 'Mixed topics, like the real exam. Written from the passenger book: most questions apply to both exams.', MOCKS, '');
+  if (goods) addCollapsed(sec, 'Passenger-only topics', 'Not in the goods exam — extra practice only', PASSENGER_ONLY.filter(k => BANK[k]), '');
+  else addCollapsed(sec, 'Goods-only topics', 'Not in the passenger exam', GOODS_ONLY, 'Coming soon.');
+
+  const keys = Object.keys(state.results).filter(k => BANK[k]);
+  const overall = document.getElementById('overall');
+  if (keys.length) {
+    const avg = Math.round(keys.reduce((a, k) => a + state.results[k].s / state.results[k].t * 100, 0) / keys.length);
+    overall.innerHTML = `<strong>Average:</strong> ${avg}% &nbsp;·&nbsp; ${keys.length} of ${ALL_KEYS.length} tests finished`;
+  } else {
+    overall.textContent = 'Pick a topic to start. You can leave a test at any time and carry on later.';
+  }
+  show('screen-menu');
+}
+
+// ---- Running a test ----
+let currentTopic = null, run = null, answeredNow = null;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+// Options keep their order when the explanation or another option names them by letter,
+// e.g. "Correct option (B)" or "(A and C)" — but not units such as "85 dB(A)"
+function keepOrder(q) {
+  return /(^|[^A-Za-z])\([A-F](\)|,| and )/.test(q.exp || '') || q.options.some(o => /\b[A-F] and [A-F]\b/.test(o));
+}
+function optionOrder(q) {
+  const idx = q.options.map((_, i) => i);
+  if (keepOrder(q)) return idx;
+  const mixed = shuffle(idx), last = i => /of the above/i.test(q.options[i]);
+  return mixed.filter(i => !last(i)).concat(mixed.filter(last));
+}
+
+function startQuiz(topic) {
+  currentTopic = topic;
+  const qs = shuffle(BANK[topic].questions).map(q => [qid(q.q), optionOrder(q)]);
+  state.inprogress[topic] = { qs, log: [] };
+  run = state.inprogress[topic];
+  persist();
+  document.getElementById('quiz-title').textContent = BANK[topic].title;
+  show('screen-quiz');
+  renderQuestion();
+}
+function openTopic(topic) {
+  const saved = state.inprogress[topic];
+  if (!saved || !saved.qs || !saved.qs.length) { startQuiz(topic); return; }
+  // Drop questions that were removed from the bank since this test was started
+  const idx = topicIndex(topic);
+  const keep = saved.qs.map((e, i) => idx.has(e[0]) ? i : -1).filter(i => i >= 0);
+  if (keep.length !== saved.qs.length) {
+    saved.log = keep.filter(i => i < saved.log.length).map(i => saved.log[i]);
+    saved.qs = keep.map(i => saved.qs[i]);
+    persist();
+  }
+  if (!saved.qs.length) { startQuiz(topic); return; }
+  currentTopic = topic;
+  run = saved;
+  document.getElementById('quiz-title').textContent = BANK[topic].title;
+  if (run.log.length >= run.qs.length) { finishQuiz(); return; }
+  show('screen-quiz');
+  renderQuestion();
+}
+function restartTopic() {
+  if (!confirm('Start this test again? Your answers in this attempt will be lost.')) return;
+  startQuiz(currentTopic);
+}
+
+function current() {
+  const i = answeredNow !== null ? answeredNow : run.log.length;
+  const [id, order] = run.qs[i];
+  return { i, id, order, q: topicIndex(currentTopic).get(id) };
+}
+
+function renderQuestion() {
+  answeredNow = null;
+  const total = run.qs.length;
+  const { i, q, order } = current();
+  document.getElementById('progress-fill').style.width = (i / total * 100) + '%';
+  document.getElementById('q-count').textContent = `Question ${i + 1} of ${total}`;
+  document.getElementById('q-text').textContent = q.q;
+  document.getElementById('answer-fb').hidden = true;
+  document.getElementById('explain').hidden = true;
+  document.getElementById('next-btn').hidden = true;
+  const box = document.getElementById('options');
+  box.innerHTML = '';
+  order.forEach((orig, pos) => {
+    const b = document.createElement('button');
+    b.className = 'opt';
+    b.textContent = LETTERS[pos] + ') ' + q.options[orig];
+    b.onclick = () => selectAnswer(orig);
+    box.appendChild(b);
+  });
+}
+
+function selectAnswer(orig) {
+  if (answeredNow !== null) return;
+  const { i, q, order } = current();
+  const ok = orig === q.correct;
+  run.log.push([orig, ok ? 1 : 0]);
+  answeredNow = i;
+  persist();
+  document.querySelectorAll('#options .opt').forEach((el, pos) => {
+    el.disabled = true;
+    if (order[pos] === q.correct) el.classList.add('correct');
+    else if (order[pos] === orig) el.classList.add('wrong');
+  });
+  const fb = document.getElementById('answer-fb');
+  fb.hidden = false;
+  fb.textContent = ok ? '✅ Correct!' : '❌ Not quite';
+  fb.className = 'feedback ' + (ok ? 'ok' : 'bad');
+  const ex = document.getElementById('explain');
+  ex.hidden = false;
+  ex.textContent = q.exp;
+  const next = document.getElementById('next-btn');
+  next.hidden = false;
+  next.textContent = run.log.length >= run.qs.length ? 'See my result →' : 'Next →';
+}
+
+function nextQuestion() {
+  if (run.log.length >= run.qs.length) finishQuiz();
+  else renderQuestion();
+}
+
+function finishQuiz() {
+  answeredNow = null;
+  const total = run.qs.length;
+  const score = run.log.reduce((a, e) => a + e[1], 0);
+  const prev = state.results[currentTopic];
+  const pct = Math.round(score / total * 100);
+  state.results[currentTopic] = { s: score, t: total, d: new Date().toISOString(), b: Math.max(pct, prev ? prev.b || 0 : 0) };
+  const finished = run;
+  delete state.inprogress[currentTopic];
+  persist();
+
+  document.getElementById('result-title').textContent = BANK[currentTopic].title;
+  const el = document.getElementById('result-score');
+  el.textContent = `${score}/${total} (${pct}%)`;
+  el.style.color = pct >= 85 ? '#4CD964' : pct >= 60 ? '#FFC107' : '#FF8A8A';
+
+  const review = document.getElementById('review');
+  review.innerHTML = '';
+  const idx = topicIndex(currentTopic);
+  finished.log.forEach((e, n) => {
+    if (e[1]) return;
+    const q = idx.get(finished.qs[n][0]);
+    if (!q) return;
+    const div = document.createElement('div');
+    div.className = 'review-item';
+    div.innerHTML = `<div class="q"></div><div class="yours"></div><div class="right"></div><div class="why"></div>`;
+    div.querySelector('.q').textContent = q.q;
+    div.querySelector('.yours').textContent = '✗ Your answer: ' + q.options[e[0]];
+    div.querySelector('.right').textContent = '✓ Correct: ' + q.options[q.correct];
+    div.querySelector('.why').textContent = q.exp;
+    review.appendChild(div);
+  });
+  document.getElementById('review-card').hidden = !review.children.length;
+  show('screen-result');
+}
+
+// ---- Feedback ----
+let fbKind = 'idea', fbQuestion = null;
+function openFeedback(kind) {
+  fbKind = kind;
+  fbQuestion = null;
+  if (kind === 'mistake' && run && currentTopic) {
+    const { id, q } = current();
+    fbQuestion = { topic: currentTopic, qid: id, question: q.q };
+  }
+  document.getElementById('fb-title').textContent = kind === 'mistake' ? '⚠️ Report a mistake' : '💬 Suggest an improvement';
+  const quote = document.getElementById('fb-quote');
+  quote.hidden = !fbQuestion;
+  quote.textContent = fbQuestion ? fbQuestion.question : '';
+  const ta = document.getElementById('fb-text');
+  ta.value = '';
+  ta.placeholder = kind === 'mistake'
+    ? 'What is wrong? e.g. "The answer should be B, the book says 9 hours (page 12)"'
+    : 'Your idea or the problem you found';
+  document.getElementById('fb-err').textContent = '';
+  document.getElementById('fb-ok').hidden = true;
+  document.getElementById('fb-send').hidden = false;
+  document.getElementById('fb-overlay').hidden = false;
+  setTimeout(() => ta.focus(), 50);
+}
+function closeFeedback() { document.getElementById('fb-overlay').hidden = true; }
+async function sendFeedback() {
+  const text = document.getElementById('fb-text').value.trim();
+  const err = document.getElementById('fb-err');
+  if (!text) { err.textContent = 'Please write something first.'; return; }
+  const btn = document.getElementById('fb-send');
+  btn.disabled = true; err.textContent = '';
+  try {
+    const body = Object.assign({ code, kind: fbKind, text }, fbQuestion || {});
+    const j = await api('feedback', body);
+    if (j.status !== 200) { err.textContent = apiError(j); return; }
+    document.getElementById('fb-ok').hidden = false;
+    btn.hidden = true;
+  } catch (e) {
+    err.textContent = 'No connection. Please try again.';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ---- Start ----
+(async function init() {
+  if (!ALL_KEYS.length) {
+    document.getElementById('loading-msg').textContent = 'The questions could not be loaded. Please check your connection and reload the page.';
+    return;
+  }
+  const saved = normCode(lsGet(LS_CODE));
+  if (saved.length !== 8) { show('screen-welcome'); return; }
+  let prof = null;
+  try { prof = JSON.parse(lsGet(LS_PROFILE) || 'null'); } catch (e) {}
+  try {
+    const j = await api('login', { code: saved });
+    if (j.status === 200) { useAccount(saved, { nick: j.nick, exam: j.exam }, j.state); showMenu(); return; }
+    if (j.status === 401) {
+      lsDel(LS_CODE); lsDel(LS_PROFILE);
+      document.getElementById('welcome-err').textContent = 'Your saved code was not recognised. Please enter it again.';
+      show('screen-welcome');
+      return;
+    }
+    throw new Error('server');
+  } catch (e) {
+    // Offline or server busy: carry on with the copy saved on this phone
+    if (prof) {
+      code = saved; profile = prof;
+      try { state = fixState(JSON.parse(lsGet(LS_STATE + saved) || 'null')); } catch (er) { state = blankState(); }
+      showMenu();
+      setSync('offline');
+      dirty = true;
+    } else {
+      show('screen-welcome');
+    }
+  }
+})();
+</script>
+</body>
+</html>

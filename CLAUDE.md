@@ -17,6 +17,7 @@ Web de una empresa de transporte urgente dedicado (vehículo exclusivo punto a p
 - **`index.html`** — toda la web (HTML + CSS + JS en un solo archivo)
 - **`server.js`** — servidor Node sin dependencias. Sirve los archivos estáticos **y** las analíticas propias. No es un sitio estático: Railway lo arranca con `npm start`.
 - **`cpc/`** — app de tests del dueño, sin relación con el negocio
+- **`cpc-study/`** — los mismos tests en inglés para sus ~25 compañeros de clase (mercancías o viajeros). Cada uno elige un apodo y recibe un código en pantalla, sin correo. El progreso se guarda en el servidor (`data/cpc-study/`, solo el hash del código). Lo que reportan se lee en `/api/cpc-study/admin?key=` con la clave de `STATS_KEY` (si dice "mira las sugerencias del CPC"). El banco inglés `cpc/data-en.js` se genera con `node tools/cpc-en/build.js` desde `cpc/data.js`. Si cambias una explicación en español, tradúcela en `tools/cpc-en/tr/` (`pending.js` dice cuáles faltan) y vuelve a generarlo.
 - **`stats/`** y **`notas/`** — panel de analíticas y buzón de notas. **La clave no se escribe nunca aquí**: vive en la variable `STATS_KEY` de Railway, y apuntada en el repo privado (`NEGOCIO/empresa/acceso.md`)
 - **`data/events.jsonl`** — registro de visitas, en un volumen persistente de Railway montado en `/app/data`. **No está en git.**
 

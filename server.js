@@ -2,6 +2,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const ROOT = __dirname;
 const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
@@ -446,6 +447,226 @@ function serveStatic(req, res, urlPath) {
   });
 }
 
+// ---- CPC study site for classmates (/cpc-study/) ----
+// Each student gets a random code shown on screen (no email). Only a hash of the
+// code is stored, as the file name of their progress, so a copy of the data
+// folder does not reveal anyone's code. The feedback they send is read with
+// STATS_KEY, like the notes inbox.
+const STUDY_DIR = path.join(DATA_DIR, 'cpc-study');
+const STUDY_USERS_DIR = path.join(STUDY_DIR, 'users');
+const STUDY_FEEDBACK_FILE = path.join(STUDY_DIR, 'feedback.jsonl');
+fs.mkdirSync(STUDY_USERS_DIR, { recursive: true });
+
+const STUDY_MAX_USERS = 300;              // the class is about 25 people
+const STUDY_MAX_STATE_BYTES = 150000;     // all 45 tests in progress is well under this
+const STUDY_MAX_FEEDBACK_BYTES = 2000000;
+const STUDY_EXAMS = ['goods', 'passenger'];
+// No 0/O, 1/I/L: the code is read off a phone screen and typed on another one
+const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+
+function newStudyCode() {
+  let code = '';
+  for (let i = 0; i < 8; i++) code += CODE_CHARS[crypto.randomInt(CODE_CHARS.length)];
+  return code;
+}
+function normStudyCode(s) {
+  return String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 16);
+}
+function studyUserFile(code) {
+  const h = crypto.createHash('sha256').update('cpc-study:' + code).digest('hex');
+  return path.join(STUDY_USERS_DIR, h + '.json');
+}
+function readStudyUser(code) {
+  if (code.length !== 8) return null;
+  try { return JSON.parse(fs.readFileSync(studyUserFile(code), 'utf8')); } catch (e) { return null; }
+}
+function writeStudyUser(code, user) {
+  const file = studyUserFile(code);
+  fs.writeFileSync(file + '.tmp', JSON.stringify(user));
+  fs.renameSync(file + '.tmp', file);
+}
+function countStudyUsers() {
+  try { return fs.readdirSync(STUDY_USERS_DIR).filter((f) => f.endsWith('.json')).length; } catch (e) { return 0; }
+}
+function cleanNick(s) {
+  return String(s || '').replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 30);
+}
+
+// In-memory rate limits. Failed code attempts are also capped for everyone at
+// once, so faking the client address cannot be used to guess codes faster.
+const studyHits = new Map();
+function studyLimited(bucket, max, windowMs) {
+  const now = Date.now();
+  const rec = studyHits.get(bucket);
+  if (!rec || now - rec.start > windowMs) {
+    studyHits.set(bucket, { start: now, count: 1 });
+    return false;
+  }
+  rec.count++;
+  return rec.count > max;
+}
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, rec] of studyHits) if (now - rec.start > 3600000) studyHits.delete(k);
+}, 600000).unref();
+
+function sendJson(res, status, obj) {
+  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+  res.end(JSON.stringify(obj));
+}
+
+function studyOverLimit(bucket, max, windowMs) {
+  const rec = studyHits.get(bucket);
+  return Boolean(rec && Date.now() - rec.start <= windowMs && rec.count > max);
+}
+
+// Looks the code up. Only wrong codes count towards the limits: 30 per address
+// every 15 minutes, and a high cap for everyone together against floods.
+// With 31^8 possible codes, guessing one stays out of reach either way.
+function studyAuth(req, res, rawCode) {
+  const ip = getClientIp(req);
+  if (studyOverLimit('fail:' + ip, 30, 900000) || studyOverLimit('fail:all', 5000, 600000)) {
+    sendJson(res, 429, { error: 'too_many_attempts' });
+    return null;
+  }
+  const code = normStudyCode(rawCode);
+  const user = readStudyUser(code);
+  if (!user) {
+    studyLimited('fail:' + ip, 30, 900000);
+    studyLimited('fail:all', 5000, 600000);
+    sendJson(res, 401, { error: 'unknown_code' });
+    return null;
+  }
+  return { code, user };
+}
+
+async function handleStudy(req, res, url) {
+  const route = url.split('?')[0].replace('/api/cpc-study/', '');
+
+  // Read-only list for Alberto / Claude: who is using it and what they reported
+  if (req.method === 'GET' && route === 'admin') {
+    const key = new URL(url, 'http://x').searchParams.get('key');
+    if (!STATS_KEY || key !== STATS_KEY) { refuse(res); return; }
+    const users = [];
+    for (const f of fs.readdirSync(STUDY_USERS_DIR).filter((n) => n.endsWith('.json'))) {
+      try {
+        const u = JSON.parse(fs.readFileSync(path.join(STUDY_USERS_DIR, f), 'utf8'));
+        const st = u.state || {};
+        users.push({
+          nick: u.nick, exam: u.exam, created: u.created, updated: u.updated,
+          testsFinished: Object.keys(st.results || {}).length,
+          testsInProgress: Object.keys(st.inprogress || {}).length
+        });
+      } catch (e) { /* skip a damaged file */ }
+    }
+    let feedback = [];
+    try {
+      feedback = fs.readFileSync(STUDY_FEEDBACK_FILE, 'utf8').split('\n').filter(Boolean)
+        .map((l) => { try { return JSON.parse(l); } catch (e) { return null; } }).filter(Boolean).reverse();
+    } catch (e) { /* no feedback yet */ }
+    users.sort((a, b) => (b.updated || 0) - (a.updated || 0));
+    sendJson(res, 200, { users, feedback });
+    return;
+  }
+
+  if (req.method !== 'POST') { res.writeHead(405); res.end(); return; }
+
+  let data;
+  try {
+    data = JSON.parse(await readBody(req, STUDY_MAX_STATE_BYTES + 5000));
+    if (!data || typeof data !== 'object') throw new Error('bad body');
+  } catch (e) {
+    sendJson(res, 400, { error: 'bad_request' });
+    return;
+  }
+  const ip = getClientIp(req);
+
+  if (route === 'signup') {
+    const nick = cleanNick(data.nick);
+    const exam = STUDY_EXAMS.includes(data.exam) ? data.exam : null;
+    if (nick.length < 2 || !exam) { sendJson(res, 400, { error: 'bad_request' }); return; }
+    // A whole class may sign up from the same college wifi, so the limit is generous
+    if (studyLimited('signup:' + ip, 60, 3600000) || studyLimited('signup:all', 200, 3600000)) {
+      sendJson(res, 429, { error: 'too_many_attempts' });
+      return;
+    }
+    if (countStudyUsers() >= STUDY_MAX_USERS) { sendJson(res, 503, { error: 'full' }); return; }
+    let code;
+    do { code = newStudyCode(); } while (readStudyUser(code));
+    const now = Date.now();
+    writeStudyUser(code, { nick, exam, created: now, updated: now, state: {} });
+    sendJson(res, 200, { code, nick, exam });
+    return;
+  }
+
+  if (route === 'login') {
+    const auth = studyAuth(req, res, data.code);
+    if (!auth) return;
+    const { user } = auth;
+    sendJson(res, 200, { nick: user.nick, exam: user.exam, state: user.state || {} });
+    return;
+  }
+
+  if (route === 'save') {
+    const auth = studyAuth(req, res, data.code);
+    if (!auth) return;
+    const { code, user } = auth;
+    if (data.state !== undefined) {
+      if (!data.state || typeof data.state !== 'object' || Array.isArray(data.state) ||
+          JSON.stringify(data.state).length > STUDY_MAX_STATE_BYTES) {
+        sendJson(res, 400, { error: 'bad_request' });
+        return;
+      }
+      user.state = data.state;
+    }
+    if (STUDY_EXAMS.includes(data.exam)) user.exam = data.exam;
+    const nick = cleanNick(data.nick);
+    if (data.nick !== undefined && nick.length >= 2) user.nick = nick;
+    user.updated = Date.now();
+    try {
+      writeStudyUser(code, user);
+      sendJson(res, 200, { ok: true });
+    } catch (e) {
+      console.error('Failed to save study progress:', e);
+      sendJson(res, 500, { error: 'save_failed' });
+    }
+    return;
+  }
+
+  if (route === 'feedback') {
+    const auth = studyAuth(req, res, data.code);
+    if (!auth) return;
+    const { code, user } = auth;
+    const text = typeof data.text === 'string' ? data.text.trim().slice(0, 2000) : '';
+    if (!text) { sendJson(res, 400, { error: 'empty' }); return; }
+    if (studyLimited('feedback:' + code, 30, 3600000)) { sendJson(res, 429, { error: 'too_many_attempts' }); return; }
+    try {
+      if (fs.existsSync(STUDY_FEEDBACK_FILE) && fs.statSync(STUDY_FEEDBACK_FILE).size > STUDY_MAX_FEEDBACK_BYTES) {
+        sendJson(res, 503, { error: 'full' });
+        return;
+      }
+      const str = (v, n) => (typeof v === 'string' ? v.slice(0, n) : '');
+      fs.appendFileSync(STUDY_FEEDBACK_FILE, JSON.stringify({
+        ts: Date.now(),
+        nick: user.nick,
+        exam: user.exam,
+        kind: data.kind === 'mistake' ? 'mistake' : 'idea',
+        topic: str(data.topic, 10),
+        qid: str(data.qid, 20),
+        question: str(data.question, 400),
+        text
+      }) + '\n');
+      sendJson(res, 200, { ok: true });
+    } catch (e) {
+      console.error('Failed to save study feedback:', e);
+      sendJson(res, 500, { error: 'save_failed' });
+    }
+    return;
+  }
+
+  sendJson(res, 404, { error: 'not_found' });
+}
+
 // The site lives at the bare domain. Google's business profile links to the www
 // address, which used to serve the same page and split the search ranking
 // between two addresses. Only page loads are redirected: a POST to /api/*
@@ -564,6 +785,16 @@ const server = http.createServer(async (req, res) => {
 
     res.writeHead(405);
     res.end();
+    return;
+  }
+
+  if (url.startsWith('/api/cpc-study/')) {
+    try {
+      await handleStudy(req, res, url);
+    } catch (e) {
+      console.error('cpc-study error:', e);
+      if (!res.headersSent) sendJson(res, 500, { error: 'server_error' });
+    }
     return;
   }
 
