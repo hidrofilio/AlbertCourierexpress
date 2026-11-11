@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#17120d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Bravo panel">
+<title>Panel · Bravo Transfers</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2317120d'/%3E%3Cpath d='M12 44a20 20 0 0 1 40 0z' fill='%23e5b44b'/%3E%3C/svg%3E">
+<style>
+  :root { --ink: #17120d; --cream: #faf6ee; --gold: #c8922f; --gold-2: #e5b44b; --orange: #df7a2c; --muted: #6f6252; --line: #e7dccb; --ok: #2f7d4f; --err: #b3261e; color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--cream); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.45; }
+  [hidden] { display: none !important; }
+  header { background: var(--ink); color: #f6efe3; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; position: sticky; top: 0; z-index: 5; }
+  header b { font-family: Georgia, serif; letter-spacing: .06em; }
+  header small { display: block; color: var(--gold-2); font-size: .7rem; letter-spacing: .2em; }
+  header .acts { display: flex; gap: 6px; }
+  header button, header a { background: #2a2118; color: #f6efe3; border: 1px solid #5a4a34; border-radius: 8px; padding: 7px 10px; font-size: .82rem; text-decoration: none; cursor: pointer; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 14px 16px 60px; }
+  .filters { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 10px; -webkit-overflow-scrolling: touch; }
+  .filters button { flex: none; border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 7px 12px; font-weight: 700; font-size: .85rem; cursor: pointer; color: var(--ink); }
+  .filters button.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .filters .n { color: var(--orange); margin-left: 4px; }
+  .totals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px; }
+  .totals div { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 8px; text-align: center; }
+  .totals b { display: block; font-size: 1.05rem; }
+  .totals span { font-size: .68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+  .empty { text-align: center; color: var(--muted); padding: 30px 0; }
+  details.bk { background: #fff; border: 1px solid var(--line); border-radius: 12px; margin-bottom: 8px; overflow: hidden; }
+  details.bk > summary { list-style: none; padding: 11px 12px; cursor: pointer; }
+  details.bk > summary::-webkit-details-marker { display: none; }
+  .l1 { display: flex; justify-content: space-between; gap: 8px; font-weight: 700; }
+  .l2 { font-size: .9rem; overflow-wrap: anywhere; }
+  .l3 { font-size: .8rem; color: var(--muted); margin-top: 2px; }
+  .badge { font-size: .7rem; font-weight: 800; text-transform: uppercase; border-radius: 6px; padding: 2px 6px; white-space: nowrap; }
+  .st-pendiente { background: #fff1d6; color: #8a5a00; }
+  .st-asignada { background: #e3effe; color: #1f4f99; }
+  .st-hecha { background: #e2f3e8; color: var(--ok); }
+  .st-cancelada { background: #f1e9e9; color: #8a3b36; }
+  .grp { background: var(--ink); color: var(--gold-2); }
+  .body { border-top: 1px solid var(--line); padding: 12px; font-size: .9rem; }
+  .kv { display: grid; grid-template-columns: 110px 1fr; gap: 3px 10px; margin-bottom: 12px; }
+  .kv dt { color: var(--muted); }
+  .kv dd { margin: 0; overflow-wrap: anywhere; }
+  .kv a { color: #1f4f99; }
+  label { display: block; font-size: .75rem; font-weight: 700; text-transform: uppercase; color: var(--muted); margin: 8px 0 4px; }
+  input, select, textarea { width: 100%; font: inherit; font-size: 16px; border: 1.5px solid var(--line); border-radius: 9px; padding: 9px 10px; background: #fff; color: var(--ink); }
+  textarea { min-height: 64px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .margin { background: #f7f1e6; border-radius: 9px; padding: 9px 10px; margin-top: 8px; font-weight: 700; }
+  .check { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; font-weight: 600; text-transform: none; font-size: .9rem; color: var(--ink); }
+  .check input { width: 20px; height: 20px; }
+  .save { margin-top: 12px; width: 100%; border: 0; border-radius: 10px; padding: 12px; font-weight: 800; font-size: 1rem; background: linear-gradient(135deg, var(--gold-2), var(--orange)); color: var(--ink); cursor: pointer; }
+  .msg { font-size: .85rem; margin-top: 6px; min-height: 1.2em; }
+  .msg.ok { color: var(--ok); } .msg.bad { color: var(--err); }
+  .note { font-size: .8rem; color: var(--muted); margin-top: 18px; }
+</style>
+</head>
+<body>
+<header>
+  <div><b>BRAVO</b> <small>PANEL · PRUEBAS</small></div>
+  <div class="acts">
+    <a href="/bravo/" target="_blank" rel="noopener">Web</a>
+    <button type="button" id="reload">↻</button>
+    <button type="button" id="logout">Salir</button>
+  </div>
+</header>
+<div class="wrap">
+  <div class="filters" id="filters"></div>
+  <div class="totals" id="totals"></div>
+  <div id="list"></div>
+  <p class="note">Fase 1: no se cobra nada. Los precios son ficticios. Lo que pones aquí se guarda en el servidor.</p>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function euro(n) { return n == null ? '—' : (Math.round(n * 100) / 100).toLocaleString('es-ES') + ' €'; }
+
+  var FILTERS = [
+    ['today', 'Hoy'], ['tomorrow', 'Mañana'], ['week', '7 días'], ['nodriver', 'Sin conductor'], ['groups', 'Grupos'], ['all', 'Todas']
+  ];
+  var current = 'week';
+  var list = [];
+  var open = {};
+
+  // La fecha de hoy en Málaga, como AAAA-MM-DD
+  function madridDay(offset) {
+    var d = new Date(Date.now() + (offset || 0) * 86400000);
+    try { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d); }
+    catch (e) { return d.toISOString().slice(0, 10); }
+  }
+  function matches(b, f) {
+    var today = madridDay(0);
+    if (f === 'today') return b.date === today;
+    if (f === 'tomorrow') return b.date === madridDay(1);
+    if (f === 'week') return b.date >= today && b.date <= madridDay(7);
+    if (f === 'nodriver') return b.kind !== 'group' && b.status !== 'cancelada' && b.status !== 'hecha' && !b.driverName;
+    if (f === 'groups') return b.kind === 'group';
+    return true;
+  }
+  function dayLabel(d) {
+    try { return new Date(d + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' }); } catch (e) { return d; }
+  }
+  function kindLabel(b) {
+    if (b.kind === 'group') return 'Grupo';
+    if (b.kind === 'hourly') return 'Por horas (' + b.hours + ' h)';
+    return b.roundTrip ? 'Ida y vuelta' : 'Traslado';
+  }
+  function route(b) {
+    if (b.kind === 'group') return b.fromText + ' → ' + b.toText;
+    if (b.kind === 'hourly') return (b.from && b.from.label) || '';
+    return ((b.from && b.from.label) || '') + ' → ' + ((b.to && b.to.label) || '');
+  }
+
+  function render() {
+    var fh = '';
+    FILTERS.forEach(function (f) {
+      var n = list.filter(function (b) { return matches(b, f[0]); }).length;
+      fh += '<button type="button" data-f="' + f[0] + '" class="' + (f[0] === current ? 'on' : '') + '">' + f[1] + '<span class="n">' + n + '</span></button>';
+    });
+    $('filters').innerHTML = fh;
+    Array.prototype.forEach.call($('filters').querySelectorAll('[data-f]'), function (b) {
+      b.addEventListener('click', function () { current = b.getAttribute('data-f'); render(); });
+    });
+
+    var shown = list.filter(function (b) { return matches(b, current); });
+    var cobrado = 0, pagado = 0, n = 0;
+    shown.forEach(function (b) {
+      if (b.status === 'cancelada') return;
+      n++;
+      if (b.price != null) cobrado += b.price;
+      if (b.driverPay != null) pagado += b.driverPay;
+    });
+    $('totals').innerHTML =
+      '<div><b>' + n + '</b><span>Reservas</span></div>' +
+      '<div><b>' + euro(cobrado) + '</b><span>Cobrado</span></div>' +
+      '<div><b>' + euro(pagado) + '</b><span>Conductores</span></div>' +
+      '<div><b>' + euro(cobrado - pagado) + '</b><span>Te queda</span></div>';
+
+    if (!shown.length) { $('list').innerHTML = '<p class="empty">No hay reservas aquí.</p>'; return; }
+    $('list').innerHTML = shown.map(card).join('');
+    shown.forEach(function (b) { wire(b); });
+  }
+
+  function card(b) {
+    var badge = b.kind === 'group' ? '<span class="badge grp">Grupo</span> ' : '';
+    var veh = b.vehicle === 'van' ? 'Monovolumen' : (b.vehicle === 'car' ? 'Coche' : '');
+    var l3 = [b.passengers + ' pers.', veh, b.price != null ? euro(b.price) : 'presupuesto', b.driverName ? '🚗 ' + b.driverName : 'sin conductor']
+      .filter(Boolean).join(' · ');
+    var kv = [
+      ['Reserva', b.ref + ' · ' + kindLabel(b)],
+      ['Cliente', b.name],
+      ['Teléfono', '<a href="tel:' + esc(b.phone.replace(/[^+0-9]/g, '')) + '">' + esc(b.phone) + '</a>', true],
+      ['Correo', '<a href="mailto:' + esc(b.email) + '">' + esc(b.email) + '</a>', true],
+      ['Idioma', b.lang === 'en' ? 'Inglés' : 'Español'],
+      ['Día', dayLabel(b.date) + ' · ' + b.time],
+      b.roundTrip ? ['Vuelta', dayLabel(b.returnDate) + ' · ' + b.returnTime] : null,
+      b.kind === 'group' ? ['Desde', b.fromText] : ['Desde', (b.from && b.from.label) || ''],
+      b.kind === 'hourly' ? ['Horas', b.hours] : (b.kind === 'group' ? ['Hasta', b.toText] : ['Hasta', (b.to && b.to.label) || '']),
+      b.km ? ['Distancia', b.km + ' km · ~' + b.minutes + ' min'] : null,
+      ['Personas', b.passengers],
+      veh ? ['Vehículo', veh] : null,
+      b.flight ? ['Vuelo', b.flight] : null,
+      b.kind !== 'group' ? ['Maletas', b.bags + ' · sillas de niño: ' + b.childSeats] : null,
+      b.comments ? ['Comentarios', b.comments] : null,
+      ['Precio', b.price != null ? euro(b.price) : 'Presupuesto pendiente'],
+      ['Pago', b.payment || '']
+    ].filter(Boolean).map(function (r) { return '<dt>' + esc(r[0]) + '</dt><dd>' + (r[2] ? r[1] : esc(r[1])) + '</dd>'; }).join('');
+    var opts = ['pendiente', 'asignada', 'hecha', 'cancelada'].map(function (s) {
+      return '<option value="' + s + '"' + (b.status === s ? ' selected' : '') + '>' + s.charAt(0).toUpperCase() + s.slice(1) + '</option>';
+    }).join('');
+    return '<details class="bk" id="bk-' + esc(b.ref) + '"' + (open[b.ref] ? ' open' : '') + '>' +
+      '<summary><div class="l1"><span>' + esc(dayLabel(b.date) + ' · ' + b.time) + '</span>' +
+      '<span class="badge st-' + esc(b.status) + '">' + esc(b.status) + '</span></div>' +
+      '<div class="l2">' + badge + esc(route(b)) + '</div><div class="l3">' + esc(b.ref + ' · ' + l3) + '</div></summary>' +
+      '<div class="body"><dl class="kv">' + kv + '</dl>' +
+      '<label>Conductor</label><input data-k="driverName" value="' + esc(b.driverName) + '" placeholder="Nombre">' +
+      '<div class="row"><div><label>Su teléfono</label><input data-k="driverPhone" type="tel" value="' + esc(b.driverPhone) + '"></div>' +
+      '<div><label>Le pagas (€)</label><input data-k="driverPay" type="number" inputmode="decimal" min="0" step="0.01" value="' + (b.driverPay == null ? '' : esc(b.driverPay)) + '"></div></div>' +
+      '<div class="margin" data-margin></div>' +
+      '<label>Estado</label><select data-k="status">' + opts + '</select>' +
+      '<label class="check"><input type="checkbox" data-k="ministry"' + (b.ministry ? ' checked' : '') + '> Comunicado al Ministerio</label>' +
+      '<label>Notas</label><textarea data-k="notes">' + esc(b.notes) + '</textarea>' +
+      '<button type="button" class="save" data-save>Guardar</button><div class="msg" data-msg></div>' +
+      '</div></details>';
+  }
+
+  function wire(b) {
+    var el = $('bk-' + b.ref);
+    if (!el) return;
+    el.addEventListener('toggle', function () { open[b.ref] = el.open; });
+    var pay = el.querySelector('[data-k=driverPay]');
+    function margin() {
+      var m = el.querySelector('[data-margin]');
+      if (b.price == null) { m.textContent = 'Sin precio: es un presupuesto.'; return; }
+      var p = pay.value === '' ? null : Number(pay.value);
+      m.textContent = p == null ? 'Cobrado ' + euro(b.price) + ' · pon lo que le pagas para ver lo que te queda'
+        : 'Te queda: ' + euro(b.price - p) + ' (cobrado ' + euro(b.price) + ')';
+    }
+    pay.addEventListener('input', margin); margin();
+    el.querySelector('[data-save]').addEventListener('click', async function () {
+      var msg = el.querySelector('[data-msg]');
+      var btn = this; btn.disabled = true; msg.className = 'msg'; msg.textContent = 'Guardando…';
+      var body = { ref: b.ref };
+      Array.prototype.forEach.call(el.querySelectorAll('[data-k]'), function (i) {
+        body[i.getAttribute('data-k')] = i.type === 'checkbox' ? i.checked : i.value;
+      });
+      try {
+        var res = await fetch('/api/bravo/admin/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        if (res.status === 401) { location.reload(); return; }
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'error');
+        for (var i = 0; i < list.length; i++) if (list[i].ref === b.ref) list[i] = data.booking;
+        open[b.ref] = true;
+        render();
+        var again = $('bk-' + b.ref);
+        if (again) { var m2 = again.querySelector('[data-msg]'); m2.className = 'msg ok'; m2.textContent = '✓ Guardado'; }
+      } catch (e) {
+        msg.className = 'msg bad'; msg.textContent = 'No se ha guardado (' + e.message + '). Prueba otra vez.';
+        btn.disabled = false;
+      }
+    });
+  }
+
+  async function load() {
+    try {
+      var res = await fetch('/api/bravo/admin/bookings');
+      if (res.status === 401) { location.reload(); return; }
+      var data = await res.json();
+      list = data.bookings || [];
+      render();
+    } catch (e) {
+      $('list').innerHTML = '<p class="empty">No se han podido cargar las reservas. Prueba con ↻.</p>';
+    }
+  }
+  $('reload').addEventListener('click', load);
+  $('logout').addEventListener('click', async function () {
+    try { await fetch('/api/bravo/logout', { method: 'POST' }); } catch (e) { /* da igual */ }
+    location.href = '/bravo/panel/';
+  });
+  load();
+})();
+</script>
+</body>
+</html>

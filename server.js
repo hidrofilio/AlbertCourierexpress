@@ -757,6 +757,17 @@ async function handleStudy(req, res, url) {
 // address, which used to serve the same page and split the search ranking
 // between two addresses. Only page loads are redirected: a POST to /api/*
 // would lose its body on a 301.
+// Bravo Transfers (traslados en Málaga), escondido tras contraseña: ver bravo-api.js
+const bravo = require('./bravo-api')({ DATA_DIR, readBody, getClientIp });
+
+// Resuelve la ruta igual que serveStatic, para que /%62ravo/ o //bravo/ no se salten la contraseña.
+function isBravoPath(url) {
+  let p = url.split('?')[0];
+  try { p = decodeURIComponent(p); } catch (e) { return false; }
+  const rel = path.relative(ROOT, path.join(ROOT, p));
+  return rel === 'bravo' || rel.startsWith('bravo' + path.sep);
+}
+
 const CANONICAL_HOST = 'albertcourierexpress.com';
 
 const server = http.createServer(async (req, res) => {
@@ -883,6 +894,18 @@ const server = http.createServer(async (req, res) => {
     }
     return;
   }
+
+  if (url.startsWith('/api/bravo/')) {
+    try {
+      await bravo.handleApi(req, res, url);
+    } catch (e) {
+      console.error('bravo error:', e);
+      if (!res.headersSent) sendJson(res, 500, { error: 'server_error' });
+    }
+    return;
+  }
+
+  if (isBravoPath(url) && !bravo.allowPage(req, res)) return;
 
   serveStatic(req, res, url);
 });

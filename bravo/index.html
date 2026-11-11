@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#17120d">
+<title>Bravo Transfers · Málaga</title>
+<meta name="description" content="Private transfers from Málaga with licensed drivers.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2317120d'/%3E%3Cpath d='M12 44a20 20 0 0 1 40 0z' fill='%23e5b44b'/%3E%3C/svg%3E">
+<style>
+  /* Fase 1, escondida. Colores del primer logo: negro, dorado y naranja. Logo PROVISIONAL. */
+  :root {
+    --ink: #17120d; --ink-2: #2a2118; --cream: #faf6ee; --card: #ffffff;
+    --gold: #c8922f; --gold-2: #e5b44b; --orange: #df7a2c;
+    --muted: #6f6252; --line: #e7dccb; --ok: #2f7d4f; --err: #b3261e;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--cream); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.5; }
+  a { color: inherit; }
+  [hidden] { display: none !important; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+
+  .test-bar { background: var(--orange); color: #fff; text-align: center; font-size: .82rem; font-weight: 600; padding: 6px 16px; }
+
+  header.top { background: var(--ink); color: #f6efe3; }
+  header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 64px; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .brand svg { flex: none; }
+  .word { display: flex; flex-direction: column; line-height: 1; }
+  .word b { font-family: Georgia, 'Times New Roman', serif; font-size: 1.45rem; letter-spacing: .08em; color: #fff; }
+  .word small { font-size: .62rem; letter-spacing: .42em; color: var(--gold-2); margin-top: 4px; }
+  .top-actions { display: flex; align-items: center; gap: 10px; }
+  .langs { display: flex; border: 1px solid #5a4a34; border-radius: 999px; overflow: hidden; }
+  .langs button { background: none; border: 0; color: #cbb994; font-weight: 700; font-size: .8rem; padding: 7px 11px; cursor: pointer; }
+  .langs button.on { background: var(--gold-2); color: var(--ink); }
+  .wa { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 50%; background: #25d366; }
+
+  .hero { background: radial-gradient(120% 90% at 85% 0%, #3a2a17 0%, var(--ink) 55%); color: #f6efe3; padding: 28px 0 40px; position: relative; overflow: hidden; }
+  .hero::before { content: ""; position: absolute; width: 360px; height: 360px; right: -120px; top: -150px; border-radius: 50%; background: radial-gradient(circle, rgba(229,180,75,.55), rgba(223,122,44,.15) 60%, transparent 70%); pointer-events: none; }
+  .hero h1 { font-family: Georgia, 'Times New Roman', serif; font-weight: 700; font-size: clamp(1.7rem, 6vw, 2.6rem); line-height: 1.15; margin: 0 0 10px; position: relative; }
+  .hero p.sub { color: #d9cbb0; margin: 0 0 22px; max-width: 560px; position: relative; }
+
+  .booker { background: var(--card); color: var(--ink); border-radius: 16px; padding: 16px; box-shadow: 0 18px 40px rgba(0,0,0,.35); position: relative; max-width: 640px; }
+  .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: #f3ece0; padding: 4px; border-radius: 12px; margin-bottom: 14px; }
+  .tabs button { border: 0; background: none; padding: 10px 4px; border-radius: 9px; font-weight: 700; font-size: .92rem; color: var(--muted); cursor: pointer; }
+  .tabs button.on { background: var(--ink); color: #fff; }
+  .field { margin-bottom: 12px; }
+  .field label, .lbl { display: block; font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 5px; }
+  input, select, textarea { width: 100%; font: inherit; font-size: 16px; color: var(--ink); background: #fff; border: 1.5px solid var(--line); border-radius: 10px; padding: 11px 12px; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(200,146,47,.18); }
+  textarea { min-height: 80px; resize: vertical; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+  .chip { border: 1px solid var(--line); background: #fbf8f2; color: var(--ink); border-radius: 999px; padding: 5px 10px; font-size: .8rem; cursor: pointer; }
+  .chip.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .found { font-size: .8rem; color: var(--ok); margin-top: 5px; min-height: 0; }
+  .check { display: flex; align-items: center; gap: 8px; font-weight: 600; margin: 4px 0 12px; }
+  .check input { width: 20px; height: 20px; }
+  .btn { display: block; width: 100%; border: 0; border-radius: 12px; padding: 14px; font-size: 1.02rem; font-weight: 800; cursor: pointer; background: linear-gradient(135deg, var(--gold-2), var(--orange)); color: var(--ink); }
+  .btn:disabled { opacity: .55; cursor: wait; }
+  .link-btn { background: none; border: 0; color: var(--muted); font-weight: 600; padding: 6px 0; cursor: pointer; font-size: .92rem; }
+  .hint { font-size: .85rem; color: var(--muted); margin: 10px 0 0; }
+  .hint button { background: none; border: 0; padding: 0; color: var(--gold); font-weight: 700; text-decoration: underline; cursor: pointer; font-size: inherit; }
+  .err { background: #fdecea; color: var(--err); border-radius: 10px; padding: 10px 12px; font-size: .9rem; margin: 0 0 12px; }
+  .summary { background: #f7f1e6; border-radius: 12px; padding: 12px; margin-bottom: 14px; font-size: .92rem; }
+  .summary b { display: block; font-size: 1rem; overflow-wrap: anywhere; }
+  .veh { display: grid; grid-template-columns: 44px 1fr auto; grid-template-areas: "ico txt price" "btn btn btn"; gap: 8px 12px; align-items: center; border: 1.5px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+  .veh .ico { grid-area: ico; } .veh .txt { grid-area: txt; } .veh .price { grid-area: price; font-size: 1.35rem; font-weight: 800; }
+  .veh .txt span { display: block; color: var(--muted); font-size: .85rem; }
+  .veh button { grid-area: btn; }
+  .veh.off { opacity: .5; }
+  .veh-note { font-size: .8rem; color: var(--muted); margin: -4px 0 10px; }
+  .done { text-align: center; padding: 8px 0; }
+  .done .tick { width: 56px; height: 56px; border-radius: 50%; background: var(--ok); color: #fff; font-size: 30px; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; }
+  .done h2 { margin: 0 0 6px; font-family: Georgia, serif; }
+  .test-note { font-size: .8rem; color: var(--orange); font-weight: 600; text-align: center; margin: 10px 0 0; }
+
+  section.band { padding: 44px 0; }
+  section.band.alt { background: #f3ece0; }
+  h2.sec { font-family: Georgia, 'Times New Roman', serif; font-size: 1.6rem; margin: 0 0 20px; }
+  .grid { display: grid; gap: 12px; grid-template-columns: 1fr; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  .card h3 { margin: 6px 0 4px; font-size: 1.05rem; }
+  .card p { margin: 0; color: var(--muted); font-size: .93rem; }
+  .num { width: 30px; height: 30px; border-radius: 50%; background: var(--ink); color: var(--gold-2); display: flex; align-items: center; justify-content: center; font-weight: 800; }
+  .emoji { font-size: 1.6rem; }
+  details.faq { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 0 14px; margin-bottom: 8px; }
+  details.faq summary { font-weight: 700; padding: 13px 0; cursor: pointer; list-style: none; }
+  details.faq summary::-webkit-details-marker { display: none; }
+  details.faq summary::after { content: "+"; float: right; color: var(--gold); font-weight: 800; }
+  details.faq[open] summary::after { content: "–"; }
+  details.faq p { margin: 0 0 13px; color: var(--muted); }
+  .contact-row { display: flex; flex-wrap: wrap; gap: 10px; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; background: var(--ink); color: #fff; border-radius: 999px; padding: 11px 16px; font-weight: 700; font-size: .92rem; overflow-wrap: anywhere; }
+  .pill.wa-pill { background: #1f9e4f; }
+  footer { background: var(--ink); color: #b8a98d; font-size: .85rem; padding: 26px 0; }
+  footer p { margin: 0 0 4px; }
+
+  @media (min-width: 720px) {
+    .hero { padding: 48px 0 60px; }
+    .booker { padding: 22px; }
+    .grid.g3 { grid-template-columns: repeat(3, 1fr); }
+    .grid.g4 { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (min-width: 980px) { .grid.g4 { grid-template-columns: repeat(4, 1fr); } }
+</style>
+</head>
+<body>
+<div class="test-bar" data-i18n="testBar"></div>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="/bravo/" aria-label="Bravo Transfers">
+      <svg width="40" height="40" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2c45a"/><stop offset="1" stop-color="#df7a2c"/></linearGradient></defs><path d="M10 44a22 22 0 0 1 44 0z" fill="url(#sg)"/><g stroke="#e5b44b" stroke-width="3" stroke-linecap="round"><path d="M32 8v8M12 16l5 6M52 16l-5 6M4 32h7M53 32h7"/></g><path d="M6 50h52" stroke="#e5b44b" stroke-width="3" stroke-linecap="round"/></svg>
+      <span class="word"><b>BRAVO</b><small>TRANSFERS</small></span>
+    </a>
+    <div class="top-actions">
+      <div class="langs" role="group" aria-label="Language">
+        <button type="button" data-lang="es">ES</button><button type="button" data-lang="en">EN</button>
+      </div>
+      <a class="wa" href="https://wa.me/353874592308" target="_blank" rel="noopener" aria-label="WhatsApp">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.8-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.8 11.9 11.9 0 0 0 4.6 4c1.7.7 2.4.8 3.2.7a2.8 2.8 0 0 0 1.8-1.3 2.3 2.3 0 0 0 .2-1.3c-.1-.1-.2-.2-.5-.3z"/></svg>
+      </a>
+    </div>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <h1 data-i18n="heroTitle"></h1>
+    <p class="sub" data-i18n="heroSub"></p>
+
+    <div class="booker" id="booker">
+      <div class="err" id="err" role="alert" hidden></div>
+
+      <!-- Paso 1: el viaje -->
+      <div id="step-search">
+        <div class="tabs" role="tablist">
+          <button type="button" data-tab="transfer" data-i18n="tabTransfer"></button>
+          <button type="button" data-tab="hourly" data-i18n="tabHourly"></button>
+          <button type="button" data-tab="group" data-i18n="tabGroup"></button>
+        </div>
+
+        <form id="f-transfer" novalidate>
+          <div class="field">
+            <label for="t-from" data-i18n="from"></label>
+            <input id="t-from" autocomplete="off" data-i18n-ph="phPlace">
+            <div class="chips" data-chips="t-from" data-places="agp,mz,port"></div>
+            <div class="found" data-found="t-from"></div>
+          </div>
+          <div class="field">
+            <label for="t-to" data-i18n="to"></label>
+            <input id="t-to" autocomplete="off" data-i18n-ph="phPlace">
+            <div class="chips" data-chips="t-to" data-places="agp,centro,marbella"></div>
+            <div class="found" data-found="t-to"></div>
+          </div>
+          <div class="row">
+            <div class="field"><label for="t-date" data-i18n="date"></label><input type="date" id="t-date"></div>
+            <div class="field"><label for="t-time" data-i18n="time"></label><input type="time" id="t-time" step="300"></div>
+          </div>
+          <div class="field">
+            <label for="t-pax" data-i18n="passengers"></label>
+            <select id="t-pax"></select>
+          </div>
+          <label class="check"><input type="checkbox" id="t-round"> <span data-i18n="roundTrip"></span></label>
+          <div class="row" id="t-return" hidden>
+            <div class="field"><label for="t-rdate" data-i18n="returnDate"></label><input type="date" id="t-rdate"></div>
+            <div class="field"><label for="t-rtime" data-i18n="returnTime"></label><input type="time" id="t-rtime" step="300"></div>
+          </div>
+          <button class="btn" type="submit" data-i18n="seePrice"></button>
+          <p class="hint"><span data-i18n="moreThan7"></span> <button type="button" data-goto-tab="group" data-i18n="groupLink"></button></p>
+        </form>
+
+        <form id="f-hourly" novalidate hidden>
+          <div class="field">
+            <label for="h-from" data-i18n="pickup"></label>
+            <input id="h-from" autocomplete="off" data-i18n-ph="phPlace">
+            <div class="chips" data-chips="h-from" data-places="agp,centro,port"></div>
+            <div class="found" data-found="h-from"></div>
+          </div>
+          <div class="row">
+            <div class="field"><label for="h-date" data-i18n="date"></label><input type="date" id="h-date"></div>
+            <div class="field"><label for="h-time" data-i18n="time"></label><input type="time" id="h-time" step="300"></div>
+          </div>
+          <div class="row">
+            <div class="field"><label for="h-hours" data-i18n="hours"></label><select id="h-hours"></select></div>
+            <div class="field"><label for="h-pax" data-i18n="passengers"></label><select id="h-pax"></select></div>
+          </div>
+          <button class="btn" type="submit" data-i18n="seePrice"></button>
+        </form>
+
+        <form id="f-group" novalidate hidden>
+          <p class="hint" style="margin:0 0 12px" data-i18n="groupIntro"></p>
+          <div class="field"><label for="g-from" data-i18n="from"></label><input id="g-from" data-i18n-ph="phPlace"></div>
+          <div class="field"><label for="g-to" data-i18n="to"></label><input id="g-to" data-i18n-ph="phPlace"></div>
+          <div class="row">
+            <div class="field"><label for="g-date" data-i18n="date"></label><input type="date" id="g-date"></div>
+            <div class="field"><label for="g-time" data-i18n="time"></label><input type="time" id="g-time" step="300"></div>
+          </div>
+          <div class="field"><label for="g-pax" data-i18n="people"></label><input type="number" id="g-pax" min="1" max="500" inputmode="numeric" value="10"></div>
+          <div class="field"><label for="g-name" data-i18n="name"></label><input id="g-name" autocomplete="name"></div>
+          <div class="field"><label for="g-phone" data-i18n="phone"></label><input type="tel" id="g-phone" autocomplete="tel" placeholder="+44 7700 900123"></div>
+          <div class="field"><label for="g-email" data-i18n="email"></label><input type="email" id="g-email" autocomplete="email"></div>
+          <div class="field"><label for="g-comments" data-i18n="comments"></label><textarea id="g-comments"></textarea></div>
+          <button class="btn" type="submit" data-i18n="askQuote"></button>
+          <p class="test-note" data-i18n="testNote"></p>
+        </form>
+      </div>
+
+      <!-- Paso 2: el vehículo y el precio -->
+      <div id="step-options" hidden>
+        <button type="button" class="link-btn" data-back="search" data-i18n="back"></button>
+        <div class="summary" id="opt-summary"></div>
+        <div id="opt-list"></div>
+      </div>
+
+      <!-- Paso 3: los datos -->
+      <form id="step-details" novalidate hidden>
+        <button type="button" class="link-btn" data-back="options" data-i18n="backVehicle"></button>
+        <div class="summary" id="det-summary"></div>
+        <p class="lbl" data-i18n="yourData"></p>
+        <div class="field"><label for="d-name" data-i18n="name"></label><input id="d-name" autocomplete="name"></div>
+        <div class="field"><label for="d-phone" data-i18n="phone"></label><input type="tel" id="d-phone" autocomplete="tel" placeholder="+44 7700 900123"></div>
+        <div class="field"><label for="d-email" data-i18n="email"></label><input type="email" id="d-email" autocomplete="email"></div>
+        <div class="field" id="d-flight-field" hidden><label for="d-flight" data-i18n="flight"></label><input id="d-flight" autocomplete="off" placeholder="FR 1234" maxlength="12"></div>
+        <div class="row">
+          <div class="field"><label for="d-bags" data-i18n="bags"></label><select id="d-bags"></select></div>
+          <div class="field"><label for="d-seats" data-i18n="childSeats"></label><select id="d-seats"></select></div>
+        </div>
+        <div class="field"><label for="d-comments" data-i18n="comments"></label><textarea id="d-comments"></textarea></div>
+        <button class="btn" type="submit" data-i18n="confirm"></button>
+        <p class="test-note" data-i18n="testNote"></p>
+      </form>
+
+      <!-- Paso 4: hecho -->
+      <div id="step-done" class="done" hidden>
+        <div class="tick">✓</div>
+        <h2 id="done-title"></h2>
+        <p id="done-text"></p>
+        <div class="summary" id="done-summary" style="text-align:left"></div>
+        <button type="button" class="btn" id="new-booking" data-i18n="newBooking"></button>
+        <p class="test-note" data-i18n="testNote"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <h2 class="sec" data-i18n="how_t"></h2>
+    <div class="grid g3">
+      <div class="card"><div class="num">1</div><h3 data-i18n="how1_t"></h3><p data-i18n="how1"></p></div>
+      <div class="card"><div class="num">2</div><h3 data-i18n="how2_t"></h3><p data-i18n="how2"></p></div>
+      <div class="card"><div class="num">3</div><h3 data-i18n="how3_t"></h3><p data-i18n="how3"></p></div>
+    </div>
+  </div>
+</section>
+
+<section class="band alt">
+  <div class="wrap">
+    <h2 class="sec" data-i18n="svc_t"></h2>
+    <div class="grid g4">
+      <div class="card"><div class="emoji">✈️</div><h3 data-i18n="svc1_t"></h3><p data-i18n="svc1"></p></div>
+      <div class="card"><div class="emoji">🛣️</div><h3 data-i18n="svc2_t"></h3><p data-i18n="svc2"></p></div>
+      <div class="card"><div class="emoji">⏱️</div><h3 data-i18n="svc3_t"></h3><p data-i18n="svc3"></p></div>
+      <div class="card"><div class="emoji">🚌</div><h3 data-i18n="svc4_t"></h3><p data-i18n="svc4"></p></div>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <h2 class="sec" data-i18n="why_t"></h2>
+    <div class="grid g4">
+      <div class="card"><div class="emoji">💶</div><h3 data-i18n="why1_t"></h3><p data-i18n="why1"></p></div>
+      <div class="card"><div class="emoji">🪪</div><h3 data-i18n="why2_t"></h3><p data-i18n="why2"></p></div>
+      <div class="card"><div class="emoji">🔒</div><h3 data-i18n="why3_t"></h3><p data-i18n="why3"></p></div>
+      <div class="card"><div class="emoji">💬</div><h3 data-i18n="why4_t"></h3><p data-i18n="why4"></p></div>
+    </div>
+  </div>
+</section>
+
+<section class="band alt">
+  <div class="wrap">
+    <h2 class="sec" data-i18n="fleet_t"></h2>
+    <div class="grid g3">
+      <div class="card"><div class="emoji">🚗</div><h3 data-i18n="veh_car"></h3><p data-i18n="fleet_car"></p></div>
+      <div class="card"><div class="emoji">🚐</div><h3 data-i18n="veh_van"></h3><p data-i18n="fleet_van"></p></div>
+      <div class="card"><div class="emoji">🚌</div><h3 data-i18n="fleet_bus_t"></h3><p data-i18n="fleet_bus"></p></div>
+    </div>
+    <p class="hint" data-i18n="fleet_note"></p>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <h2 class="sec" data-i18n="faq_t"></h2>
+    <!-- Respuestas PROVISIONALES (espera, cancelaciones, antelación): pendientes de decidir -->
+    <details class="faq"><summary data-i18n="q1"></summary><p data-i18n="a1"></p></details>
+    <details class="faq"><summary data-i18n="q2"></summary><p data-i18n="a2"></p></details>
+    <details class="faq"><summary data-i18n="q3"></summary><p data-i18n="a3"></p></details>
+    <details class="faq"><summary data-i18n="q4"></summary><p data-i18n="a4"></p></details>
+    <details class="faq"><summary data-i18n="q5"></summary><p data-i18n="a5"></p></details>
+  </div>
+</section>
+
+<section class="band alt">
+  <div class="wrap">
+    <h2 class="sec" data-i18n="contact_t"></h2>
+    <p data-i18n="contact"></p>
+    <div class="contact-row">
+      <a class="pill wa-pill" href="https://wa.me/353874592308" target="_blank" rel="noopener">WhatsApp</a>
+      <a class="pill" href="mailto:info@albertcourierexpress.com">info@albertcourierexpress.com</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p><b style="color:#f6efe3">Bravo Transfers</b> · Málaga</p>
+    <p data-i18n="footer"></p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  // Aviso a Alberto por correo (el mismo servicio y el mismo correo que la web de mensajería).
+  var NOTIFY_KEY = '51f8ca24-f99c-4869-827a-3d13671053e9';
+
+  var PLACES = {
+    agp: { es: 'Aeropuerto de Málaga (AGP)', en: 'Málaga Airport (AGP)', lat: 36.6749, lon: -4.4991, airport: true },
+    mz: { es: 'Estación María Zambrano', en: 'María Zambrano train station', lat: 36.7117, lon: -4.4325 },
+    port: { es: 'Puerto de Málaga', en: 'Málaga Port', lat: 36.7128, lon: -4.4152 },
+    centro: { es: 'Málaga centro', en: 'Málaga city centre', lat: 36.7213, lon: -4.4214 },
+    marbella: { es: 'Marbella', en: 'Marbella', lat: 36.5101, lon: -4.8825 }
+  };
+
+  var T = {
+    es: {
+      testBar: 'Versión de prueba · no se cobra nada · solo la vemos nosotros',
+      heroTitle: 'Traslados privados desde Málaga',
+      heroSub: 'Al aeropuerto, a tu hotel o a cualquier ciudad de España. Ves el precio antes de reservar y te recoge un conductor con licencia.',
+      tabTransfer: 'Traslado', tabHourly: 'Por horas', tabGroup: 'Grupos',
+      from: 'Desde', to: 'Hasta', pickup: 'Recogida', date: 'Día', time: 'Hora', passengers: 'Pasajeros',
+      roundTrip: 'Ida y vuelta', returnDate: 'Día de vuelta', returnTime: 'Hora de vuelta', hours: 'Horas',
+      seePrice: 'Ver precio', phPlace: 'Dirección, hotel o ciudad',
+      moreThan7: '¿Más de 7 personas?', groupLink: 'Pide presupuesto para grupos',
+      found: 'Encontrado', choose: 'Elegir', tooManyPax: 'No caben', upTo: 'Hasta {n} pasajeros',
+      veh_car: 'Coche', veh_van: 'Monovolumen', roundTripPrice: 'Precio de ida y vuelta',
+      hourlyLine: '{h} horas con conductor', back: '← Cambiar el viaje', backVehicle: '← Cambiar el vehículo',
+      yourData: 'Tus datos', name: 'Nombre y apellidos', phone: 'Teléfono (con prefijo del país)',
+      email: 'Correo electrónico', flight: 'Número de vuelo', bags: 'Maletas', childSeats: 'Sillas de niño',
+      comments: 'Comentarios (opcional)', confirm: 'Confirmar reserva',
+      testNote: 'Versión de prueba: no se cobra nada.',
+      doneTitle: 'Reserva {ref} recibida',
+      doneText: 'Te escribiremos por WhatsApp con el nombre de tu conductor, el coche y la matrícula.',
+      doneGroup: 'Te enviaremos el presupuesto por correo lo antes posible.',
+      newBooking: 'Hacer otra reserva', return: 'Vuelta', price: 'Precio', vehicle: 'Vehículo',
+      groupIntro: 'Para grupos de 8 personas o más, en minibús o autobús. Te mandamos el presupuesto.',
+      people: 'Número de personas', askQuote: 'Pedir presupuesto', groupDone: 'Grupo de {n} personas',
+      how_t: 'Cómo funciona',
+      how1_t: 'Reservas en dos minutos', how1: 'Eliges el viaje, ves el precio y reservas.',
+      how2_t: 'Te confirmamos el conductor', how2: 'Te mandamos su nombre, el coche y la matrícula.',
+      how3_t: 'Te recoge', how3: 'En el aeropuerto, en tu hotel o donde nos digas.',
+      svc_t: 'Servicios',
+      svc1_t: 'Aeropuerto de Málaga', svc1: 'Al llegar o al irte, de puerta a puerta.',
+      svc2_t: 'Entre ciudades', svc2: 'Marbella, Sevilla, Granada, Madrid… desde Málaga.',
+      svc3_t: 'Coche por horas', svc3: 'Un conductor para ti: reuniones, compras o un día por la costa.',
+      svc4_t: 'Grupos y autobuses', svc4: 'Minibuses y autobuses para bodas, congresos y viajes en grupo.',
+      why_t: 'Por qué Bravo',
+      why1_t: 'Precio cerrado', why1: 'Sabes lo que pagas antes de reservar. Sin sorpresas.',
+      why2_t: 'Conductores con licencia', why2: 'Profesionales con licencia VTC.',
+      why3_t: 'Pago seguro', why3: 'Con tarjeta, Apple Pay o Google Pay.',
+      why4_t: 'En tu idioma', why4: 'Te atendemos en español y en inglés.',
+      fleet_t: 'Los vehículos', fleet_car: 'Hasta 4 pasajeros', fleet_van: 'Hasta 7 pasajeros',
+      fleet_bus_t: 'Minibús y autobús', fleet_bus: 'Para grupos, con presupuesto', fleet_note: 'Fotos reales de los coches: pronto.',
+      faq_t: 'Preguntas frecuentes',
+      q1: '¿Cómo encuentro a mi conductor?', a1: 'Antes del viaje te escribimos por WhatsApp con su nombre, el coche y la matrícula, y quedáis en el punto de recogida.',
+      q2: '¿Y si mi vuelo se retrasa?', a2: 'Con tu número de vuelo vemos la hora real de llegada. Tienes 60 minutos de espera gratis desde que aterriza.',
+      q3: '¿Puedo cancelar?', a3: 'Sí, gratis hasta 24 horas antes del viaje.',
+      q4: '¿Con cuánta antelación tengo que reservar?', a4: 'Al menos 24 horas antes. Si lo necesitas antes, escríbenos por WhatsApp.',
+      q5: '¿Cómo se paga?', a5: 'Con tarjeta, Apple Pay o Google Pay, al reservar. En esta versión de prueba no se cobra nada.',
+      contact_t: '¿Alguna duda?', contact: 'Escríbenos por WhatsApp o por correo.',
+      footer: 'Versión de prueba. Aviso legal y privacidad: en preparación.',
+      err_needPlace: 'Escribe una dirección, un hotel o una ciudad.',
+      err_notFound: 'No encontramos «{q}». Prueba con otra dirección o con el nombre de la ciudad.',
+      err_geo: 'El buscador de direcciones no responde. Prueba otra vez en un momento.',
+      err_needDate: 'Elige el día y la hora.',
+      err_too_soon: 'Hay que reservar con al menos 24 horas de antelación. Si lo necesitas antes, escríbenos por WhatsApp.',
+      err_origin_not_malaga: 'De momento solo hacemos viajes que salen de la provincia de Málaga.',
+      err_no_route: 'No hay ruta por carretera entre esos dos sitios.',
+      err_route_unavailable: 'No hemos podido calcular la ruta. Prueba otra vez en un momento.',
+      err_same_place: 'La salida y el destino son el mismo sitio.',
+      err_bad_name: 'Escribe tu nombre.',
+      err_bad_phone: 'Escribe un teléfono válido, con el prefijo del país (por ejemplo +44…).',
+      err_bad_email: 'Escribe un correo válido.',
+      err_bad_return: 'La vuelta tiene que ser después de la ida.',
+      err_bad_places: 'Escribe desde dónde y hasta dónde.',
+      err_bad_passengers: 'Indica el número de personas.',
+      err_too_many: 'Demasiadas peticiones. Espera un momento.',
+      err_network: 'Sin conexión. Prueba otra vez.',
+      err_generic: 'Algo ha fallado. Prueba otra vez.'
+    },
+    en: {
+      testBar: 'Test version · nothing is charged · private preview',
+      heroTitle: 'Private transfers from Málaga',
+      heroSub: 'To the airport, your hotel or any city in Spain. See the price before you book, and a licensed driver picks you up.',
+      tabTransfer: 'Transfer', tabHourly: 'By the hour', tabGroup: 'Groups',
+      from: 'From', to: 'To', pickup: 'Pick-up', date: 'Date', time: 'Time', passengers: 'Passengers',
+      roundTrip: 'Return trip', returnDate: 'Return date', returnTime: 'Return time', hours: 'Hours',
+      seePrice: 'See price', phPlace: 'Address, hotel or town',
+      moreThan7: 'More than 7 people?', groupLink: 'Ask for a group quote',
+      found: 'Found', choose: 'Choose', tooManyPax: 'Too many', upTo: 'Up to {n} passengers',
+      veh_car: 'Car', veh_van: 'People carrier', roundTripPrice: 'Return trip price',
+      hourlyLine: '{h} hours with a driver', back: '← Change the trip', backVehicle: '← Change the vehicle',
+      yourData: 'Your details', name: 'Full name', phone: 'Phone (with country code)',
+      email: 'Email', flight: 'Flight number', bags: 'Suitcases', childSeats: 'Child seats',
+      comments: 'Comments (optional)', confirm: 'Confirm booking',
+      testNote: 'Test version: nothing is charged.',
+      doneTitle: 'Booking {ref} received',
+      doneText: 'We will message you on WhatsApp with your driver’s name, the car and its number plate.',
+      doneGroup: 'We will email you a quote as soon as possible.',
+      newBooking: 'Make another booking', return: 'Return', price: 'Price', vehicle: 'Vehicle',
+      groupIntro: 'For groups of 8 or more, by minibus or coach. We will send you a quote.',
+      people: 'Number of people', askQuote: 'Ask for a quote', groupDone: 'Group of {n} people',
+      how_t: 'How it works',
+      how1_t: 'Book in two minutes', how1: 'Choose your trip, see the price and book.',
+      how2_t: 'We confirm your driver', how2: 'We send you their name, the car and its number plate.',
+      how3_t: 'We pick you up', how3: 'At the airport, your hotel or wherever you tell us.',
+      svc_t: 'Services',
+      svc1_t: 'Málaga Airport', svc1: 'Arriving or leaving, door to door.',
+      svc2_t: 'Between cities', svc2: 'Marbella, Seville, Granada, Madrid… from Málaga.',
+      svc3_t: 'Car by the hour', svc3: 'A driver just for you: meetings, shopping or a day on the coast.',
+      svc4_t: 'Groups and coaches', svc4: 'Minibuses and coaches for weddings, conferences and group trips.',
+      why_t: 'Why Bravo',
+      why1_t: 'Fixed price', why1: 'You know what you pay before you book. No surprises.',
+      why2_t: 'Licensed drivers', why2: 'Professional drivers with a VTC licence.',
+      why3_t: 'Secure payment', why3: 'By card, Apple Pay or Google Pay.',
+      why4_t: 'In your language', why4: 'We speak English and Spanish.',
+      fleet_t: 'Our vehicles', fleet_car: 'Up to 4 passengers', fleet_van: 'Up to 7 passengers',
+      fleet_bus_t: 'Minibus and coach', fleet_bus: 'For groups, on request', fleet_note: 'Real photos of the cars: coming soon.',
+      faq_t: 'Frequently asked questions',
+      q1: 'How do I find my driver?', a1: 'Before your trip we message you on WhatsApp with their name, the car and its number plate, and you meet at the pick-up point.',
+      q2: 'What if my flight is late?', a2: 'With your flight number we check the real arrival time. You get 60 minutes of free waiting time after landing.',
+      q3: 'Can I cancel?', a3: 'Yes, free of charge up to 24 hours before the trip.',
+      q4: 'How far ahead do I need to book?', a4: 'At least 24 hours. If you need it sooner, message us on WhatsApp.',
+      q5: 'How do I pay?', a5: 'By card, Apple Pay or Google Pay when you book. Nothing is charged in this test version.',
+      contact_t: 'Any questions?', contact: 'Message us on WhatsApp or by email.',
+      footer: 'Test version. Legal notice and privacy policy: coming soon.',
+      err_needPlace: 'Type an address, a hotel or a town.',
+      err_notFound: 'We could not find “{q}”. Try another address or the name of the town.',
+      err_geo: 'The address search is not responding. Please try again in a moment.',
+      err_needDate: 'Choose the date and time.',
+      err_too_soon: 'Bookings must be made at least 24 hours ahead. If you need it sooner, message us on WhatsApp.',
+      err_origin_not_malaga: 'For now we only do trips starting in the province of Málaga.',
+      err_no_route: 'There is no road route between those two places.',
+      err_route_unavailable: 'We could not work out the route. Please try again in a moment.',
+      err_same_place: 'The pick-up and the destination are the same place.',
+      err_bad_name: 'Type your name.',
+      err_bad_phone: 'Type a valid phone number, with the country code (for example +44…).',
+      err_bad_email: 'Type a valid email address.',
+      err_bad_return: 'The return must be after the outward trip.',
+      err_bad_places: 'Type where from and where to.',
+      err_bad_passengers: 'Say how many people.',
+      err_too_many: 'Too many requests. Please wait a moment.',
+      err_network: 'No connection. Please try again.',
+      err_generic: 'Something went wrong. Please try again.'
+    }
+  };
+
+  function $(id) { return document.getElementById(id); }
+  function qsa(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+
+  var lang = 'es';
+  try {
+    var saved = localStorage.getItem('bravo_lang');
+    if (saved === 'es' || saved === 'en') lang = saved;
+    else if ((navigator.language || '').slice(0, 2) !== 'es') lang = 'en';
+  } catch (e) { if ((navigator.language || '').slice(0, 2) !== 'es') lang = 'en'; }
+
+  function t(k) { return (T[lang] && T[lang][k]) || T.es[k] || k; }
+  function money(n) {
+    try { return new Intl.NumberFormat(lang === 'es' ? 'es-ES' : 'en-IE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n); }
+    catch (e) { return '€' + n; }
+  }
+  function fmtDate(d) {
+    try { return new Date(d + 'T12:00:00').toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' }); }
+    catch (e) { return d; }
+  }
+  function fmtMin(m) { if (m < 60) return m + ' min'; return Math.floor(m / 60) + ' h ' + (m % 60 ? (m % 60) + ' min' : ''); }
+
+  // ---------- estado ----------
+  var state = { tab: 'transfer', step: 'search', trip: null, quote: null, vehicle: null, done: null };
+  var fields = {};
+
+  function fillSelect(id, from, to, def) {
+    var s = $(id); s.innerHTML = '';
+    for (var i = from; i <= to; i++) { var o = document.createElement('option'); o.value = i; o.textContent = i; if (i === def) o.selected = o.defaultSelected = true; s.appendChild(o); }
+  }
+  fillSelect('t-pax', 1, 7, 2); fillSelect('h-pax', 1, 7, 2); fillSelect('h-hours', 2, 12, 3);
+  fillSelect('d-bags', 0, 10, 2); fillSelect('d-seats', 0, 4, 0);
+
+  function isoDay(offset) { var d = new Date(Date.now() + offset * 86400000); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  ['t-date', 't-rdate', 'h-date', 'g-date'].forEach(function (id) { $(id).min = isoDay(1); });
+
+  // ---------- sitios: botones rápidos + buscador ----------
+  qsa('[data-chips]').forEach(function (box) {
+    var id = box.getAttribute('data-chips');
+    var input = $(id);
+    var f = fields[id] = { input: input, box: box, found: document.querySelector('[data-found="' + id + '"]'), place: null, chip: null };
+    box.getAttribute('data-places').split(',').forEach(function (key) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'chip'; b.setAttribute('data-place', key);
+      b.addEventListener('click', function () { pickChip(f, key); });
+      box.appendChild(b);
+    });
+    input.addEventListener('input', function () { f.place = null; f.chip = null; f.found.textContent = ''; markChips(f); });
+  });
+  function pickChip(f, key) {
+    var p = PLACES[key];
+    f.chip = key;
+    f.place = { lat: p.lat, lon: p.lon, label: p[lang], airport: Boolean(p.airport) };
+    f.input.value = p[lang]; f.found.textContent = '';
+    markChips(f);
+  }
+  function markChips(f) { qsa('.chip', f.box).forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-place') === f.chip); }); }
+
+  var lastGeo = 0;
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  async function geocode(q) {
+    // Nominatim: una consulta por segundo como mucho, y sin autocompletar (su norma de uso).
+    var gap = 1100 - (Date.now() - lastGeo);
+    if (gap > 0) await wait(gap);
+    lastGeo = Date.now();
+    var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=es' +
+      '&viewbox=-5.9,37.5,-3.5,36.1&accept-language=' + lang + '&q=' + encodeURIComponent(q);
+    var res;
+    try { res = await fetch(url); } catch (e) { throw { code: 'geo' }; }
+    if (!res.ok) throw { code: 'geo' };
+    var data = await res.json();
+    if (!data.length) return null;
+    var label = String(data[0].display_name || q).split(',').slice(0, 3).join(',').trim();
+    return { lat: Number(data[0].lat), lon: Number(data[0].lon), label: label };
+  }
+  async function resolve(f) {
+    if (f.place) return f.place;
+    var q = f.input.value.trim();
+    if (q.length < 3) { f.input.focus(); throw { code: 'needPlace' }; }
+    var r = await geocode(q);
+    if (!r) { f.input.focus(); throw { code: 'notFound', q: q }; }
+    r.airport = /aeropuerto|airport|\bAGP\b|flughafen/i.test(q + ' ' + r.label);
+    f.place = r;
+    f.found.textContent = '📍 ' + t('found') + ': ' + r.label;
+    return r;
+  }
+
+  // ---------- servidor ----------
+  async function api(route, body) {
+    var res;
+    try {
+      res = await fetch('/api/bravo/' + route, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
+    } catch (e) { throw { code: 'network' }; }
+    if (res.status === 401) { location.reload(); throw { code: 'generic' }; }
+    var data = {};
+    try { data = await res.json(); } catch (e) { /* vacío */ }
+    if (!res.ok) throw { code: data.error || 'generic' };
+    return data;
+  }
+
+  // ---------- mensajes de error ----------
+  function showErr(e) {
+    var code = (e && e.code) || 'generic';
+    var msg = T.es['err_' + code] ? t('err_' + code) : t('err_generic');
+    if (code === 'notFound') msg = msg.replace('{q}', e.q || '');
+    $('err').textContent = msg; $('err').hidden = false;
+    $('err').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  function clearErr() { $('err').hidden = true; $('err').textContent = ''; }
+  function busy(form, on) { qsa('button[type=submit]', form).forEach(function (b) { b.disabled = on; }); }
+
+  // ---------- pasos ----------
+  function show(step) {
+    state.step = step;
+    $('step-search').hidden = step !== 'search';
+    $('step-options').hidden = step !== 'options';
+    $('step-details').hidden = step !== 'details';
+    $('step-done').hidden = step !== 'done';
+    clearErr();
+    if (step !== 'search') $('booker').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  function setTab(tab) {
+    state.tab = tab;
+    qsa('[data-tab]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-tab') === tab); });
+    $('f-transfer').hidden = tab !== 'transfer';
+    $('f-hourly').hidden = tab !== 'hourly';
+    $('f-group').hidden = tab !== 'group';
+    clearErr();
+  }
+  qsa('[data-tab]').forEach(function (b) { b.addEventListener('click', function () { setTab(b.getAttribute('data-tab')); }); });
+  qsa('[data-goto-tab]').forEach(function (b) { b.addEventListener('click', function () { setTab(b.getAttribute('data-goto-tab')); }); });
+  qsa('[data-back]').forEach(function (b) { b.addEventListener('click', function () { show(b.getAttribute('data-back')); }); });
+  $('t-round').addEventListener('change', function () { $('t-return').hidden = !this.checked; });
+
+  function tooSoon(date, time) {
+    var when = new Date(date + 'T' + time + ':00').getTime();
+    return !(when > Date.now() + 24 * 3600000 - 60000);
+  }
+
+  function tripLine(trip, quote) {
+    if (trip.kind === 'hourly') return '<b>' + esc(trip.from.label) + '</b>' + esc(t('hourlyLine').replace('{h}', trip.hours));
+    return '<b>' + esc(trip.from.label) + ' → ' + esc(trip.to.label) + '</b>' +
+      esc(quote.km + ' km · ~' + fmtMin(quote.minutes));
+  }
+  function whenLine(trip) {
+    var s = fmtDate(trip.date) + ' · ' + trip.time + ' · ' + trip.passengers + ' ' + t('passengers').toLowerCase();
+    if (trip.roundTrip) s += '<br>' + esc(t('return')) + ': ' + esc(fmtDate(trip.returnDate) + ' · ' + trip.returnTime);
+    return s;
+  }
+
+  // Paso 1 → 2: traslado
+  $('f-transfer').addEventListener('submit', async function (ev) {
+    ev.preventDefault(); clearErr();
+    var trip = { kind: 'transfer', date: $('t-date').value, time: $('t-time').value, passengers: Number($('t-pax').value), roundTrip: $('t-round').checked };
+    if (trip.roundTrip) { trip.returnDate = $('t-rdate').value; trip.returnTime = $('t-rtime').value; }
+    busy(this, true);
+    try {
+      trip.from = await resolve(fields['t-from']);
+      trip.to = await resolve(fields['t-to']);
+      if (!trip.date || !trip.time) throw { code: 'needDate' };
+      if (tooSoon(trip.date, trip.time)) throw { code: 'too_soon' };
+      if (trip.roundTrip) {
+        if (!trip.returnDate || !trip.returnTime) throw { code: 'needDate' };
+        if (trip.returnDate + trip.returnTime <= trip.date + trip.time) throw { code: 'bad_return' };
+      }
+      var q = await api('quote', { kind: 'transfer', from: trip.from, to: trip.to, passengers: trip.passengers, roundTrip: trip.roundTrip });
+      state.trip = trip; state.quote = q; renderOptions(); show('options');
+    } catch (e) { showErr(e); }
+    finally { busy(this, false); }
+  });
+
+  // Paso 1 → 2: por horas
+  $('f-hourly').addEventListener('submit', async function (ev) {
+    ev.preventDefault(); clearErr();
+    var trip = { kind: 'hourly', date: $('h-date').value, time: $('h-time').value, passengers: Number($('h-pax').value), hours: Number($('h-hours').value) };
+    busy(this, true);
+    try {
+      trip.from = await resolve(fields['h-from']);
+      if (!trip.date || !trip.time) throw { code: 'needDate' };
+      if (tooSoon(trip.date, trip.time)) throw { code: 'too_soon' };
+      var q = await api('quote', { kind: 'hourly', from: trip.from, hours: trip.hours, passengers: trip.passengers });
+      state.trip = trip; state.quote = q; renderOptions(); show('options');
+    } catch (e) { showErr(e); }
+    finally { busy(this, false); }
+  });
+
+  function renderOptions() {
+    var trip = state.trip, q = state.quote;
+    $('opt-summary').innerHTML = tripLine(trip, q) + '<br>' + whenLine(trip);
+    var html = '';
+    q.options.forEach(function (o) {
+      html += '<div class="veh' + (o.fits ? '' : ' off') + '">' +
+        '<div class="ico emoji">' + (o.id === 'van' ? '🚐' : '🚗') + '</div>' +
+        '<div class="txt"><b>' + esc(t('veh_' + o.id)) + '</b><span>' + esc(t('upTo').replace('{n}', o.seats)) + '</span></div>' +
+        '<div class="price">' + esc(money(o.price)) + '</div>' +
+        '<button type="button" class="btn" data-veh="' + esc(o.id) + '"' + (o.fits ? '' : ' disabled') + '>' + esc(o.fits ? t('choose') : t('tooManyPax')) + '</button></div>';
+    });
+    if (trip.roundTrip) html += '<p class="veh-note">' + esc(t('roundTripPrice')) + '</p>';
+    $('opt-list').innerHTML = html;
+    qsa('[data-veh]', $('opt-list')).forEach(function (b) {
+      b.addEventListener('click', function () { state.vehicle = b.getAttribute('data-veh'); renderDetails(); show('details'); });
+    });
+  }
+
+  function chosen() { return state.quote.options.filter(function (o) { return o.id === state.vehicle; })[0]; }
+  function renderDetails() {
+    var o = chosen();
+    $('det-summary').innerHTML = tripLine(state.trip, state.quote) + '<br>' + whenLine(state.trip) +
+      '<br>' + esc(t('veh_' + o.id)) + ' · <b style="display:inline">' + esc(money(o.price)) + '</b>';
+    $('d-flight-field').hidden = !(state.trip.from && state.trip.from.airport);
+  }
+
+  // Paso 3 → 4: reservar
+  $('step-details').addEventListener('submit', async function (ev) {
+    ev.preventDefault(); clearErr();
+    var trip = state.trip;
+    var body = {
+      kind: trip.kind, lang: lang, from: trip.from, to: trip.to || null, date: trip.date, time: trip.time,
+      passengers: trip.passengers, hours: trip.hours || null, roundTrip: Boolean(trip.roundTrip),
+      returnDate: trip.returnDate || '', returnTime: trip.returnTime || '', vehicle: state.vehicle,
+      name: $('d-name').value, phone: $('d-phone').value, email: $('d-email').value,
+      flight: $('d-flight-field').hidden ? '' : $('d-flight').value,
+      bags: Number($('d-bags').value), childSeats: Number($('d-seats').value), comments: $('d-comments').value
+    };
+    busy(this, true);
+    try {
+      var r = await api('book', body);
+      var o = chosen();
+      var summary = tripLine(trip, state.quote) + '<br>' + whenLine(trip) + '<br>' + esc(t('veh_' + o.id)) + ' · ' + esc(money(r.price));
+      finish(r.ref, 'doneText', summary);
+      notify(r.ref, body, r.price, r.km);
+    } catch (e) { showErr(e); }
+    finally { busy(this, false); }
+  });
+
+  // Grupos: petición de presupuesto
+  $('f-group').addEventListener('submit', async function (ev) {
+    ev.preventDefault(); clearErr();
+    var body = {
+      kind: 'group', lang: lang, fromText: $('g-from').value, toText: $('g-to').value,
+      date: $('g-date').value, time: $('g-time').value, passengers: Number($('g-pax').value),
+      name: $('g-name').value, phone: $('g-phone').value, email: $('g-email').value, comments: $('g-comments').value
+    };
+    busy(this, true);
+    try {
+      if (!body.fromText.trim() || !body.toText.trim()) throw { code: 'bad_places' };
+      if (!body.date || !body.time) throw { code: 'needDate' };
+      var r = await api('book', body);
+      var summary = '<b>' + esc(body.fromText) + ' → ' + esc(body.toText) + '</b>' + esc(fmtDate(body.date) + ' · ' + body.time) +
+        '<br>' + esc(t('groupDone').replace('{n}', body.passengers));
+      finish(r.ref, 'doneGroup', summary);
+      notify(r.ref, body, null, null);
+    } catch (e) { showErr(e); }
+    finally { busy(this, false); }
+  });
+
+  function finish(ref, textKey, summary) {
+    state.done = { ref: ref, textKey: textKey, summary: summary };
+    renderDone(); show('done');
+  }
+  function renderDone() {
+    if (!state.done) return;
+    $('done-title').textContent = t('doneTitle').replace('{ref}', state.done.ref);
+    $('done-text').textContent = t(state.done.textKey);
+    $('done-summary').innerHTML = state.done.summary;
+  }
+  $('new-booking').addEventListener('click', function () {
+    ['f-transfer', 'f-hourly', 'f-group', 'step-details'].forEach(function (id) { $(id).reset(); });
+    Object.keys(fields).forEach(function (k) { var f = fields[k]; f.place = null; f.chip = null; f.found.textContent = ''; markChips(f); });
+    $('t-return').hidden = true;
+    state.trip = state.quote = state.vehicle = state.done = null;
+    show('search');
+    $('booker').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  // Aviso a Alberto por correo. Si falla, la reserva ya está guardada en el panel.
+  function notify(ref, b, price, km) {
+    var lines = ['Reserva ' + ref + ' (PRUEBAS, sin cobrar)', ''];
+    if (b.kind === 'group') {
+      lines.push('Tipo: GRUPO (pide presupuesto)', 'Desde: ' + b.fromText, 'Hasta: ' + b.toText);
+    } else {
+      lines.push('Tipo: ' + (b.kind === 'hourly' ? 'Por horas (' + b.hours + ' h)' : 'Traslado' + (b.roundTrip ? ' de ida y vuelta' : '')));
+      lines.push('Desde: ' + b.from.label);
+      if (b.to) lines.push('Hasta: ' + b.to.label + (km ? ' (' + km + ' km)' : ''));
+      lines.push('Vehículo: ' + (b.vehicle === 'van' ? 'Monovolumen' : 'Coche') + ' · Precio: ' + price + ' €');
+    }
+    lines.push('Día: ' + b.date + ' a las ' + b.time);
+    if (b.roundTrip) lines.push('Vuelta: ' + b.returnDate + ' a las ' + b.returnTime);
+    lines.push('Personas: ' + b.passengers, '', 'Cliente: ' + b.name, 'Teléfono: ' + b.phone, 'Correo: ' + b.email);
+    if (b.flight) lines.push('Vuelo: ' + b.flight);
+    if (b.kind !== 'group') lines.push('Maletas: ' + b.bags + ' · Sillas de niño: ' + b.childSeats);
+    if (b.comments) lines.push('Comentarios: ' + b.comments);
+    lines.push('Idioma: ' + b.lang, '', 'Panel: https://albertcourierexpress.com/bravo/panel/');
+    try {
+      fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ access_key: NOTIFY_KEY, subject: 'Bravo Transfers (pruebas) — ' + ref, from_name: 'Bravo Transfers', message: lines.join('\n') })
+      }).catch(function () {});
+    } catch (e) { /* sin aviso: no pasa nada */ }
+  }
+
+  // ---------- idioma ----------
+  function applyLang() {
+    document.documentElement.lang = lang;
+    qsa('[data-i18n]').forEach(function (el) { el.textContent = t(el.getAttribute('data-i18n')); });
+    qsa('[data-i18n-ph]').forEach(function (el) { el.placeholder = t(el.getAttribute('data-i18n-ph')); });
+    qsa('[data-lang]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-lang') === lang); });
+    qsa('.chip').forEach(function (b) { b.textContent = PLACES[b.getAttribute('data-place')][lang]; });
+    Object.keys(fields).forEach(function (k) { var f = fields[k]; if (f.chip) pickChip(f, f.chip); });
+    if (state.step === 'options') renderOptions();
+    if (state.step === 'details') renderDetails();
+    if (state.step === 'done') renderDone();
+    if (!$('err').hidden) clearErr();
+  }
+  qsa('[data-lang]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      lang = b.getAttribute('data-lang');
+      try { localStorage.setItem('bravo_lang', lang); } catch (e) { /* sin memoria: da igual */ }
+      applyLang();
+    });
+  });
+
+  setTab('transfer');
+  applyLang();
+})();
+</script>
+</body>
+</html>
