@@ -8,7 +8,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Bravo panel">
 <title>Panel · Bravo Transfers</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2317120d'/%3E%3Cpath d='M12 44a20 20 0 0 1 40 0z' fill='%23e5b44b'/%3E%3C/svg%3E">
+<link rel="icon" type="image/png" href="/api/bravo/icon-64.png">
+<link rel="apple-touch-icon" href="/api/bravo/icon-180.png">
 <style>
   :root { --ink: #17120d; --cream: #faf6ee; --gold: #c8922f; --gold-2: #e5b44b; --orange: #df7a2c; --muted: #6f6252; --line: #e7dccb; --ok: #2f7d4f; --err: #b3261e; --blue: #1f4f99; color-scheme: light; }
   * { box-sizing: border-box; }
@@ -17,6 +18,9 @@
   .top { background: var(--ink); color: #f6efe3; position: sticky; top: 0; z-index: 5; }
   .bar { padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   .bar b { font-family: Georgia, serif; letter-spacing: .06em; }
+  .brand { display: flex; align-items: center; gap: 9px; }
+  .lg { background: #fffaf2; border-radius: 8px; padding: 2px 5px; display: flex; }
+  .lg img { height: 30px; width: auto; display: block; }
   .bar small { display: block; color: var(--gold-2); font-size: .66rem; letter-spacing: .2em; }
   .acts { display: flex; gap: 6px; }
   .acts button, .acts a { background: #2a2118; color: #f6efe3; border: 1px solid #5a4a34; border-radius: 8px; padding: 7px 10px; font-size: .82rem; text-decoration: none; cursor: pointer; }
@@ -107,7 +111,7 @@
 <body>
 <div class="top">
   <div class="bar">
-    <div><b>BRAVO</b> <small>PANEL · PRUEBAS</small></div>
+    <div class="brand"><span class="lg"><img src="/api/bravo/logo.png" alt=""></span><div><b>BRAVO</b> <small>PANEL · PRUEBAS</small></div></div>
     <div class="acts">
       <a href="/bravo/" target="_blank" rel="noopener">Web</a>
       <button type="button" id="reload">↻</button>

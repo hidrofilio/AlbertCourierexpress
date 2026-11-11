@@ -591,14 +591,15 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
 
   const GATE_HTML = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/png" href="/api/bravo/icon-64.png"><link rel="apple-touch-icon" href="/api/bravo/icon-180.png">
 <title>Bravo Transfers</title><style>
-body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#15110d;color:#f6efe3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:16px;box-sizing:border-box}
-.box{width:100%;max-width:340px;text-align:center}.sun{width:64px;height:32px;border-radius:64px 64px 0 0;background:linear-gradient(#f2b63d,#e0782a);margin:0 auto 14px}
-h1{font-family:Georgia,serif;letter-spacing:.06em;margin:0 0 4px;font-size:1.6rem}p{color:#cbb994;margin:0 0 22px;font-size:.92rem}
-input{width:100%;box-sizing:border-box;padding:14px;border-radius:10px;border:1px solid #6b5a3a;background:#221b14;color:#fff;font-size:16px;margin-bottom:12px}
-button{width:100%;padding:14px;border:0;border-radius:10px;background:#d9a43a;color:#15110d;font-weight:700;font-size:16px}
-#e{color:#ff9a8a;min-height:1.2em;margin-top:10px;font-size:.9rem}</style></head><body><form class="box" id="f">
-<div class="sun"></div><h1>BRAVO TRANSFERS</h1><p>En preparación · Coming soon</p>
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#faf6ee;color:#17120d;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:16px;box-sizing:border-box}
+.box{width:100%;max-width:340px;text-align:center}.logo{width:180px;height:auto;display:block;margin:0 auto 8px}
+h1{font-family:Georgia,serif;letter-spacing:.06em;margin:0 0 4px;font-size:1.6rem}p{color:#6f6252;margin:0 0 22px;font-size:.92rem}
+input{width:100%;box-sizing:border-box;padding:14px;border-radius:10px;border:1.5px solid #e7dccb;background:#fff;color:#17120d;font-size:16px;margin-bottom:12px}
+button{width:100%;padding:14px;border:0;border-radius:10px;background:linear-gradient(135deg,#e5b44b,#df7a2c);color:#17120d;font-weight:700;font-size:16px}
+#e{color:#b3261e;min-height:1.2em;margin-top:10px;font-size:.9rem}</style></head><body><form class="box" id="f">
+<img class="logo" src="/api/bravo/logo.png" alt=""><h1>BRAVO TRANSFERS</h1><p>En preparación · Coming soon</p>
 <input type="password" id="k" placeholder="Contraseña" autocomplete="current-password" required>
 <button>Entrar</button><div id="e"></div></form><script>
 document.getElementById('f').addEventListener('submit',async function(ev){ev.preventDefault();
@@ -760,6 +761,15 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
     }
     if (req.method === 'POST' && route === 'logout') {
       return json(res, 200, { ok: true }, { 'Set-Cookie': cookieHeader(req, '', 0) });
+    }
+
+    // El logo y los iconos: públicos (la pantalla de la contraseña y el icono del iPhone los necesitan)
+    const IMG = { 'logo.png': 'logo.png', 'icon-180.png': 'apple-touch-icon.png', 'icon-64.png': 'icon-64.png' };
+    if (req.method === 'GET' && IMG[route]) {
+      let buf;
+      try { buf = fs.readFileSync(path.join(__dirname, 'bravo', IMG[route])); } catch (e) { return json(res, 404, { error: 'not_found' }); }
+      res.writeHead(200, { 'Content-Type': 'image/png', 'Content-Length': buf.length, 'Cache-Control': 'public, max-age=86400', 'X-Robots-Tag': 'noindex, nofollow', 'X-Content-Type-Options': 'nosniff' });
+      return res.end(buf);
     }
 
     // PDFs por enlace privado: el cliente y el conductor no tienen contraseña.

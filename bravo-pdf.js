@@ -2,6 +2,27 @@
 // Usa las fuentes que trae todo lector de PDF (Helvetica) con la codificación WinAnsi, que
 // cubre las letras del español y el símbolo del euro.
 'use strict';
+const fs = require('fs');
+const path = require('path');
+
+// El logo (un JPG normal) se mete tal cual en los PDF. Si falta, se dibuja un sol.
+const LOGO = (function () {
+  try {
+    const buf = fs.readFileSync(path.join(__dirname, 'bravo', 'logo-pdf.jpg'));
+    if (buf[0] !== 0xff || buf[1] !== 0xd8) return null;
+    let i = 2;
+    while (i + 9 < buf.length) {
+      if (buf[i] !== 0xff) return null;
+      const m = buf[i + 1];
+      if (m === 0xc0 || m === 0xc1 || m === 0xc2) {
+        const comps = buf[i + 9];
+        return { buf, h: buf.readUInt16BE(i + 5), w: buf.readUInt16BE(i + 7), space: comps === 1 ? '/DeviceGray' : '/DeviceRGB', ok: comps === 1 || comps === 3 };
+      }
+      i += 2 + buf.readUInt16BE(i + 2);
+    }
+  } catch (e) { /* sin logo */ }
+  return null;
+})();
 
 // Anchos de Helvetica y Helvetica-Bold (caracteres 32 a 126), en milésimas del tamaño.
 const W = [278, 278, 355, 556, 556, 889, 667, 191, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 278, 278, 584, 584, 584, 556, 1015, 667, 667, 722, 722, 667, 611, 778, 722, 278, 500, 667, 556, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 278, 278, 278, 469, 556, 333, 556, 556, 500, 556, 556, 278, 556, 556, 222, 222, 500, 222, 833, 556, 556, 556, 556, 333, 500, 278, 556, 500, 722, 500, 500, 500, 334, 260, 334, 584];
@@ -57,6 +78,13 @@ function canvas() {
     },
     rect(x, y, w, h, color) { ops.push(`${rgb(color)} rg ${x} ${(PAGE_H - y - h).toFixed(2)} ${w} ${h} re f`); },
     line(x1, y1, x2, y2, color, width) { ops.push(`${rgb(color || C.line)} RG ${width || 0.8} w ${x1} ${(PAGE_H - y1).toFixed(2)} m ${x2} ${(PAGE_H - y2).toFixed(2)} l S`); },
+    // El logo, con su esquina de arriba a la izquierda en (x, y) y w de ancho. Devuelve su alto (0 si no hay logo).
+    image(x, y, w) {
+      if (!LOGO || !LOGO.ok) return 0;
+      const h = (w * LOGO.h) / LOGO.w;
+      ops.push(`q ${w.toFixed(2)} 0 0 ${h.toFixed(2)} ${x.toFixed(2)} ${(PAGE_H - y - h).toFixed(2)} cm /Im1 Do Q`);
+      return h;
+    },
     halfSun(cx, yBase, r, color) {
       const k = 0.5523 * r, by = PAGE_H - yBase;
       ops.push(`${rgb(color)} rg ${cx - r} ${by} m ${cx - r} ${by + k} ${cx - k} ${by + r} ${cx} ${by + r} c ${cx + k} ${by + r} ${cx + r} ${by + k} ${cx + r} ${by} c h f`);
@@ -83,17 +111,23 @@ function canvas() {
 function assemble(opsOrPages, title) {
   const pages = Array.isArray(opsOrPages[0]) ? opsOrPages : [opsOrPages];
   const n = pages.length;
-  // Objetos: 1 catálogo, 2 páginas, 3 y 4 fuentes, 5 info, y luego página + contenido por cada hoja
+  const img = LOGO && LOGO.ok ? 1 : 0;
+  const first = 6 + img; // número del primer objeto de página
+  // Objetos: 1 catálogo, 2 páginas, 3 y 4 fuentes, 5 info, (6 logo), y luego página + contenido por cada hoja
   const objs = [
     '<< /Type /Catalog /Pages 2 0 R >>',
-    `<< /Type /Pages /Kids [${pages.map((_, k) => (6 + k * 2) + ' 0 R').join(' ')}] /Count ${n} >>`,
+    `<< /Type /Pages /Kids [${pages.map((_, k) => (first + k * 2) + ' 0 R').join(' ')}] /Count ${n} >>`,
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>',
     `<< /Title ${pdfString(title)} /Producer (Bravo Transfers) >>`
   ];
+  if (img) {
+    objs.push(`<< /Type /XObject /Subtype /Image /Width ${LOGO.w} /Height ${LOGO.h} /ColorSpace ${LOGO.space} /BitsPerComponent 8 /Filter /DCTDecode /Length ${LOGO.buf.length} >>\nstream\n${LOGO.buf.toString('latin1')}\nendstream`);
+  }
+  const res = `<< /Font << /F1 3 0 R /F2 4 0 R >>${img ? ' /XObject << /Im1 6 0 R >>' : ''} >>`;
   pages.forEach((ops, k) => {
     const content = ops.join('\n');
-    objs.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE_W} ${PAGE_H}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${7 + k * 2} 0 R >>`);
+    objs.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE_W} ${PAGE_H}] /Resources ${res} /Contents ${first + 1 + k * 2} 0 R >>`);
     objs.push(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
   });
   let out = '%PDF-1.4\n%\xe2\xe3\xcf\xd3\n';
@@ -107,13 +141,13 @@ function assemble(opsOrPages, title) {
 
 // ---------- piezas comunes ----------
 function header(c, title, subtitle) {
-  c.rect(0, 0, PAGE_W, 92, C.ink);
-  c.halfSun(66, 58, 24, C.gold);
-  c.line(36, 64, 96, 64, C.gold, 2);
-  c.text(108, 46, 'BRAVO', { size: 24, bold: true, color: C.white });
-  c.text(109, 62, 'T R A N S F E R S', { size: 8, color: C.gold });
-  c.text(555, 46, title, { size: 15, bold: true, color: C.white, align: 'right' });
-  if (subtitle) c.text(555, 64, subtitle, { size: 10, color: C.gold, align: 'right' });
+  const h = c.image(40, 20, 88);
+  if (!h) { c.halfSun(80, 70, 26, C.gold); c.line(48, 76, 112, 76, C.gold, 2); }
+  c.text(138, 52, 'BRAVO', { size: 24, bold: true });
+  c.text(139, 67, 'T R A N S F E R S', { size: 8, color: C.orange });
+  c.text(555, 48, title, { size: 15, bold: true, align: 'right' });
+  if (subtitle) c.text(555, 66, subtitle, { size: 10, color: C.orange, align: 'right' });
+  c.line(40, 94, 555, 94, C.gold, 1.5);
 }
 function footer(c, lines) {
   c.line(40, 790, 555, 790, C.line);
@@ -295,10 +329,10 @@ function accountsPdf(rep, issuer) {
   const title = 'Informe contable · ' + day(rep.from) + ' – ' + day(rep.to);
   function newPage() {
     c = canvas(); pages.push(c.ops);
-    c.rect(0, 0, PAGE_W, 46, C.ink);
-    c.halfSun(52, 32, 13, C.gold);
-    c.text(74, 28, 'BRAVO TRANSFERS', { size: 12, bold: true, color: C.white });
-    c.text(555, 28, title, { size: 9.5, color: C.gold, align: 'right' });
+    if (!c.image(40, 10, 46)) c.halfSun(62, 40, 14, C.gold);
+    c.text(94, 34, 'BRAVO TRANSFERS', { size: 12, bold: true });
+    c.text(555, 34, title, { size: 9.5, color: C.orange, align: 'right' });
+    c.line(40, 52, 555, 52, C.gold, 1.2);
     y = TOP;
   }
   function need(h) { if (y + h > BOTTOM) newPage(); }

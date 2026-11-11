@@ -7,9 +7,10 @@
 <meta name="theme-color" content="#17120d">
 <title>Bravo Transfers · Málaga</title>
 <meta name="description" content="Private transfers from Málaga with licensed drivers.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2317120d'/%3E%3Cpath d='M12 44a20 20 0 0 1 40 0z' fill='%23e5b44b'/%3E%3C/svg%3E">
+<link rel="icon" type="image/png" href="/api/bravo/icon-64.png">
+<link rel="apple-touch-icon" href="/api/bravo/icon-180.png">
 <style>
-  /* Fase 1, escondida. Colores del primer logo: negro, dorado y naranja. Logo PROVISIONAL. */
+  /* Fase de pruebas, escondida. Colores del logo: negro, dorado y naranja. */
   :root {
     --ink: #17120d; --ink-2: #2a2118; --cream: #faf6ee; --card: #ffffff;
     --gold: #c8922f; --gold-2: #e5b44b; --orange: #df7a2c;
@@ -25,17 +26,17 @@
 
   .test-bar { background: var(--orange); color: #fff; text-align: center; font-size: .82rem; font-weight: 600; padding: 6px 16px; }
 
-  header.top { background: var(--ink); color: #f6efe3; }
+  header.top { background: #fffaf2; color: var(--ink); border-bottom: 3px solid var(--gold-2); }
   header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 64px; }
   .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
-  .brand svg { flex: none; }
+  .brand img { flex: none; height: 50px; width: auto; display: block; }
   .word { display: flex; flex-direction: column; line-height: 1; }
-  .word b { font-family: Georgia, 'Times New Roman', serif; font-size: 1.45rem; letter-spacing: .08em; color: #fff; }
-  .word small { font-size: .62rem; letter-spacing: .42em; color: var(--gold-2); margin-top: 4px; }
+  .word b { font-family: Georgia, 'Times New Roman', serif; font-size: 1.4rem; letter-spacing: .08em; color: var(--ink); }
+  .word small { font-size: .6rem; letter-spacing: .42em; color: var(--orange); margin-top: 4px; }
   .top-actions { display: flex; align-items: center; gap: 10px; }
-  .langs { display: flex; border: 1px solid #5a4a34; border-radius: 999px; overflow: hidden; }
-  .langs button { background: none; border: 0; color: #cbb994; font-weight: 700; font-size: .8rem; padding: 7px 11px; cursor: pointer; }
-  .langs button.on { background: var(--gold-2); color: var(--ink); }
+  .langs { display: flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: #fff; }
+  .langs button { background: none; border: 0; color: var(--muted); font-weight: 700; font-size: .8rem; padding: 7px 11px; cursor: pointer; }
+  .langs button.on { background: var(--ink); color: #fff; }
   .wa { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 50%; background: #25d366; }
 
   .hero { background: radial-gradient(120% 90% at 85% 0%, #3a2a17 0%, var(--ink) 55%); color: #f6efe3; padding: 28px 0 40px; position: relative; overflow: hidden; }
@@ -114,7 +115,7 @@
 <header class="top">
   <div class="wrap">
     <a class="brand" href="/bravo/" aria-label="Bravo Transfers">
-      <svg width="40" height="40" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2c45a"/><stop offset="1" stop-color="#df7a2c"/></linearGradient></defs><path d="M10 44a22 22 0 0 1 44 0z" fill="url(#sg)"/><g stroke="#e5b44b" stroke-width="3" stroke-linecap="round"><path d="M32 8v8M12 16l5 6M52 16l-5 6M4 32h7M53 32h7"/></g><path d="M6 50h52" stroke="#e5b44b" stroke-width="3" stroke-linecap="round"/></svg>
+      <img src="/api/bravo/logo.png" alt="" width="69" height="50">
       <span class="word"><b>BRAVO</b><small>TRANSFERS</small></span>
     </a>
     <div class="top-actions">
