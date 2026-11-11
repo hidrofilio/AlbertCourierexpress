@@ -143,6 +143,81 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
   }
   function activeInvoice(b) { return b.invoice && b.invoice.status !== 'anulada'; }
 
+  // ---------- contabilidad: gastos e ingresos apuntados a mano ----------
+  const LEDGER = path.join(DIR, 'ledger.json');
+  const RECEIPTS = path.join(DIR, 'receipts');
+  fs.mkdirSync(RECEIPTS, { recursive: true });
+  const EXPENSE_CATS = ['Conductores (sin reserva)', 'Combustible y peajes', 'Vehículos', 'Seguros', 'Publicidad', 'Web, software y comisiones',
+    'Gestoría y asesoría', 'Teléfono e internet', 'Oficina y material', 'Impuestos y tasas', 'Otros gastos'];
+  const INCOME_CATS = ['Servicio fuera de la web', 'Otros ingresos'];
+  const RECEIPT_TYPES = { jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp', pdf: 'application/pdf' };
+  function ledger() {
+    try { return JSON.parse(fs.readFileSync(LEDGER, 'utf8')); } catch (e) { return []; }
+  }
+  function saveLedger(list) {
+    fs.writeFileSync(LEDGER + '.tmp', JSON.stringify(list, null, 1));
+    fs.renameSync(LEDGER + '.tmp', LEDGER);
+  }
+  function splitVat(total, rate) {
+    const base = Math.round((total / (1 + rate / 100)) * 100) / 100;
+    return { base, vat: Math.round((total - base) * 100) / 100 };
+  }
+  // Qué tipo de archivo es, mirando sus primeros bytes (no lo que diga el navegador)
+  function sniff(buf) {
+    if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'jpg';
+    if (buf.slice(0, 4).toString('hex') === '89504e47') return 'png';
+    if (buf.slice(0, 4).toString() === 'RIFF' && buf.slice(8, 12).toString() === 'WEBP') return 'webp';
+    if (buf.slice(0, 5).toString() === '%PDF-') return 'pdf';
+    return null;
+  }
+  function removeReceipt(e) {
+    if (e && e.receipt) { try { fs.unlinkSync(path.join(RECEIPTS, e.receipt.file)); } catch (err) { /* ya no estaba */ } }
+  }
+  const isDay = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d || '');
+
+  // Todos los movimientos de un periodo: facturas, pagos a conductores y lo apuntado a mano
+  function movements(from, to) {
+    const inRange = (d) => d >= from && d <= to;
+    const out = [];
+    let unbilledN = 0, unbilledSum = 0;
+    for (const b of allBookings()) {
+      for (const inv of [b.invoice].concat(b.previousInvoices || [])) {
+        if (!inv || inv.status === 'anulada' || !inRange(inv.date)) continue;
+        out.push({ date: inv.date, kind: 'ingreso', source: 'factura', concept: 'Factura ' + inv.number, party: (inv.customer && inv.customer.name) || b.name,
+          category: 'Facturas de la web', base: inv.base, vatRate: inv.vatRate, vat: inv.vat, total: inv.total, ref: b.ref });
+      }
+      if (b.status !== 'cancelada' && b.driverPay != null && b.driverPay > 0 && inRange(b.date)) {
+        const rate = Number.isFinite(b.driverVat) ? b.driverVat : 0;
+        const sv = splitVat(b.driverPay, rate);
+        out.push({ date: b.date, kind: 'gasto', source: 'conductor', concept: 'Pago al conductor · ' + b.ref, party: b.driverName || '',
+          category: 'Conductores (reservas)', base: sv.base, vatRate: rate, vat: sv.vat, total: b.driverPay, ref: b.ref });
+      }
+      if (b.status !== 'cancelada' && b.price > 0 && !activeInvoice(b) && inRange(b.date)) { unbilledN++; unbilledSum += b.price; }
+    }
+    for (const e of ledger()) {
+      if (!inRange(e.date)) continue;
+      out.push({ date: e.date, kind: e.type, source: 'manual', id: e.id, concept: e.concept, party: e.party, category: e.category,
+        base: e.base, vatRate: e.vatRate, vat: e.vat, total: e.total, notes: e.notes, receipt: Boolean(e.receipt) });
+    }
+    out.sort((a, c) => (c.date + (c.ref || c.id || '')).localeCompare(a.date + (a.ref || a.id || '')));
+    const t = { ingresos: 0, ingresosBase: 0, ivaRepercutido: 0, gastos: 0, gastosBase: 0, ivaSoportado: 0 };
+    const cats = {};
+    for (const m of out) {
+      if (m.kind === 'ingreso') { t.ingresos += m.total; t.ingresosBase += m.base; t.ivaRepercutido += m.vat; }
+      else {
+        t.gastos += m.total; t.gastosBase += m.base; t.ivaSoportado += m.vat;
+        const c = cats[m.category] || (cats[m.category] = { total: 0, base: 0, vat: 0, n: 0 });
+        c.total += m.total; c.base += m.base; c.vat += m.vat; c.n++;
+      }
+    }
+    const r = (n) => Math.round(n * 100) / 100;
+    for (const k of Object.keys(t)) t[k] = r(t[k]);
+    for (const c of Object.values(cats)) { c.total = r(c.total); c.base = r(c.base); c.vat = r(c.vat); }
+    t.beneficio = r(t.ingresosBase - t.gastosBase);
+    t.ivaResultado = r(t.ivaRepercutido - t.ivaSoportado);
+    return { from, to, movements: out, totals: t, byCategory: cats, unbilled: { n: unbilledN, total: r(unbilledSum) } };
+  }
+
   // ---------- la contraseña de la fase de pruebas ----------
   const TOKEN = KEY ? crypto.createHmac('sha256', KEY).update('bravo-preview-v1').digest('hex') : '';
   function cookies(req) {
@@ -579,6 +654,11 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       if (d.ministry !== undefined) b.ministry = Boolean(d.ministry);
       if (d.notes !== undefined) b.notes = cleanLong(d.notes, 2000);
       if (d.driverNote !== undefined) b.driverNote = cleanLong(d.driverNote, 500);
+      if (d.driverVat !== undefined) {
+        const v = num(d.driverVat, 0, 30, 2);
+        if (v == null) return json(res, 400, { error: 'bad_vat' });
+        b.driverVat = v;
+      }
       if (d.driverCar !== undefined) b.driverCar = clean(d.driverCar, 80);
       if (d.price !== undefined) {
         const p = d.price === '' || d.price === null ? null : num(d.price, 0, 100000, 2);
@@ -591,6 +671,101 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       b.updatedAt = new Date().toISOString();
       saveBooking(b);
       return json(res, 200, { ok: true, booking: b });
+    }
+
+    // ---------- contabilidad ----------
+    if (req.method === 'GET' && (route === 'admin/accounts' || route === 'admin/accounts.csv')) {
+      const sp = new URL(url, 'http://x').searchParams;
+      const from = sp.get('from'), to = sp.get('to');
+      if (!isDay(from) || !isDay(to) || from > to) return json(res, 400, { error: 'bad_range' });
+      const acc = movements(from, to);
+      if (route === 'admin/accounts') return json(res, 200, Object.assign({ expenseCats: EXPENSE_CATS, incomeCats: INCOME_CATS }, acc));
+      const n2 = (v) => (v == null || v === '' ? '' : String(Math.round(Number(v) * 100) / 100).replace('.', ','));
+      const q = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+      const ORIGIN = { factura: 'Factura de la web', conductor: 'Reserva (pago al conductor)', manual: 'Apuntado a mano' };
+      const lines = [['Fecha', 'Tipo', 'Concepto', 'Proveedor / cliente', 'Categoría', 'Base', 'IVA %', 'IVA', 'Total', 'Origen', 'Reserva', 'Notas'].map(q).join(';')];
+      for (const m of acc.movements.slice().reverse()) {
+        lines.push([m.date, m.kind === 'ingreso' ? 'Ingreso' : 'Gasto', m.concept, m.party, m.category, n2(m.base), n2(m.vatRate), n2(m.vat), n2(m.total),
+          ORIGIN[m.source], m.ref || '', m.notes || ''].map(q).join(';'));
+      }
+      const t = acc.totals;
+      lines.push('');
+      for (const [k, v] of [['Ingresos (con IVA)', t.ingresos], ['Gastos (con IVA)', t.gastos], ['Beneficio (sin IVA)', t.beneficio],
+        ['IVA cobrado (repercutido)', t.ivaRepercutido], ['IVA pagado (soportado)', t.ivaSoportado], ['IVA a pagar (+) o a devolver (-)', t.ivaResultado]]) {
+        lines.push([q(k), q(n2(v))].join(';'));
+      }
+      res.writeHead(200, {
+        'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="bravo-cuentas-' + from + '-a-' + to + '.csv"',
+        'Cache-Control': 'no-store, private', 'X-Robots-Tag': 'noindex, nofollow'
+      });
+      return res.end('\ufeff' + lines.join('\r\n') + '\r\n');
+    }
+
+    if (req.method === 'POST' && route === 'admin/ledger/save') {
+      let d;
+      try { d = JSON.parse(await readBody(req, 9000000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+      const type = d.type === 'ingreso' ? 'ingreso' : d.type === 'gasto' ? 'gasto' : null;
+      if (!type) return json(res, 400, { error: 'bad_type' });
+      const cats = type === 'gasto' ? EXPENSE_CATS : INCOME_CATS;
+      if (!cats.includes(d.category)) return json(res, 400, { error: 'bad_category' });
+      if (!isDay(d.date)) return json(res, 400, { error: 'bad_date' });
+      const concept = clean(d.concept, 120);
+      if (!concept) return json(res, 400, { error: 'bad_concept' });
+      const total = num(d.total, 0.01, 1000000, 2);
+      if (total == null) return json(res, 400, { error: 'bad_total' });
+      const vatRate = num(d.vatRate, 0, 30, 2);
+      if (vatRate == null) return json(res, 400, { error: 'bad_vat' });
+      const list = ledger();
+      let e = d.id ? list.find((x) => x.id === d.id) : null;
+      if (d.id && !e) return json(res, 404, { error: 'not_found' });
+      if (!e) { e = { id: crypto.randomBytes(5).toString('hex'), createdAt: new Date().toISOString(), receipt: null }; list.push(e); }
+      Object.assign(e, { type, date: d.date, concept, party: clean(d.party, 80), category: d.category, total, vatRate, notes: cleanLong(d.notes, 500), updatedAt: new Date().toISOString() }, splitVat(total, vatRate));
+      if (d.removeReceipt) { removeReceipt(e); e.receipt = null; }
+      if (d.receipt && typeof d.receipt.data === 'string') {
+        const buf = Buffer.from(d.receipt.data, 'base64');
+        if (buf.length > 6 * 1024 * 1024) return json(res, 400, { error: 'receipt_too_big' });
+        const ext = sniff(buf);
+        if (!ext) return json(res, 400, { error: 'receipt_type' });
+        removeReceipt(e);
+        const file = e.id + '.' + ext;
+        fs.writeFileSync(path.join(RECEIPTS, file), buf);
+        e.receipt = { file, name: clean(d.receipt.name, 80) || file, size: buf.length };
+      }
+      saveLedger(list);
+      return json(res, 200, { ok: true, entry: e });
+    }
+
+    if (req.method === 'POST' && route === 'admin/ledger/delete') {
+      let d;
+      try { d = JSON.parse(await readBody(req, 2000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+      const list = ledger();
+      const e = list.find((x) => x.id === d.id);
+      if (!e) return json(res, 404, { error: 'not_found' });
+      removeReceipt(e);
+      saveLedger(list.filter((x) => x !== e));
+      return json(res, 200, { ok: true });
+    }
+
+    if (req.method === 'GET' && route === 'admin/ledger/entry') {
+      const id = new URL(url, 'http://x').searchParams.get('id');
+      const e = ledger().find((x) => x.id === id);
+      if (!e) return json(res, 404, { error: 'not_found' });
+      return json(res, 200, { entry: e });
+    }
+
+    if (req.method === 'GET' && route === 'admin/ledger/receipt') {
+      const id = new URL(url, 'http://x').searchParams.get('id');
+      const e = ledger().find((x) => x.id === id);
+      if (!e || !e.receipt) return json(res, 404, { error: 'not_found' });
+      let buf;
+      try { buf = fs.readFileSync(path.join(RECEIPTS, e.receipt.file)); } catch (err) { return json(res, 404, { error: 'not_found' }); }
+      const ext = e.receipt.file.split('.').pop();
+      res.writeHead(200, {
+        'Content-Type': RECEIPT_TYPES[ext] || 'application/octet-stream', 'Content-Length': buf.length,
+        'Content-Disposition': 'inline; filename="' + e.receipt.file + '"',
+        'Cache-Control': 'no-store, private', 'X-Robots-Tag': 'noindex, nofollow', 'X-Content-Type-Options': 'nosniff'
+      });
+      return res.end(buf);
     }
 
     return json(res, 404, { error: 'not_found' });

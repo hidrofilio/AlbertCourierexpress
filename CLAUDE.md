@@ -27,7 +27,11 @@ Web de una empresa de transporte urgente dedicado (vehículo exclusivo punto a p
   - El panel de Alberto está en `/bravo/panel/`. Las reservas (`bookings/BT-0001.json`…) y los precios (`settings.json`) se guardan en `DATA_DIR/bravo/`, nunca en git. Los precios de `DEFAULTS` en el código son **ficticios**. La regla 7 (no publicar precios) es de la mensajería; Bravo enseña precios por naturaleza.
   - **El servidor recalcula los km y el precio** antes de guardar: no te fíes de lo que mande la página. Los km salen de OSRM; `BRAVO_OSRM_URL` permite apuntar a uno falso en las pruebas.
   - El JS va dentro del HTML, porque `isPublicPath()` solo deja servir `.js` de `cpc/`. El aviso a Alberto se manda con Web3Forms, como la mensajería (solo funciona desde el dominio propio).
-  - **Panel** con cuatro pestañas: Viajes, Facturación, Conductores y Ajustes. En Ajustes se cambian los precios y los datos de las facturas (en `settings.json`). Los conductores se guardan en `drivers.json`.
+  - **Panel** con cinco pestañas: Viajes, Facturas, Cuentas, Conductores y Ajustes. En Ajustes se cambian los precios y los datos de las facturas (en `settings.json`). Los conductores se guardan en `drivers.json`.
+  - **Cuentas (la contabilidad):** muestra los movimientos de cualquier periodo, con sus totales y el IVA (cobrado, pagado y la diferencia), y se descarga en CSV.
+    - Los ingresos salen de las facturas no anuladas, por su fecha. Los pagos a conductores salen de las reservas no canceladas, por el día del servicio, con el IVA que se ponga en la reserva (`driverVat`).
+    - Lo apuntado a mano va en `ledger.json`, y los tickets en `receipts/`. Al subir un ticket se comprueba por sus primeros bytes: JPG, PNG, WEBP o PDF, de 6 MB como mucho. La foto se reduce en el móvil antes de subirla.
+    - **Los apuntes sí se pueden borrar. Las facturas no:** se anulan.
   - **Facturas y PDFs:** `bravo-pdf.js` hace tres PDF sin dependencias (Helvetica en WinAnsi): la factura, el justificante del cliente y la hoja de servicio del conductor.
     - Se abren por un **enlace privado** `/api/bravo/doc/<clave>/…pdf`, sin contraseña. El enlace del cliente nunca abre la hoja del conductor.
     - Las facturas van numeradas `F-AAAA-0001`, seguidas por año. El IVA (0–30 %) se elige al crearlas, y los precios llevan el IVA incluido.

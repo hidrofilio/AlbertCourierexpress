@@ -20,8 +20,9 @@
   .bar small { display: block; color: var(--gold-2); font-size: .66rem; letter-spacing: .2em; }
   .acts { display: flex; gap: 6px; }
   .acts button, .acts a { background: #2a2118; color: #f6efe3; border: 1px solid #5a4a34; border-radius: 8px; padding: 7px 10px; font-size: .82rem; text-decoration: none; cursor: pointer; }
-  nav { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid #3a2e22; }
-  nav button { background: none; border: 0; color: #cbb994; padding: 10px 2px; font-weight: 700; font-size: .82rem; cursor: pointer; border-bottom: 3px solid transparent; }
+  nav { display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid #3a2e22; }
+  nav button { background: none; border: 0; color: #cbb994; padding: 7px 0 6px; font-weight: 700; font-size: .68rem; cursor: pointer; border-bottom: 3px solid transparent; }
+  nav button i { display: block; font-style: normal; font-size: 1.05rem; line-height: 1.3; }
   nav button.on { color: #fff; border-bottom-color: var(--gold-2); }
   .wrap { max-width: 760px; margin: 0 auto; padding: 14px 16px 60px; }
   h2 { font-family: Georgia, serif; font-size: 1.25rem; margin: 4px 0 12px; }
@@ -86,6 +87,15 @@
   .inv-total .l3 { color: var(--gold-2); }
   .card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; }
   .note { font-size: .8rem; color: var(--muted); margin-top: 14px; }
+  .t2 { grid-template-columns: 1fr 1fr; }
+  .t2 b { font-size: 1.15rem; }
+  .pos { color: var(--ok); } .neg { color: var(--err); }
+  .kv2 { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; margin-top: 6px; }
+  .kv2 span:nth-child(even) { text-align: right; font-weight: 700; white-space: nowrap; }
+  .mv { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; margin-bottom: 6px; cursor: pointer; }
+  .mv .l1 > span:last-child, .inv-row .l1 > span:last-child, .bk .l1 > span:last-child { white-space: nowrap; }
+  .mv .src { font-size: .66rem; font-weight: 800; text-transform: uppercase; border-radius: 5px; padding: 1px 5px; background: #f3ece0; color: var(--muted); }
+  .warn { background: #fff1d6; color: #8a5a00; border-radius: 9px; padding: 8px 10px; margin-top: 8px; font-size: .85rem; }
 </style>
 </head>
 <body>
@@ -99,10 +109,11 @@
     </div>
   </div>
   <nav>
-    <button type="button" data-tab="trips">Viajes</button>
-    <button type="button" data-tab="billing">Facturación</button>
-    <button type="button" data-tab="drivers">Conductores</button>
-    <button type="button" data-tab="settings">Ajustes</button>
+    <button type="button" data-tab="trips"><i>🚗</i>Viajes</button>
+    <button type="button" data-tab="billing"><i>🧾</i>Facturas</button>
+    <button type="button" data-tab="accounts"><i>📒</i>Cuentas</button>
+    <button type="button" data-tab="drivers"><i>👤</i>Conductores</button>
+    <button type="button" data-tab="settings"><i>⚙️</i>Ajustes</button>
   </nav>
 </div>
 
@@ -126,6 +137,51 @@
     <div id="m-invoices"></div>
     <div class="btns"><a class="b dark" id="csv" href="#">⬇︎ Descargar el mes en Excel (CSV)</a></div>
     <p class="note">Los precios llevan el IVA incluido: la base y el IVA de cada factura salen del precio, según el porcentaje que elijas al crearla.</p>
+  </section>
+
+  <!-- CUENTAS -->
+  <section id="tab-accounts" hidden>
+    <h2>Cuentas</h2>
+    <div class="filters" id="acc-quick"></div>
+    <div class="row">
+      <div><label for="acc-from">Desde</label><input type="date" id="acc-from"></div>
+      <div><label for="acc-to">Hasta</label><input type="date" id="acc-to"></div>
+    </div>
+    <div class="totals t2" id="acc-totals" style="margin-top:12px"></div>
+    <div class="box" id="acc-vat"></div>
+    <div class="box" id="acc-income"></div>
+    <div class="box" id="acc-cats"></div>
+    <div class="btns">
+      <button type="button" class="b dark" id="acc-add-exp">＋ Apuntar un gasto</button>
+      <button type="button" class="b" id="acc-add-inc">＋ Apuntar un ingreso</button>
+      <a class="b" id="acc-csv" href="#">⬇︎ Excel del periodo</a>
+    </div>
+
+    <div class="card" id="acc-form" hidden style="margin-top:12px">
+      <b id="af-title"></b>
+      <div class="row">
+        <div><label for="af-date">Fecha</label><input type="date" id="af-date"></div>
+        <div><label for="af-cat">Categoría</label><select id="af-cat"></select></div>
+      </div>
+      <label for="af-concept">Concepto</label><input id="af-concept" placeholder="Ej.: gasoil, seguro, anuncio…">
+      <label for="af-party" id="af-party-l">Proveedor</label><input id="af-party">
+      <div class="row">
+        <div><label for="af-total">Total pagado (€, con IVA)</label><input type="number" id="af-total" min="0" step="0.01" inputmode="decimal"></div>
+        <div><label for="af-vat">IVA (%)</label><select id="af-vat"></select></div>
+      </div>
+      <div class="msg" id="af-preview"></div>
+      <label for="af-notes">Notas</label><textarea id="af-notes"></textarea>
+      <label for="af-file">Foto del ticket o factura (PDF o imagen)</label>
+      <input type="file" id="af-file" accept="image/*,application/pdf">
+      <div class="msg" id="af-receipt"></div>
+      <button type="button" class="save" id="af-save">Guardar</button>
+      <div class="btns"><button type="button" class="b" id="af-cancel">Cancelar</button><button type="button" class="b red" id="af-del" hidden>Borrar este apunte</button></div>
+      <div class="msg" id="af-msg"></div>
+    </div>
+
+    <h3>Movimientos</h3>
+    <div id="acc-list"></div>
+    <p class="note">Es un registro para llevar las cuentas al día y pasárselas a Lisa. Los ingresos salen de las facturas (y de lo que apuntes); los pagos a conductores, de las reservas. El IVA de aquí es orientativo hasta que Lisa confirme cuál toca.</p>
   </section>
 
   <!-- CONDUCTORES -->
@@ -220,8 +276,9 @@
   function setTab(t) {
     tab = t;
     qsa('nav [data-tab]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-tab') === t); });
-    ['trips', 'billing', 'drivers', 'settings'].forEach(function (x) { $('tab-' + x).hidden = x !== t; });
+    ['trips', 'billing', 'accounts', 'drivers', 'settings'].forEach(function (x) { $('tab-' + x).hidden = x !== t; });
     if (t === 'billing') renderBilling();
+    if (t === 'accounts') loadAccounts();
     if (t === 'drivers') renderDrivers();
     if (t === 'settings') renderSettings();
     window.scrollTo(0, 0);
@@ -340,7 +397,8 @@
       '<input data-k="driverName" list="drivers-dl" value="' + esc(b.driverName) + '" placeholder="Nombre (elige de la lista o escribe)">' +
       '<div class="row"><div><label>Su teléfono</label><input data-k="driverPhone" type="tel" value="' + esc(b.driverPhone) + '"></div>' +
       '<div><label>Le pagas (€)</label><input data-k="driverPay" type="number" inputmode="decimal" min="0" step="0.01" value="' + (b.driverPay == null ? '' : esc(b.driverPay)) + '"></div></div>' +
-      '<label>Coche y matrícula</label><input data-k="driverCar" value="' + esc(b.driverCar) + '" placeholder="Ej.: Toyota Corolla · 1234 ABC">' +
+      '<div class="row"><div><label>IVA en ese pago (%)</label><select data-k="driverVat">' + vatOptions(b.driverVat || 0) + '</select></div>' +
+      '<div><label>Coche y matrícula</label><input data-k="driverCar" value="' + esc(b.driverCar) + '" placeholder="Ej.: Toyota · 1234 ABC"></div></div>' +
       '<label>Nota para el conductor (sale en su hoja)</label><input data-k="driverNote" value="' + esc(b.driverNote) + '">' +
       '<div class="margin" data-margin></div>' +
       '<label>Estado</label><select data-k="status">' + opts + '</select>' +
@@ -359,6 +417,11 @@
       '</div></details>';
   }
 
+  function vatOptions(sel) {
+    var vals = []; for (var v = 0; v <= 30; v++) vals.push(v);
+    if (vals.indexOf(Number(sel)) < 0) { vals.push(Number(sel)); vals.sort(function (a, c) { return a - c; }); }
+    return vals.map(function (x) { return '<option value="' + x + '"' + (Number(x) === Number(sel) ? ' selected' : '') + '>' + String(x).replace('.', ',') + ' %</option>'; }).join('');
+  }
   function invoiceBox(b) {
     var h = '<div class="box"><b>Factura</b>';
     if (activeInv(b)) {
@@ -479,6 +542,169 @@
     $('csv').href = '/api/bravo/admin/export.csv?month=' + encodeURIComponent(m);
   }
 
+  // ---------- CUENTAS ----------
+  var acc = null, accCats = { gasto: [], ingreso: [] }, form = null;
+  function lastDay(y, m) { return new Date(Date.UTC(y, m, 0)).getUTCDate(); }
+  function periods() {
+    var t = madridDay(0), y = Number(t.slice(0, 4)), m = Number(t.slice(5, 7));
+    var pad = function (n) { return String(n).padStart(2, '0'); };
+    var py = m === 1 ? y - 1 : y, pm = m === 1 ? 12 : m - 1;
+    var qs = Math.floor((m - 1) / 3) * 3 + 1;
+    return [
+      ['Este mes', y + '-' + pad(m) + '-01', y + '-' + pad(m) + '-' + lastDay(y, m)],
+      ['Mes anterior', py + '-' + pad(pm) + '-01', py + '-' + pad(pm) + '-' + lastDay(py, pm)],
+      ['Este trimestre', y + '-' + pad(qs) + '-01', y + '-' + pad(qs + 2) + '-' + lastDay(y, qs + 2)],
+      ['Este año', y + '-01-01', y + '-12-31']
+    ];
+  }
+  (function () { var p = periods()[0]; $('acc-from').value = p[1]; $('acc-to').value = p[2]; })();
+  function renderQuick() {
+    $('acc-quick').innerHTML = periods().map(function (p, i) {
+      var on = $('acc-from').value === p[1] && $('acc-to').value === p[2];
+      return '<button type="button" data-q="' + i + '" class="' + (on ? 'on' : '') + '">' + p[0] + '</button>';
+    }).join('');
+    qsa('[data-q]', $('acc-quick')).forEach(function (b) {
+      b.addEventListener('click', function () { var p = periods()[Number(b.getAttribute('data-q'))]; $('acc-from').value = p[1]; $('acc-to').value = p[2]; loadAccounts(); });
+    });
+  }
+  $('acc-from').addEventListener('change', loadAccounts);
+  $('acc-to').addEventListener('change', loadAccounts);
+  async function loadAccounts() {
+    renderQuick();
+    var from = $('acc-from').value, to = $('acc-to').value;
+    $('acc-csv').href = '/api/bravo/admin/accounts.csv?from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to);
+    if (!from || !to || from > to) { $('acc-list').innerHTML = '<p class="empty">Elige un periodo válido.</p>'; return; }
+    try {
+      acc = await api('admin/accounts?from=' + from + '&to=' + to);
+      accCats = { gasto: acc.expenseCats, ingreso: acc.incomeCats };
+      renderAccounts();
+    } catch (e) { $('acc-list').innerHTML = '<p class="empty">No se han podido cargar las cuentas: ' + esc(e.message) + '</p>'; }
+  }
+  var SRC = { factura: 'Factura', conductor: 'Reserva', manual: 'A mano' };
+  function renderAccounts() {
+    var t = acc.totals;
+    $('acc-totals').innerHTML =
+      '<div><b class="pos">' + euro(t.ingresos) + '</b><span>Ingresos (con IVA)</span></div>' +
+      '<div><b class="neg">' + euro(t.gastos) + '</b><span>Gastos (con IVA)</span></div>' +
+      '<div><b class="' + (t.beneficio >= 0 ? 'pos' : 'neg') + '">' + euro(t.beneficio) + '</b><span>Beneficio (sin IVA)</span></div>' +
+      '<div><b>' + euro(Math.abs(t.ivaResultado)) + '</b><span>IVA ' + (t.ivaResultado >= 0 ? 'a pagar' : 'a devolver') + '</span></div>';
+    $('acc-vat').innerHTML = '<b>IVA del periodo</b><div class="kv2">' +
+      '<span>IVA cobrado en tus facturas e ingresos (repercutido)</span><span>' + euro(t.ivaRepercutido) + '</span>' +
+      '<span>IVA pagado en gastos y conductores (soportado)</span><span>' + euro(t.ivaSoportado) + '</span>' +
+      '<span><b>' + (t.ivaResultado >= 0 ? 'Diferencia: a pagar' : 'Diferencia: a devolver') + '</b></span><span>' + euro(Math.abs(t.ivaResultado)) + '</span></div>';
+    var fact = acc.movements.filter(function (m) { return m.source === 'factura'; });
+    var other = acc.movements.filter(function (m) { return m.kind === 'ingreso' && m.source === 'manual'; });
+    var sum = function (arr, k) { return r2(arr.reduce(function (a, m) { return a + m[k]; }, 0)); };
+    $('acc-income').innerHTML = '<b>Ingresos</b><div class="kv2">' +
+      '<span>Facturas de la web (' + fact.length + ') · base ' + euro(sum(fact, 'base')) + '</span><span>' + euro(sum(fact, 'total')) + '</span>' +
+      '<span>Apuntados a mano (' + other.length + ') · base ' + euro(sum(other, 'base')) + '</span><span>' + euro(sum(other, 'total')) + '</span></div>' +
+      (acc.unbilled.n ? '<div class="warn">⚠️ ' + acc.unbilled.n + ' viaje' + (acc.unbilled.n > 1 ? 's' : '') + ' de este periodo con precio y sin factura (' + euro(acc.unbilled.total) + '). No cuentan como ingreso hasta que tengan factura.</div>' : '');
+    var cats = Object.keys(acc.byCategory).sort(function (a, c) { return acc.byCategory[c].total - acc.byCategory[a].total; });
+    $('acc-cats').innerHTML = '<b>Gastos por categoría</b>' + (cats.length ? '<div class="kv2">' + cats.map(function (c) {
+      var x = acc.byCategory[c];
+      return '<span>' + esc(c) + ' (' + x.n + ') · IVA ' + euro(x.vat) + '</span><span>' + euro(x.total) + '</span>';
+    }).join('') + '</div>' : '<p class="msg">Sin gastos en este periodo.</p>');
+    $('acc-list').innerHTML = acc.movements.length ? acc.movements.map(function (m, i) {
+      var sign = m.kind === 'ingreso' ? '+' : '−';
+      return '<div class="mv" data-mv="' + i + '"><div class="l1"><span>' + esc(dmy(m.date) + ' · ' + m.concept) + '</span><span class="' + (m.kind === 'ingreso' ? 'pos' : 'neg') + '">' + sign + ' ' + euro(m.total) + '</span></div>' +
+        '<div class="l3"><span class="src">' + SRC[m.source] + '</span> ' + esc([m.category, m.party].filter(Boolean).join(' · ')) + ' · IVA ' + esc(String(m.vatRate).replace('.', ',')) + ' %: ' + euro(m.vat) + (m.receipt ? ' · 📎' : '') + '</div></div>';
+    }).join('') : '<p class="empty">No hay movimientos en este periodo.</p>';
+    qsa('[data-mv]', $('acc-list')).forEach(function (el) {
+      el.addEventListener('click', function () {
+        var m = acc.movements[Number(el.getAttribute('data-mv'))];
+        if (m.source === 'manual') return openForm(m.kind, m.id);
+        open[m.ref] = true; current = 'all'; setTab('trips'); renderTrips();
+        var c = $('bk-' + m.ref); if (c) c.scrollIntoView({ block: 'start' });
+      });
+    });
+  }
+
+  // Formulario de gasto o ingreso
+  async function openForm(type, id) {
+    form = { type: type, id: id || null, entry: null, file: null };
+    $('af-title').textContent = (id ? 'Editar ' : 'Apuntar ') + (type === 'gasto' ? 'un gasto' : 'un ingreso');
+    $('af-party-l').textContent = type === 'gasto' ? 'Proveedor' : 'Cliente';
+    $('af-cat').innerHTML = accCats[type].map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('');
+    $('af-date').value = madridDay(0); $('af-concept').value = ''; $('af-party').value = ''; $('af-total').value = ''; $('af-notes').value = '';
+    $('af-vat').innerHTML = vatOptions(type === 'gasto' ? 21 : 10);
+    $('af-file').value = ''; $('af-receipt').innerHTML = ''; $('af-msg').textContent = ''; $('af-del').hidden = !id;
+    if (id) {
+      try {
+        var e = (await api('admin/ledger/entry?id=' + encodeURIComponent(id))).entry;
+        form.entry = e;
+        $('af-date').value = e.date; $('af-cat').value = e.category; $('af-concept').value = e.concept; $('af-party').value = e.party || '';
+        $('af-total').value = e.total; $('af-vat').innerHTML = vatOptions(e.vatRate); $('af-notes').value = e.notes || '';
+        if (e.receipt) $('af-receipt').innerHTML = '📎 <a target="_blank" rel="noopener" href="/api/bravo/admin/ledger/receipt?id=' + encodeURIComponent(e.id) + '">Ver el ticket</a> · <label class="check" style="display:inline-flex;margin:0"><input type="checkbox" id="af-rm"> quitarlo</label>';
+      } catch (err) { $('af-msg').className = 'msg bad'; $('af-msg').textContent = err.message; }
+    }
+    preview();
+    $('acc-form').hidden = false;
+    $('acc-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  function preview() {
+    var tot = Number($('af-total').value), r = Number($('af-vat').value);
+    if (!(tot > 0)) { $('af-preview').textContent = ''; return; }
+    var base = r2(tot / (1 + r / 100));
+    $('af-preview').textContent = 'Base ' + euro(base) + ' + IVA ' + String(r).replace('.', ',') + ' % ' + euro(r2(tot - base)) + ' = ' + euro(tot);
+  }
+  $('af-total').addEventListener('input', preview);
+  $('af-vat').addEventListener('change', preview);
+  $('acc-add-exp').addEventListener('click', function () { openForm('gasto'); });
+  $('acc-add-inc').addEventListener('click', function () { openForm('ingreso'); });
+  $('af-cancel').addEventListener('click', function () { $('acc-form').hidden = true; form = null; });
+
+  // La foto del ticket se reduce en el móvil antes de subirla (más rápido y ocupa menos)
+  function readReceipt(file) {
+    return new Promise(function (resolve, reject) {
+      if (file.size > 15 * 1024 * 1024) return reject(new Error('el archivo es demasiado grande'));
+      var fr = new FileReader();
+      fr.onerror = function () { reject(new Error('no se ha podido leer el archivo')); };
+      fr.onload = function () {
+        var url = fr.result;
+        if (file.type === 'application/pdf') {
+          if (file.size > 6 * 1024 * 1024) return reject(new Error('el PDF pasa de 6 MB'));
+          return resolve({ name: file.name, data: url.split(',')[1] });
+        }
+        var img = new Image();
+        img.onload = function () {
+          var k = Math.min(1, 1600 / Math.max(img.width, img.height));
+          var c = document.createElement('canvas');
+          c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          resolve({ name: (file.name || 'ticket').replace(/\.[^.]+$/, '') + '.jpg', data: c.toDataURL('image/jpeg', 0.82).split(',')[1] });
+        };
+        img.onerror = function () { reject(new Error('formato de imagen no compatible')); };
+        img.src = url;
+      };
+      fr.readAsDataURL(file);
+    });
+  }
+  $('af-save').addEventListener('click', async function () {
+    var msg = $('af-msg'), btn = this;
+    btn.disabled = true; msg.className = 'msg'; msg.textContent = 'Guardando…';
+    try {
+      var body = {
+        id: form.id, type: form.type, date: $('af-date').value, category: $('af-cat').value, concept: $('af-concept').value,
+        party: $('af-party').value, total: $('af-total').value, vatRate: Number($('af-vat').value), notes: $('af-notes').value,
+        removeReceipt: Boolean($('af-rm') && $('af-rm').checked)
+      };
+      var f = $('af-file').files[0];
+      if (f) body.receipt = await readReceipt(f);
+      await api('admin/ledger/save', body);
+      $('acc-form').hidden = true; form = null;
+      await loadAccounts();
+    } catch (e) {
+      msg.className = 'msg bad'; msg.textContent = 'No se ha guardado: ' + (AF_ERR[e.message] || e.message);
+    }
+    btn.disabled = false;
+  });
+  var AF_ERR = { bad_concept: 'falta el concepto', bad_total: 'el total tiene que ser mayor que 0', bad_date: 'falta la fecha', bad_vat: 'IVA no válido', receipt_type: 'el ticket tiene que ser una foto o un PDF', receipt_too_big: 'el ticket pasa de 6 MB' };
+  $('af-del').addEventListener('click', async function () {
+    if (!form || !form.id || !confirm('¿Borrar este apunte? No se puede deshacer.')) return;
+    try { await api('admin/ledger/delete', { id: form.id }); $('acc-form').hidden = true; form = null; await loadAccounts(); }
+    catch (e) { alert(e.message); }
+  });
+
   // ---------- CONDUCTORES ----------
   function monthOf(name) {
     var m = madridDay(0).slice(0, 7), n = 0, pay = 0;
@@ -531,6 +757,7 @@
       list = r[0].bookings || []; drivers = r[1].drivers || []; cfg = r[2];
       fillDatalist(); renderTrips();
       if (tab === 'billing') renderBilling();
+      if (tab === 'accounts') loadAccounts();
       if (tab === 'drivers') renderDrivers();
       if (tab === 'settings') renderSettings();
     } catch (e) { $('list').innerHTML = '<p class="empty">No se han podido cargar los datos. Prueba con ↻.</p>'; }
