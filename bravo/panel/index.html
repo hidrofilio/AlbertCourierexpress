@@ -136,7 +136,7 @@
     <button type="button" data-tab="messages"><i>💬</i>Mensajes<span class="nb" id="nav-unread" hidden></span></button>
     <button type="button" data-tab="billing"><i>🧾</i>Facturas</button>
     <button type="button" data-tab="accounts"><i>📒</i>Cuentas</button>
-    <button type="button" data-tab="drivers"><i>👤</i>Conductores</button>
+    <button type="button" data-tab="drivers"><i>🚐</i>Empresas</button>
     <button type="button" data-tab="settings"><i>⚙️</i>Ajustes</button>
   </nav>
 </div>
@@ -247,7 +247,7 @@
       </div>
       <h3>Movimientos</h3>
       <div id="acc-list"></div>
-      <p class="note">Contabilidad pensada para España: libros registro de facturas emitidas y recibidas, IVA por tipos, cobros y pagos, y libro diario con las cuentas del Plan General Contable (en el PDF). Los ingresos salen de las facturas (y de lo que apuntes); los pagos a conductores, de las reservas; los cobros y pagos, del banco. Una factura no se borra: se rectifica. Al principio, que la revise un profesional antes de presentar impuestos.</p>
+      <p class="note">Contabilidad pensada para España: libros registro de facturas emitidas y recibidas, IVA por tipos, cobros y pagos, y libro diario con las cuentas del Plan General Contable (en el PDF). Los ingresos salen de las facturas (y de lo que apuntes); los pagos a las empresas de transporte, de las reservas; los cobros y pagos, del banco. Una factura no se borra: se rectifica. Al principio, que la revise un profesional antes de presentar impuestos.</p>
     </div>
 
     <div id="sub-bank" hidden>
@@ -276,10 +276,11 @@
 
   <!-- CONDUCTORES -->
   <section id="tab-drivers" hidden>
-    <h2>Conductores</h2>
+    <h2>Empresas de transporte</h2>
+    <p class="msg">Las empresas o autónomos con licencia (VTC o de autobús) que hacen los viajes y a los que les pagas.</p>
     <div id="drv-list"></div>
-    <div class="btns"><button type="button" class="b" id="drv-add">＋ Añadir conductor</button></div>
-    <button type="button" class="save" id="drv-save">Guardar conductores</button>
+    <div class="btns"><button type="button" class="b" id="drv-add">＋ Añadir empresa</button></div>
+    <button type="button" class="save" id="drv-save">Guardar empresas</button>
     <div class="msg" id="drv-msg"></div>
   </section>
 
@@ -309,7 +310,7 @@
     <h3>Correos y cuenta del cliente</h3>
     <div class="card" id="mail-state"></div>
     <label class="check"><input type="checkbox" data-s="autoInvoice"> Hacer la factura sola al reservar (con el IVA por defecto) y mandarla en el correo</label>
-    <label class="check"><input type="checkbox" data-s="payEmail"> Al marcar un pago a un conductor o a un proveedor, mandarle el justificante de pago por correo (solo pagos de los últimos 15 días)</label>
+    <label class="check"><input type="checkbox" data-s="payEmail"> Al marcar un pago a una empresa de transporte o a un proveedor, mandarle el justificante de pago por correo (solo pagos de los últimos 15 días)</label>
     <label>El cliente puede cancelar él solo hasta (horas antes del viaje)</label>
     <input type="number" min="0" max="168" step="1" inputmode="numeric" data-s="cancelHours">
 
@@ -327,7 +328,7 @@
     <div class="msg" id="set-msg"></div>
     <p class="note">Las facturas ya hechas no cambian: guardan los datos que tenían al crearlas.</p>
     <h3>Copia de seguridad</h3>
-    <p class="msg">Descarga todos los datos (reservas, facturas, cuentas, banco, conductores y ajustes) en un archivo. Guárdalo de vez en cuando en el ordenador, en Albert-Privado.</p>
+    <p class="msg">Descarga todos los datos (reservas, facturas, cuentas, banco, empresas de transporte y ajustes) en un archivo. Guárdalo de vez en cuando en el ordenador, en Albert-Privado.</p>
     <div class="btns"><a class="b dark" href="/api/bravo/admin/backup.json">⬇︎ Descargar copia de seguridad</a></div>
   </section>
 </div>
@@ -389,7 +390,7 @@
   qsa('nav [data-tab]').forEach(function (b) { b.addEventListener('click', function () { setTab(b.getAttribute('data-tab')); }); });
 
   // ---------- VIAJES ----------
-  var FILTERS = [['today', 'Hoy'], ['tomorrow', 'Mañana'], ['week', '7 días'], ['nodriver', 'Sin conductor'], ['groups', 'Grupos'], ['all', 'Todas']];
+  var FILTERS = [['today', 'Hoy'], ['tomorrow', 'Mañana'], ['week', '7 días'], ['nodriver', 'Sin asignar'], ['groups', 'Grupos'], ['all', 'Todas']];
   function matches(b, f) {
     var today = madridDay(0);
     if (f === 'today') return b.date === today;
@@ -420,7 +421,7 @@
       if (b.driverPay != null) pagado += b.driverPay;
     });
     return '<div><b>' + n + '</b><span>Viajes</span></div><div><b>' + euro(r2(cobrado)) + '</b><span>Cobrado</span></div>' +
-      '<div><b>' + euro(r2(pagado)) + '</b><span>Conductores</span></div><div><b>' + euro(r2(cobrado - pagado)) + '</b><span>Te queda</span></div>';
+      '<div><b>' + euro(r2(pagado)) + '</b><span>Empresas</span></div><div><b>' + euro(r2(cobrado - pagado)) + '</b><span>Te queda</span></div>';
   }
 
   function renderTrips() {
@@ -449,7 +450,8 @@
   function clientMsg(b) {
     var en = b.lang === 'en';
     var trip = b.kind === 'hourly' ? fromOf(b) + (en ? ' (' + b.hours + ' hours)' : ' (' + b.hours + ' horas)') : fromOf(b) + ' → ' + toOf(b);
-    var drv = b.driverName ? (en ? ' Your driver: ' : ' Tu conductor: ') + b.driverName + (b.driverCar ? ', ' + b.driverCar : '') + (b.driverPhone ? (en ? ', phone ' : ', tel. ') + b.driverPhone : '') + '.' : '';
+    var who = b.chauffeur || b.driverName, whoPhone = b.chauffeur ? (b.chauffeurPhone || b.driverPhone) : b.driverPhone;
+    var drv = who ? (en ? ' Your driver: ' : ' Tu conductor: ') + who + (b.driverCar ? ', ' + b.driverCar : '') + (whoPhone ? (en ? ', phone ' : ', tel. ') + whoPhone : '') + '.' : '';
     return (en ? 'Hi ' + b.name + ', this is Bravo Transfers about your booking ' + b.ref + ': ' + dmy(b.date) + ' at ' + b.time + ', ' + trip + '.' + drv + ' Your booking confirmation: '
       : 'Hola ' + b.name + ', te escribimos de Bravo Transfers por tu reserva ' + b.ref + ': ' + dmy(b.date) + ' a las ' + b.time + ', ' + trip + '.' + drv + ' Tu justificante: ') + docUrl(b, 'justificante');
   }
@@ -467,7 +469,7 @@
   function card(b) {
     var veh = vehName(b.vehicle);
     var inv = b.invoice;
-    var l3 = [b.passengers + ' pers.', veh, b.price != null ? euro(b.price) : 'sin precio', b.driverName ? '🚗 ' + b.driverName : 'sin conductor', inv ? '🧾 ' + inv.number + (inv.status === 'anulada' ? ' (anulada)' : '') : '',
+    var l3 = [b.passengers + ' pers.', veh, b.price != null ? euro(b.price) : 'sin precio', b.driverName ? '🚐 ' + b.driverName : 'sin asignar', inv ? '🧾 ' + inv.number + (inv.status === 'anulada' ? ' (anulada)' : '') : '',
       b.cancelledBy === 'cliente' ? '✖ la canceló el cliente' : '']
       .filter(Boolean).join(' · ');
     var kv = [
@@ -501,15 +503,18 @@
       '<input data-k="price" type="number" inputmode="decimal" min="0" step="0.01" value="' + (b.price == null ? '' : esc(b.price)) + '"' + (locked ? ' disabled' : '') + (b.kind === 'group' ? ' placeholder="Pon el precio del presupuesto"' : '') + '>' +
       '<div class="row"><div><label>Día</label><input data-k="date" type="date" value="' + esc(b.date) + '"></div>' +
       '<div><label>Hora</label><input data-k="time" type="time" value="' + esc(b.time) + '"></div></div>' +
-      '<h3>Conductor</h3>' +
-      '<input data-k="driverName" list="drivers-dl" value="' + esc(b.driverName) + '" placeholder="Nombre (elige de la lista o escribe)">' +
+      '<h3>Empresa de transporte</h3>' +
+      '<input data-k="driverName" list="drivers-dl" value="' + esc(b.driverName) + '" placeholder="Empresa o autónomo (elige de la lista o escribe)">' +
       '<div class="row"><div><label>Su teléfono</label><input data-k="driverPhone" type="tel" value="' + esc(b.driverPhone) + '"></div>' +
       '<div><label>Le pagas (€)</label><input data-k="driverPay" type="number" inputmode="decimal" min="0" step="0.01" value="' + (b.driverPay == null ? '' : esc(b.driverPay)) + '"></div></div>' +
       '<div class="row"><div><label>IVA en ese pago (%)</label><select data-k="driverVat">' + vatOptions(b.driverVat || 0) + '</select></div>' +
-      '<div><label>Coche y matrícula</label><input data-k="driverCar" value="' + esc(b.driverCar) + '" placeholder="Ej.: Toyota · 1234 ABC"></div></div>' +
-      '<div class="row"><div><label>Correo del conductor</label><input data-k="driverEmail" type="email" value="' + esc(b.driverEmail || '') + '" placeholder="Para el justificante de pago"></div>' +
-      '<div><label>Nº de su factura (si te la da)</label><input data-k="driverInvoiceNo" value="' + esc(b.driverInvoiceNo || '') + '"></div></div>' +
-      '<label>Nota para el conductor (sale en su hoja)</label><input data-k="driverNote" value="' + esc(b.driverNote) + '">' +
+      '<div><label>Nº de su factura</label><input data-k="driverInvoiceNo" value="' + esc(b.driverInvoiceNo || '') + '"></div></div>' +
+      '<label>Correo de la empresa</label><input data-k="driverEmail" type="email" value="' + esc(b.driverEmail || '') + '" placeholder="Para el justificante de pago">' +
+      '<h3>Quién va</h3><div class="msg" style="margin-top:-4px">El cliente ve a este conductor. Si lo dejas vacío, ve la empresa.</div>' +
+      '<div class="row"><div><label>Conductor</label><input data-k="chauffeur" value="' + esc(b.chauffeur || '') + '" placeholder="Nombre"></div>' +
+      '<div><label>Su móvil</label><input data-k="chauffeurPhone" type="tel" value="' + esc(b.chauffeurPhone || '') + '"></div></div>' +
+      '<label>Coche y matrícula</label><input data-k="driverCar" value="' + esc(b.driverCar) + '" placeholder="Ej.: Toyota · 1234 ABC">' +
+      '<label>Nota para el conductor (sale en la hoja de servicio)</label><input data-k="driverNote" value="' + esc(b.driverNote) + '">' +
       '<div class="margin" data-margin></div>' + payBox(b) +
       '<label>Estado</label><select data-k="status">' + opts + '</select>' +
       '<label class="check"><input type="checkbox" data-k="ministry"' + (b.ministry ? ' checked' : '') + '> Comunicado al Ministerio</label>' +
@@ -517,9 +522,9 @@
       '<button type="button" class="save" data-save>Guardar</button><div class="msg" data-msg></div>' +
       '<div class="box"><b>Documentos y mensajes</b><div class="btns">' +
       '<a class="b" target="_blank" rel="noopener" href="' + esc(docUrl(b, 'justificante')) + '">📄 Justificante</a>' +
-      '<a class="b" target="_blank" rel="noopener" href="' + esc(docUrl(b, 'hoja')) + '">🚗 Hoja del conductor</a>' +
+      '<a class="b" target="_blank" rel="noopener" href="' + esc(docUrl(b, 'hoja')) + '">🚐 Hoja de servicio</a>' +
       '<a class="b wa" target="_blank" rel="noopener" href="' + esc(wa(b.phone, clientMsg(b))) + '">WhatsApp al cliente</a>' +
-      '<a class="b wa" target="_blank" rel="noopener" href="' + esc(wa(b.driverPhone, driverMsg(b))) + '"' + (b.driverPhone ? '' : ' aria-disabled="true"') + '>WhatsApp al conductor</a>' +
+      '<a class="b wa" target="_blank" rel="noopener" href="' + esc(wa(b.driverPhone, driverMsg(b))) + '"' + (b.driverPhone ? '' : ' aria-disabled="true"') + '>WhatsApp a la empresa</a>' +
       '<a class="b" href="' + esc(mail(b.email, (b.lang === 'en' ? 'Your booking ' : 'Tu reserva ') + b.ref + ' – Bravo Transfers', clientMsg(b))) + '">✉️ Correo al cliente</a>' +
       '</div><div class="msg">Los botones mandan lo que hay guardado: guarda antes los cambios.</div>' + mailBox(b) + '</div>' +
       invoiceBox(b) +
@@ -527,7 +532,7 @@
       '</div></details>';
   }
 
-  // El pago al conductor: marcarlo pagado (si no lo casó el banco) y su justificante por correo
+  // El pago a la empresa de transporte: marcarlo pagado (si no lo casó el banco) y su justificante por correo
   var PAY_VIA = { banco: 'por el banco', bizum: 'por Bizum', efectivo: 'en efectivo', tarjeta: 'con tarjeta' };
   function payStatus(paid) {
     if (!paid || !paid.emailed) return '';
@@ -544,7 +549,7 @@
   }
   function payBox(b) {
     if (!(b.driverPay > 0)) return '';
-    var p = b.driverPaid, h = '<div class="box"><b>Pago al conductor</b>';
+    var p = b.driverPaid, h = '<div class="box"><b>Pago a la empresa de transporte</b>';
     if (p && p.lineId) h += '<div class="ok-line">🏦 Pagado por el banco el ' + esc(dmy(p.date)) + ' (casado con el extracto)</div>';
     else {
       h += '<div class="row"><div><label>¿Le has pagado?</label><select data-k="driverPaidVia">' +
@@ -624,7 +629,7 @@
     pay.addEventListener('input', margin); price.addEventListener('input', margin); margin();
     var pv = el.querySelector('[data-k=driverPaidVia]'), pd = el.querySelector('[data-k=driverPaidDate]');
     if (pv) pv.addEventListener('change', function () { if (pv.value && !pd.value) pd.value = madridDay(0); if (!pv.value) pd.value = ''; });
-    // Al elegir un conductor de la lista, se rellenan su teléfono y su coche
+    // Al elegir una empresa de la lista, se rellenan su teléfono, su coche y su correo
     var dn = el.querySelector('[data-k=driverName]');
     dn.addEventListener('change', function () {
       var d = drivers.filter(function (x) { return x.name === dn.value; })[0];
@@ -842,7 +847,7 @@
       '<div><b>' + euro(Math.abs(t.ivaResultado)) + '</b><span>IVA ' + (t.ivaResultado >= 0 ? 'a pagar' : 'a devolver') + '</span></div>';
     $('acc-vat').innerHTML = '<b>IVA del periodo</b><div class="kv2">' +
       '<span>IVA cobrado en tus facturas e ingresos (repercutido)</span><span>' + euro(t.ivaRepercutido) + '</span>' +
-      '<span>IVA pagado en gastos y conductores (soportado)</span><span>' + euro(t.ivaSoportado) + '</span>' +
+      '<span>IVA pagado en gastos y empresas de transporte (soportado)</span><span>' + euro(t.ivaSoportado) + '</span>' +
       '<span><b>' + (t.ivaResultado >= 0 ? 'Diferencia: a pagar' : 'Diferencia: a devolver') + '</b></span><span>' + euro(Math.abs(t.ivaResultado)) + '</span></div>' +
       '<div class="kv2" style="margin-top:10px">' + acc.vatByRate.repercutido.map(function (x) { return '<span>Cobrado al ' + esc(String(x.rate).replace('.', ',')) + ' % · base ' + euro(x.base) + '</span><span>' + euro(x.vat) + '</span>'; }).join('') +
       acc.vatByRate.soportado.map(function (x) { return '<span>Pagado al ' + esc(String(x.rate).replace('.', ',')) + ' % · base ' + euro(x.base) + '</span><span>' + euro(x.vat) + '</span>'; }).join('') + '</div>';
@@ -1008,7 +1013,7 @@
     try { bankData = await api('admin/bank?from=' + from + '&to=' + to); renderBank(); }
     catch (e) { $('bank-lines').innerHTML = '<p class="empty">No se ha podido cargar el banco: ' + esc(e.message) + '</p>'; }
   }
-  var VIA = { invoice: 'Factura', ledger: 'Apunte', driver: 'Conductor' };
+  var VIA = { invoice: 'Factura', ledger: 'Apunte', driver: 'Empresa de transporte' };
   function renderBank() {
     var d = bankData;
     $('bank-weak').hidden = !d.weakKey;
@@ -1143,14 +1148,14 @@
     return n ? 'Este mes: ' + n + ' viaje' + (n > 1 ? 's' : '') + ' · ' + euro(r2(pay)) : 'Este mes: sin viajes';
   }
   function renderDrivers() {
-    if (!drivers.length) { $('drv-list').innerHTML = '<p class="empty">Todavía no hay conductores. Añade el primero.</p>'; return; }
+    if (!drivers.length) { $('drv-list').innerHTML = '<p class="empty">Todavía no hay empresas de transporte. Añade la primera.</p>'; return; }
     $('drv-list').innerHTML = drivers.map(function (d, i) {
-      return '<div class="card" data-drv="' + i + '"><div class="l1"><span>' + esc(d.name || 'Conductor nuevo') + '</span><span class="l3">' + esc(d.name ? monthOf(d.name) : '') + '</span></div>' +
-        '<div class="row"><div><label>Nombre</label><input data-d="name" value="' + esc(d.name) + '"></div><div><label>Teléfono</label><input data-d="phone" type="tel" value="' + esc(d.phone) + '"></div></div>' +
-        '<div class="row"><div><label>Licencia VTC</label><input data-d="licence" value="' + esc(d.licence) + '"></div><div><label>Plazas</label><input data-d="seats" type="number" min="1" max="80" value="' + esc(d.seats || '') + '"></div></div>' +
+      return '<div class="card" data-drv="' + i + '"><div class="l1"><span>' + esc(d.name || 'Empresa nueva') + '</span><span class="l3">' + esc(d.name ? monthOf(d.name) : '') + '</span></div>' +
+        '<div class="row"><div><label>Empresa o autónomo</label><input data-d="name" value="' + esc(d.name) + '"></div><div><label>Teléfono</label><input data-d="phone" type="tel" value="' + esc(d.phone) + '"></div></div>' +
+        '<div class="row"><div><label>Licencia (VTC o autobús)</label><input data-d="licence" value="' + esc(d.licence) + '"></div><div><label>Plazas</label><input data-d="seats" type="number" min="1" max="80" value="' + esc(d.seats || '') + '"></div></div>' +
         '<div class="row"><div><label>Coche</label><input data-d="car" value="' + esc(d.car) + '"></div><div><label>Matrícula</label><input data-d="plate" value="' + esc(d.plate) + '"></div></div>' +
-        '<div class="row"><div><label>Correo (justificantes de pago)</label><input data-d="email" type="email" value="' + esc(d.email || '') + '"></div><div><label>NIF</label><input data-d="taxId" value="' + esc(d.taxId || '') + '"></div></div>' +
-        '<label>Notas (lo que cobra, zona…)</label><textarea data-d="notes">' + esc(d.notes) + '</textarea>' +
+        '<div class="row"><div><label>Correo</label><input data-d="email" type="email" value="' + esc(d.email || '') + '"></div><div><label>NIF / CIF</label><input data-d="taxId" value="' + esc(d.taxId || '') + '"></div></div>' +
+        '<label>Notas (lo que cobra, zona, sus conductores…)</label><textarea data-d="notes">' + esc(d.notes) + '</textarea>' +
         '<div class="btns"><button type="button" class="b red" data-drv-del="' + i + '">Quitar</button></div></div>';
     }).join('');
     qsa('[data-drv-del]').forEach(function (b) { b.addEventListener('click', function () { readDrivers(); drivers.splice(Number(b.getAttribute('data-drv-del')), 1); renderDrivers(); }); });

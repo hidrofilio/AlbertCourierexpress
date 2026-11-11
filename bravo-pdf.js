@@ -275,7 +275,7 @@ function confirmationPdf(b, issuer) {
     [t.flight, b.flight],
     [t.bags, b.kind === 'group' ? '' : String(b.bags || 0)],
     [t.seats, b.childSeats ? String(b.childSeats) : ''],
-    [t.driver, b.driverName ? b.driverName + (b.driverPhone ? ' · ' + b.driverPhone : '') : ''],
+    [t.driver, (b.chauffeur || b.driverName) ? (b.chauffeur || b.driverName) + ((b.chauffeur ? b.chauffeurPhone || b.driverPhone : b.driverPhone) ? ' · ' + (b.chauffeur ? b.chauffeurPhone || b.driverPhone : b.driverPhone) : '') : ''],
     [t.car, b.driverCar || '']
   ], 140, 515);
   y += 14;
@@ -310,7 +310,7 @@ function paymentPdf(p, issuer) {
     my += 17;
   }
   y = Math.max(y, my) + 14;
-  c.text(40, y, p.kind === 'driver' ? 'CONDUCTOR (COBRA)' : 'PROVEEDOR (COBRA)', { size: 8, bold: true, color: C.muted }); y += 16;
+  c.text(40, y, p.kind === 'driver' ? 'EMPRESA DE TRANSPORTE (COBRA)' : 'PROVEEDOR (COBRA)', { size: 8, bold: true, color: C.muted }); y += 16;
   c.text(40, y, p.payee.name || '', { size: 12, bold: true }); y += 15;
   for (const l of [p.payee.taxId ? 'NIF/CIF: ' + p.payee.taxId : '', p.payee.email]) {
     if (!l) continue;
@@ -357,7 +357,9 @@ function driverSheetPdf(b, issuer) {
   header(c, 'HOJA DE SERVICIO', b.ref);
   let y = 130;
   y = rows(c, 40, y, [
-    ['Conductor', b.driverName],
+    ['Empresa', b.driverName],
+    ['Conductor', b.chauffeur ? b.chauffeur + (b.chauffeurPhone ? ' · ' + b.chauffeurPhone : '') : ''],
+    ['Coche', b.driverCar],
     ['Día y hora', day(b.date) + ' · ' + b.time],
     [b.kind === 'hourly' ? 'Recogida' : 'Recogida', placeFrom(b)],
     [b.kind === 'hourly' ? 'Horas' : 'Destino', b.kind === 'hourly' ? String(b.hours) : placeTo(b)],
@@ -459,7 +461,7 @@ function accountsPdf(rep, issuer) {
   const vr = (list) => list.length ? list.map((x) => [String(x.rate).replace('.', ',') + ' %', m(x.base), m(x.vat)]) : [['—', '', '']];
   c.text(40, y, 'IVA devengado (repercutido en facturas emitidas e ingresos)', { size: 9, bold: true }); y += 6;
   table([{ t: 'TIPO', w: 175 }, { t: 'BASE IMPONIBLE', w: 170, r: 1 }, { t: 'CUOTA', w: 170, r: 1 }], vr(rep.vatByRate.repercutido).concat([{ cells: ['Total devengado', m(t.ingresosBase), m(t.ivaRepercutido)], bold: true }]));
-  c.text(40, y, 'IVA deducible (soportado en gastos y pagos a conductores)', { size: 9, bold: true }); y += 6;
+  c.text(40, y, 'IVA deducible (soportado en gastos y pagos a empresas de transporte)', { size: 9, bold: true }); y += 6;
   table([{ t: 'TIPO', w: 175 }, { t: 'BASE IMPONIBLE', w: 170, r: 1 }, { t: 'CUOTA', w: 170, r: 1 }], vr(rep.vatByRate.soportado).concat([{ cells: ['Total deducible', m(t.gastosBase), m(t.ivaSoportado)], bold: true }]));
   table([{ t: 'RESULTADO', w: 345 }, { t: 'IMPORTE', w: 170, r: 1 }], [{ cells: [t.ivaResultado >= 0 ? 'A ingresar' : 'A compensar o devolver', m(Math.abs(t.ivaResultado))], bold: true }]);
 

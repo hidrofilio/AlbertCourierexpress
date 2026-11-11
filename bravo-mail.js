@@ -129,7 +129,7 @@ function bookingEmail(b, o) {
     [b.kind === 'hourly' ? t.pickup : t.from, from], [b.kind === 'hourly' ? t.hours : t.to, b.kind === 'hourly' ? String(b.hours) : to],
     [t.ret, b.roundTrip ? dmy(b.returnDate) + ' · ' + b.returnTime : ''], [t.pax, String(b.passengers)],
     [t.veh, b.vehicle === 'van' ? t.van_v : b.vehicle === 'car' ? t.car_v : ''], [t.flight, b.flight || ''],
-    [t.driver, b.driverName && ['asignada', 'hecha'].includes(b.status) ? b.driverName + (b.driverPhone ? ' · ' + b.driverPhone : '') : ''],
+    [t.driver, (b.chauffeur || b.driverName) && ['asignada', 'hecha'].includes(b.status) ? (b.chauffeur || b.driverName) + ((b.chauffeur ? b.chauffeurPhone || b.driverPhone : b.driverPhone) ? ' · ' + (b.chauffeur ? b.chauffeurPhone || b.driverPhone : b.driverPhone) : '') : ''],
     [t.car, b.driverCar && ['asignada', 'hecha'].includes(b.status) ? b.driverCar : ''],
     [t.total, b.price != null ? money(b.price) : t.quote], [t.paid, b.payment || '']
   ].filter((r) => r[1]);
@@ -138,7 +138,7 @@ function bookingEmail(b, o) {
   const intro = o.update ? t.update : group ? t.thanksGroup : t.thanks;
   let html = `<p style="font-size:16px;margin:0 0 6px">${esc(t.hello)} ${esc(b.name)},</p><p style="margin:0 0 6px">${esc(intro)}</p>${table}`;
   html += `<p style="margin:10px 0">${esc(o.withInvoice ? t.attached : t.attachedOne)}</p>`;
-  if (!group && !b.driverName) html += `<p style="margin:10px 0">${esc(t.driverLater)}</p>`;
+  if (!group && !b.driverName && !b.chauffeur) html += `<p style="margin:10px 0">${esc(t.driverLater)}</p>`;
   html += `<div style="background:#faf6ee;border-radius:10px;padding:12px 14px;margin:16px 0"><b>${esc(t.area)}</b><p style="margin:6px 0">${esc(t.areaText)}</p>`;
   if (o.password) html += `<p style="margin:6px 0">${esc(t.user)}: <b>${esc(b.email)}</b><br>${esc(t.pass)}: <b style="font-family:monospace;font-size:15px">${esc(o.password)}</b></p>`;
   html += btn(o.areaUrl, t.enter) + '</div>';

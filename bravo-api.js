@@ -24,7 +24,7 @@ const DEFAULTS = {
   hourly: { min: 2, max: 12 },
   autoInvoice: true, // factura automática al reservar (con el IVA por defecto)
   cancelHours: 24, // el cliente cancela solo hasta estas horas antes
-  payEmail: true, // al marcar un pago (conductor o proveedor), mandarle el justificante por correo
+  payEmail: true, // al marcar un pago (empresa de transporte o proveedor), mandarle el justificante por correo
   // Provisional: solo salidas desde la provincia de Málaga (caja aproximada)
   originBox: { latMin: 36.28, latMax: 37.32, lonMin: -5.65, lonMax: -3.75 },
   // Datos de las facturas: PROVISIONALES, se cambian desde el panel (Ajustes).
@@ -241,7 +241,7 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
       from: b.kind === 'group' ? b.fromText : (b.from && b.from.label) || '', to: b.kind === 'group' ? b.toText : (b.to && b.to.label) || '',
       roundTrip: Boolean(b.roundTrip), returnDate: b.returnDate || '', returnTime: b.returnTime || '', passengers: b.passengers, vehicle: b.vehicle || '',
       km: b.km || null, price: b.price, status: b.status, payment: b.payment || '', flight: b.flight || '', bags: b.bags, childSeats: b.childSeats, comments: b.comments || '',
-      driver: assigned && b.driverName ? { name: b.driverName, phone: b.driverPhone || '', car: b.driverCar || '' } : null,
+      driver: assigned && (b.chauffeur || b.driverName) ? { name: b.chauffeur || b.driverName, phone: (b.chauffeur ? b.chauffeurPhone || b.driverPhone : b.driverPhone) || '', car: b.driverCar || '' } : null,
       docs: {
         justificante: '/api/bravo/doc/' + b.clientToken + '/justificante.pdf',
         invoices: allInvoices(b).map((i) => ({ number: i.number, kind: i.kind || 'factura', status: i.status, total: i.total, url: '/api/bravo/doc/' + b.clientToken + '/f/' + i.number + '.pdf' }))
@@ -293,8 +293,8 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
 
   // Cuentas del Plan General Contable (PGC) para cada categoría
   const PGC = {
-    'Conductores (reservas)': ['607', 'Trabajos realizados por otras empresas'],
-    'Conductores (sin reserva)': ['607', 'Trabajos realizados por otras empresas'],
+    'Empresas de transporte (reservas)': ['607', 'Trabajos realizados por otras empresas'],
+    'Empresas de transporte (sin reserva)': ['607', 'Trabajos realizados por otras empresas'],
     'Combustible y peajes': ['628', 'Suministros'],
     'Vehículos': ['622', 'Reparaciones y conservación'],
     'Seguros': ['625', 'Primas de seguros'],
@@ -316,12 +316,16 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
   const LEDGER = path.join(DIR, 'ledger.json');
   const RECEIPTS = path.join(DIR, 'receipts');
   fs.mkdirSync(RECEIPTS, { recursive: true });
-  const EXPENSE_CATS = ['Conductores (sin reserva)', 'Combustible y peajes', 'Vehículos', 'Seguros', 'Publicidad', 'Web, software y comisiones',
+  const EXPENSE_CATS = ['Empresas de transporte (sin reserva)', 'Combustible y peajes', 'Vehículos', 'Seguros', 'Publicidad', 'Web, software y comisiones',
     'Gestoría y asesoría', 'Teléfono e internet', 'Oficina y material', 'Impuestos y tasas', 'Comisiones bancarias', 'Otros gastos'];
   const INCOME_CATS = ['Servicio fuera de la web', 'Otros ingresos'];
   const RECEIPT_TYPES = { jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp', pdf: 'application/pdf' };
   function ledger() {
-    try { return JSON.parse(fs.readFileSync(LEDGER, 'utf8')); } catch (e) { return []; }
+    let list;
+    try { list = JSON.parse(fs.readFileSync(LEDGER, 'utf8')); } catch (e) { return []; }
+    // La categoría se llamaba «Conductores (sin reserva)» hasta el 11/11/2026
+    for (const e of list) if (e.category === 'Conductores (sin reserva)') e.category = 'Empresas de transporte (sin reserva)';
+    return list;
   }
   function saveLedger(list) {
     fs.writeFileSync(LEDGER + '.tmp', JSON.stringify(list, null, 1));
@@ -361,8 +365,8 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
       if (b.status !== 'cancelada' && b.driverPay != null && b.driverPay > 0 && inRange(b.date)) {
         const rate = Number.isFinite(b.driverVat) ? b.driverVat : 0;
         const sv = splitVat(b.driverPay, rate);
-        out.push({ date: b.date, kind: 'gasto', source: 'conductor', concept: 'Pago al conductor · ' + b.ref, party: b.driverName || '',
-          category: 'Conductores (reservas)', base: sv.base, vatRate: rate, vat: sv.vat, total: b.driverPay, ref: b.ref, paid: b.driverPaid || null });
+        out.push({ date: b.date, kind: 'gasto', source: 'conductor', concept: 'Pago del viaje ' + b.ref + (b.driverName ? ' a ' + b.driverName : ''), party: b.driverName || '',
+          category: 'Empresas de transporte (reservas)', base: sv.base, vatRate: rate, vat: sv.vat, total: b.driverPay, ref: b.ref, paid: b.driverPaid || null });
       }
       if (b.status !== 'cancelada' && b.price > 0 && !activeInvoice(b) && inRange(b.date)) { unbilledN++; unbilledSum += b.price; }
     }
@@ -544,7 +548,7 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
           label: (inv.kind === 'rectificativa' ? 'Rectificativa ' : 'Factura ') + inv.number + ' · ' + ((inv.customer && inv.customer.name) || b.name) });
       }
       if (b.status !== 'cancelada' && b.driverPay > 0) {
-        out.push({ type: 'driver', key: b.ref, date: b.date, amount: -b.driverPay, paid: b.driverPaid || null, label: 'Pago al conductor ' + (b.driverName || '') + ' · ' + b.ref });
+        out.push({ type: 'driver', key: b.ref, date: b.date, amount: -b.driverPay, paid: b.driverPaid || null, label: 'Pago del viaje ' + b.ref + (b.driverName ? ' a ' + b.driverName : '') });
       }
     }
     for (const e of ledger()) {
@@ -1380,7 +1384,7 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       const n2 = (v) => (v == null || v === '' ? '' : String(Math.round(Number(v) * 100) / 100).replace('.', ','));
       const q = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
       const head = ['Reserva', 'Día', 'Hora', 'Tipo', 'Desde', 'Hasta', 'Personas', 'Vehículo', 'Km', 'Cliente', 'Teléfono', 'Correo',
-        'Precio', 'Conductor', 'Pago al conductor', 'Te queda', 'Estado', 'Factura', 'Fecha factura', 'Estado factura', 'Base', 'IVA %', 'IVA', 'Total factura'];
+        'Precio', 'Empresa de transporte', 'Pago a la empresa', 'Te queda', 'Estado', 'Factura', 'Fecha factura', 'Estado factura', 'Base', 'IVA %', 'IVA', 'Total factura'];
       const lines = [head.map(q).join(';')];
       for (const b of allBookings().filter((x) => x.date.slice(0, 7) === month).sort((a, c) => (a.date + a.time).localeCompare(c.date + c.time))) {
         const inv = b.invoice || {};
@@ -1439,6 +1443,8 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
         b.driverEmail = clean(d.driverEmail, 120);
       }
       if (d.driverInvoiceNo !== undefined) b.driverInvoiceNo = clean(d.driverInvoiceNo, 40);
+      if (d.chauffeur !== undefined) b.chauffeur = clean(d.chauffeur, 80);
+      if (d.chauffeurPhone !== undefined) b.chauffeurPhone = clean(d.chauffeurPhone, 25);
       let newlyPaid = false;
       if (d.driverPaidVia !== undefined && !(b.driverPaid && b.driverPaid.lineId)) {
         if (!d.driverPaidVia) b.driverPaid = null;
@@ -1485,7 +1491,7 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       if (route === 'admin/accounts') return json(res, 200, Object.assign({ expenseCats: EXPENSE_CATS, incomeCats: INCOME_CATS }, acc));
       const n2 = (v) => (v == null || v === '' ? '' : String(Math.round(Number(v) * 100) / 100).replace('.', ','));
       const q = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-      const ORIGIN = { factura: 'Factura de la web', rectificativa: 'Factura rectificativa', conductor: 'Reserva (pago al conductor)', manual: 'Apuntado a mano' };
+      const ORIGIN = { factura: 'Factura de la web', rectificativa: 'Factura rectificativa', conductor: 'Reserva (pago a la empresa de transporte)', manual: 'Apuntado a mano' };
       const lines = [['Fecha', 'Tipo', 'Nº factura', 'Concepto', 'Proveedor / cliente', 'NIF', 'Categoría', 'Cuenta PGC', 'Base', 'IVA %', 'IVA', 'Total', 'Origen', 'Reserva', 'Notas'].map(q).join(';')];
       for (const m of acc.movements.slice().reverse()) {
         lines.push([m.date, m.kind === 'ingreso' ? 'Ingreso' : 'Gasto', m.number || '', m.concept, m.party, m.taxId || '', m.category, m.account, n2(m.base), n2(m.vatRate), n2(m.vat), n2(m.total),
