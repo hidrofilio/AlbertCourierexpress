@@ -24,8 +24,9 @@
   .bar small { display: block; color: var(--gold-2); font-size: .66rem; letter-spacing: .2em; }
   .acts { display: flex; gap: 6px; }
   .acts button, .acts a { background: #2a2118; color: #f6efe3; border: 1px solid #5a4a34; border-radius: 8px; padding: 7px 10px; font-size: .82rem; text-decoration: none; cursor: pointer; }
-  nav { display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid #3a2e22; }
-  nav button { background: none; border: 0; color: #cbb994; padding: 7px 0 6px; font-weight: 700; font-size: .68rem; cursor: pointer; border-bottom: 3px solid transparent; }
+  nav { display: grid; grid-template-columns: repeat(6, 1fr); border-top: 1px solid #3a2e22; }
+  nav button { position: relative; background: none; border: 0; color: #cbb994; padding: 7px 0 6px; font-weight: 700; font-size: .64rem; letter-spacing: -.01em; cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  nav .nb { position: absolute; top: 3px; left: 50%; margin-left: 8px; background: var(--orange); color: #fff; border-radius: 999px; font-size: .62rem; line-height: 15px; min-width: 15px; padding: 0 4px; }
   nav button i { display: block; font-style: normal; font-size: 1.05rem; line-height: 1.3; }
   nav button.on { color: #fff; border-bottom-color: var(--gold-2); }
   .wrap { max-width: 760px; margin: 0 auto; padding: 14px 16px 60px; }
@@ -105,6 +106,18 @@
   .ok-line { color: var(--ok); font-weight: 700; font-size: .85rem; margin-top: 4px; }
   .thumb { width: 54px; height: 54px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); background: #f3ece0; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex: none; }
   .ib { display: flex; gap: 10px; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 8px; margin-bottom: 6px; }
+  .th { background: #fff; border: 1px solid var(--line); border-radius: 12px; margin-bottom: 8px; overflow: hidden; }
+  .th > summary { list-style: none; padding: 10px 12px; cursor: pointer; }
+  .th > summary::-webkit-details-marker { display: none; }
+  .th.unread { border-color: var(--orange); box-shadow: 0 0 0 1px var(--orange); }
+  .chat { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-top: 1px solid var(--line); background: #fbf8f2; }
+  .bub { max-width: 88%; border-radius: 12px; padding: 7px 10px; font-size: .9rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .bub.cu { align-self: flex-start; background: #fff; border: 1px solid var(--line); }
+  .bub.me { align-self: flex-end; background: var(--ink); color: #fff; }
+  .bub.sy { align-self: center; background: #f3ece0; color: var(--muted); font-size: .8rem; }
+  .bub small { display: block; opacity: .7; font-size: .7rem; margin-top: 2px; }
+  .bub .tag { font-size: .66rem; font-weight: 800; text-transform: uppercase; background: var(--orange); color: #fff; border-radius: 4px; padding: 0 4px; margin-right: 4px; }
+  .mail-line { font-size: .82rem; margin-top: 6px; }
   .warn { background: #fff1d6; color: #8a5a00; border-radius: 9px; padding: 8px 10px; margin-top: 8px; font-size: .85rem; }
 </style>
 </head>
@@ -120,6 +133,7 @@
   </div>
   <nav>
     <button type="button" data-tab="trips"><i>🚗</i>Viajes</button>
+    <button type="button" data-tab="messages"><i>💬</i>Mensajes<span class="nb" id="nav-unread" hidden></span></button>
     <button type="button" data-tab="billing"><i>🧾</i>Facturas</button>
     <button type="button" data-tab="accounts"><i>📒</i>Cuentas</button>
     <button type="button" data-tab="drivers"><i>👤</i>Conductores</button>
@@ -134,6 +148,14 @@
     <div class="totals" id="totals"></div>
     <div id="list"></div>
     <p class="note">Fase de pruebas: no se cobra nada y los precios son ficticios.</p>
+  </section>
+
+  <!-- MENSAJES DE LOS CLIENTES -->
+  <section id="tab-messages" hidden>
+    <h2>Mensajes de los clientes</h2>
+    <p class="msg" id="msgs-mail"></p>
+    <div id="threads"></div>
+    <p class="note">Cada cliente tiene su cuenta en <b>/bravo/cuenta/</b> (se crea sola al reservar). Desde allí ve sus reservas y facturas, pide cambios, cancela y te escribe. Lo que contestes aquí le sale en su cuenta y, con los correos activados, también por correo.</p>
   </section>
 
   <!-- FACTURACIÓN -->
@@ -282,6 +304,12 @@
     <label>Antelación mínima para reservar (horas)</label>
     <input type="number" min="0" max="168" step="1" inputmode="numeric" data-s="minHoursAhead">
 
+    <h3>Correos y cuenta del cliente</h3>
+    <div class="card" id="mail-state"></div>
+    <label class="check"><input type="checkbox" data-s="autoInvoice"> Hacer la factura sola al reservar (con el IVA por defecto) y mandarla en el correo</label>
+    <label>El cliente puede cancelar él solo hasta (horas antes del viaje)</label>
+    <input type="number" min="0" max="168" step="1" inputmode="numeric" data-s="cancelHours">
+
     <h3>Datos de las facturas</h3>
     <label>Nombre que sale en la factura</label><input data-s="invoice.issuerName">
     <label>NIF / CIF</label><input data-s="invoice.taxId" placeholder="Pendiente">
@@ -327,7 +355,8 @@
     no_price: 'Pon primero el precio y guarda', bad_vat: 'El IVA tiene que estar entre 0 y 30',
     already_invoiced: 'Esta reserva ya tiene factura', invoiced: 'Tiene factura: para cambiar el precio, anúlala antes',
     has_invoice: 'Tiene o tuvo factura: no se puede borrar', bad_price: 'Precio no válido', bad_pay: 'Pago no válido',
-    bad_hours_ahead: 'Antelación no válida (0 a 168 horas)'
+    bad_hours_ahead: 'Antelación no válida (0 a 168 horas)', bad_cancel_hours: 'Horas para cancelar no válidas (0 a 168)',
+    bad_date: 'Día u hora no válidos', email_not_configured: 'Los correos no están activados (falta EMAIL_KEY en Railway)', empty: 'Escribe la respuesta'
   };
 
   // ---------- fechas de Málaga ----------
@@ -345,7 +374,8 @@
   function setTab(t) {
     tab = t;
     qsa('nav [data-tab]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-tab') === t); });
-    ['trips', 'billing', 'accounts', 'drivers', 'settings'].forEach(function (x) { $('tab-' + x).hidden = x !== t; });
+    ['trips', 'messages', 'billing', 'accounts', 'drivers', 'settings'].forEach(function (x) { $('tab-' + x).hidden = x !== t; });
+    if (t === 'messages') loadMessages();
     if (t === 'billing') renderBilling();
     if (t === 'accounts') setSub(accSub);
     if (t === 'drivers') renderDrivers();
@@ -433,7 +463,8 @@
   function card(b) {
     var veh = vehName(b.vehicle);
     var inv = b.invoice;
-    var l3 = [b.passengers + ' pers.', veh, b.price != null ? euro(b.price) : 'sin precio', b.driverName ? '🚗 ' + b.driverName : 'sin conductor', inv ? '🧾 ' + inv.number + (inv.status === 'anulada' ? ' (anulada)' : '') : '']
+    var l3 = [b.passengers + ' pers.', veh, b.price != null ? euro(b.price) : 'sin precio', b.driverName ? '🚗 ' + b.driverName : 'sin conductor', inv ? '🧾 ' + inv.number + (inv.status === 'anulada' ? ' (anulada)' : '') : '',
+      b.cancelledBy === 'cliente' ? '✖ la canceló el cliente' : '']
       .filter(Boolean).join(' · ');
     var kv = [
       ['Reserva', esc(b.ref + ' · ' + kindLabel(b))],
@@ -464,6 +495,8 @@
       '<div class="body"><dl class="kv">' + kv + '</dl>' +
       '<label>Precio para el cliente (€, IVA incluido)' + (locked ? ' · bloqueado por la factura' : '') + '</label>' +
       '<input data-k="price" type="number" inputmode="decimal" min="0" step="0.01" value="' + (b.price == null ? '' : esc(b.price)) + '"' + (locked ? ' disabled' : '') + (b.kind === 'group' ? ' placeholder="Pon el precio del presupuesto"' : '') + '>' +
+      '<div class="row"><div><label>Día</label><input data-k="date" type="date" value="' + esc(b.date) + '"></div>' +
+      '<div><label>Hora</label><input data-k="time" type="time" value="' + esc(b.time) + '"></div></div>' +
       '<h3>Conductor</h3>' +
       '<input data-k="driverName" list="drivers-dl" value="' + esc(b.driverName) + '" placeholder="Nombre (elige de la lista o escribe)">' +
       '<div class="row"><div><label>Su teléfono</label><input data-k="driverPhone" type="tel" value="' + esc(b.driverPhone) + '"></div>' +
@@ -482,10 +515,21 @@
       '<a class="b wa" target="_blank" rel="noopener" href="' + esc(wa(b.phone, clientMsg(b))) + '">WhatsApp al cliente</a>' +
       '<a class="b wa" target="_blank" rel="noopener" href="' + esc(wa(b.driverPhone, driverMsg(b))) + '"' + (b.driverPhone ? '' : ' aria-disabled="true"') + '>WhatsApp al conductor</a>' +
       '<a class="b" href="' + esc(mail(b.email, (b.lang === 'en' ? 'Your booking ' : 'Tu reserva ') + b.ref + ' – Bravo Transfers', clientMsg(b))) + '">✉️ Correo al cliente</a>' +
-      '</div><div class="msg">Los botones mandan lo que hay guardado: guarda antes los cambios.</div></div>' +
+      '</div><div class="msg">Los botones mandan lo que hay guardado: guarda antes los cambios.</div>' + mailBox(b) + '</div>' +
       invoiceBox(b) +
       (allInv(b).length ? '' : '<div class="btns"><button type="button" class="b red" data-del>🗑 Borrar esta reserva</button></div>') +
       '</div></details>';
+  }
+
+  // El correo automático de la reserva: si salió y el botón para mandarlo otra vez (con los datos de ahora)
+  function mailBox(b) {
+    var last = (b.emails || [])[b.emails ? b.emails.length - 1 : 0];
+    var line = !last ? '✉️ Todavía no se le ha mandado el correo automático.'
+      : last.ok ? '✉️ Correo de ' + esc(last.kind) + ' enviado el ' + esc(new Date(last.at).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) + '.'
+        : '⚠️ El correo de ' + esc(last.kind) + ' no salió' + (last.error === 'not_configured' ? ': los correos aún no están activados.' : ' (' + esc(last.error) + ').');
+    var on = cfg && cfg.email && cfg.email.configured;
+    return '<div class="mail-line">' + line + '</div><div class="btns"><button type="button" class="b dark" data-mail' + (on ? '' : ' aria-disabled="true"') + '>✉️ Enviar el correo de la reserva' +
+      (activeInv(b) ? ' (con la factura)' : '') + '</button></div>' + (on ? '' : '<div class="msg">Se activa cuando esté la clave de Brevo en Railway.</div>');
   }
 
   function vatOptions(sel) {
@@ -556,7 +600,9 @@
       qsa('[data-k]', el).forEach(function (i) { if (!i.disabled) body[i.getAttribute('data-k')] = i.type === 'checkbox' ? i.checked : i.value; });
       try {
         var data = await api('admin/update', body);
-        replace(data.booking); open[b.ref] = true; renderTrips(); flash(b.ref, '[data-msg]', '✓ Guardado');
+        var moved = data.booking.date !== b.date || data.booking.time !== b.time;
+        replace(data.booking); open[b.ref] = true; renderTrips();
+        flash(b.ref, '[data-msg]', '✓ Guardado' + (moved ? '. Has cambiado el día o la hora: avisa al cliente (botón «Enviar el correo de la reserva» o WhatsApp).' : ''));
       } catch (e) { msg.className = 'msg bad'; msg.textContent = 'No se ha guardado: ' + e.message; btn.disabled = false; }
     });
     var vatSel = el.querySelector('[data-inv=vat]');
@@ -583,6 +629,15 @@
       try { var data = await api('admin/invoice-rectify', { ref: b.ref, reason: reason }); replace(data.booking); open[b.ref] = true; renderTrips(); flash(b.ref, '[data-inv-msg]', 'Hecha la rectificativa ' + data.creditNote); }
       catch (e) { alert(e.message); }
     });
+    var ml = el.querySelector('[data-mail]');
+    if (ml) ml.addEventListener('click', async function () {
+      if (!confirm('¿Mandar a ' + b.email + ' el correo con los datos de la reserva' + (activeInv(b) ? ', la factura' : '') + ' y el justificante?')) return;
+      ml.setAttribute('aria-disabled', 'true');
+      try {
+        await api('admin/email-booking', { ref: b.ref });
+        var r = await api('admin/bookings'); list = r.bookings || list; open[b.ref] = true; renderTrips(); flash(b.ref, '[data-inv-msg]', '✓ Correo enviado a ' + b.email);
+      } catch (e) { alert('No se ha enviado: ' + e.message); ml.removeAttribute('aria-disabled'); }
+    });
     var del = el.querySelector('[data-del]');
     if (del) del.addEventListener('click', async function () {
       if (!confirm('¿Borrar la reserva ' + b.ref + '? No se puede deshacer.')) return;
@@ -592,6 +647,60 @@
   }
   function replace(nb) { for (var i = 0; i < list.length; i++) if (list[i].ref === nb.ref) list[i] = nb; }
   function flash(ref, sel, text) { var e = $('bk-' + ref); if (!e) return; var m = e.querySelector(sel); if (m) { m.className = 'msg ok'; m.textContent = text; } }
+
+  // ---------- MENSAJES ----------
+  var threads = [], openTh = {};
+  function setUnread(n) { $('nav-unread').textContent = n; $('nav-unread').hidden = !n; }
+  async function loadMessages() {
+    try { var d = await api('admin/messages'); threads = d.threads || []; setUnread(d.unread); renderMessages(d.emailOn); }
+    catch (e) { $('threads').innerHTML = '<p class="empty">No se han podido cargar los mensajes.</p>'; }
+  }
+  function renderMessages(emailOn) {
+    $('msgs-mail').innerHTML = emailOn ? 'Tus respuestas le llegan al cliente a su cuenta y por correo.' : 'Los correos no están activados: el cliente verá tu respuesta al entrar en su cuenta. Si es urgente, usa WhatsApp.';
+    var withMsgs = threads.filter(function (t) { return t.messages.length; });
+    var quiet = threads.length - withMsgs.length;
+    if (!withMsgs.length) { $('threads').innerHTML = '<p class="empty">Ningún cliente ha escrito todavía.' + (quiet ? ' Hay ' + quiet + ' cuenta' + (quiet === 1 ? '' : 's') + ' de cliente.' : '') + '</p>'; return; }
+    $('threads').innerHTML = withMsgs.map(function (t) {
+      var c = t.customer, last = t.messages[t.messages.length - 1];
+      var bubbles = t.messages.map(function (m) {
+        var cls = m.from === 'cliente' ? 'cu' : m.from === 'bravo' ? 'me' : 'sy';
+        return '<div class="bub ' + cls + '">' + (m.kind === 'cambio' ? '<span class="tag">Cambio</span>' : '') + esc(m.text) +
+          '<small>' + esc((m.ref ? m.ref + ' · ' : '') + new Date(m.at).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) + '</small></div>';
+      }).join('');
+      var refs = t.bookings.map(function (b) { return '<option value="' + esc(b.ref) + '">' + esc(b.ref + ' · ' + dmy(b.date) + ' · ' + b.status) + '</option>'; }).join('');
+      return '<details class="th' + (t.unread ? ' unread' : '') + '" data-th="' + esc(c.id) + '"' + (openTh[c.id] ? ' open' : '') + '><summary>' +
+        '<div class="l1"><span>' + esc(c.name) + (t.unread ? ' <span class="badge st-pendiente">' + t.unread + ' nuevo' + (t.unread === 1 ? '' : 's') + '</span>' : '') + '</span>' +
+        '<span class="l3">' + esc(new Date(t.last).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })) + '</span></div>' +
+        '<div class="l3">' + esc(c.email + (c.phone ? ' · ' + c.phone : '')) + '</div>' +
+        '<div class="l2">' + esc(String(last.text).slice(0, 90)) + '</div></summary>' +
+        '<div class="chat">' + bubbles + '</div>' +
+        '<div class="body"><label>Sobre la reserva</label><select data-r="ref"><option value="">—</option>' + refs + '</select>' +
+        '<label>Tu respuesta</label><textarea data-r="text" maxlength="2000"></textarea>' +
+        '<button type="button" class="save" data-r="send">Responder</button><div class="msg" data-r="msg"></div>' +
+        '<div class="btns">' + (c.phone ? '<a class="b wa" target="_blank" rel="noopener" href="' + esc(wa(c.phone, 'Hola ' + c.name + ', ')) + '">WhatsApp</a>' : '') +
+        '<a class="b" href="mailto:' + esc(c.email) + '">✉️ Correo normal</a></div></div></details>';
+    }).join('');
+    qsa('[data-th]', $('threads')).forEach(function (el) {
+      var id = el.getAttribute('data-th'), t = threads.filter(function (x) { return x.customer.id === id; })[0];
+      el.addEventListener('toggle', function () {
+        openTh[id] = el.open;
+        if (el.open && t.unread) {
+          api('admin/messages/read', { customerId: id }).then(function () { t.unread = 0; el.classList.remove('unread'); setUnread(threads.reduce(function (a, x) { return a + x.unread; }, 0)); }).catch(function () {});
+        }
+      });
+      el.querySelector('[data-r=send]').addEventListener('click', async function () {
+        var msg = el.querySelector('[data-r=msg]'), btn = this, text = el.querySelector('[data-r=text]').value.trim();
+        if (!text) { msg.className = 'msg bad'; msg.textContent = 'Escribe la respuesta'; return; }
+        btn.disabled = true; msg.className = 'msg'; msg.textContent = 'Enviando…';
+        try {
+          var r = await api('admin/messages/reply', { customerId: id, text: text, ref: el.querySelector('[data-r=ref]').value });
+          openTh[id] = true; await loadMessages();
+          var again = document.querySelector('[data-th="' + id + '"] [data-r=msg]');
+          if (again) { again.className = 'msg ok'; again.textContent = r.emailed ? '✓ Enviada (le llega también por correo)' : '✓ Guardada: la verá en su cuenta'; }
+        } catch (e) { msg.className = 'msg bad'; msg.textContent = 'No se ha enviado: ' + e.message; btn.disabled = false; }
+      });
+    });
+  }
 
   // ---------- FACTURACIÓN ----------
   $('month').value = madridDay(0).slice(0, 7);
@@ -1004,10 +1113,17 @@
   // ---------- AJUSTES ----------
   function getPath(o, p) { return p.split('.').reduce(function (a, k) { return a == null ? a : a[k]; }, o); }
   function setPath(o, p, v) { var ks = p.split('.'), last = ks.pop(); ks.forEach(function (k) { o = o[k] = o[k] || {}; }); o[last] = v; }
-  function renderSettings() { if (!cfg) return; qsa('[data-s]').forEach(function (i) { var v = getPath(cfg, i.getAttribute('data-s')); i.value = v == null ? '' : v; }); }
+  function renderSettings() {
+    if (!cfg) return;
+    qsa('[data-s]').forEach(function (i) { var v = getPath(cfg, i.getAttribute('data-s')); if (i.type === 'checkbox') i.checked = Boolean(v); else i.value = v == null ? '' : v; });
+    var on = cfg.email && cfg.email.configured;
+    $('mail-state').innerHTML = on
+      ? '<b class="pos">✓ Correos automáticos activados</b> (' + esc(cfg.email.provider) + ').<div class="msg">Al reservar, el cliente recibe un correo con todos los datos, la factura y el justificante en PDF, y la contraseña de su cuenta.</div>'
+      : '<b class="neg">✉️ Correos automáticos sin activar</b><div class="msg">Las reservas se guardan igual y la cuenta del cliente se crea, pero no le llega el correo (ni la contraseña). Para activarlos hace falta la clave de Brevo en Railway (variable <b>EMAIL_KEY</b>). Cuando esté, desde cada reserva puedes mandarle el correo con «Enviar el correo de la reserva».</div>';
+  }
   $('set-save').addEventListener('click', async function () {
     var body = {}, msg = $('set-msg');
-    qsa('[data-s]').forEach(function (i) { setPath(body, i.getAttribute('data-s'), i.value); });
+    qsa('[data-s]').forEach(function (i) { setPath(body, i.getAttribute('data-s'), i.type === 'checkbox' ? i.checked : i.value); });
     msg.className = 'msg'; msg.textContent = 'Guardando…';
     try { var data = await api('admin/settings', body); cfg = data; renderSettings(); msg.className = 'msg ok'; msg.textContent = '✓ Guardado. Los precios nuevos valen desde ya.'; }
     catch (e) { msg.className = 'msg bad'; msg.textContent = 'No se ha guardado: ' + (e.message === 'bad_price' ? 'algún precio no es válido' : e.message === 'bad_vat' ? 'el IVA tiene que estar entre 0 y 30' : e.message); }
@@ -1019,6 +1135,7 @@
       var r = await Promise.all([api('admin/bookings'), api('admin/drivers'), api('admin/settings')]);
       list = r[0].bookings || []; drivers = r[1].drivers || []; cfg = r[2];
       fillDatalist(); renderTrips();
+      loadMessages();
       if (tab === 'billing') renderBilling();
       if (tab === 'accounts') reloadSub();
       if (tab === 'drivers') renderDrivers();

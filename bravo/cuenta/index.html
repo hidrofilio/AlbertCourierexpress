@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#fffaf2">
+<title>Mi cuenta · Bravo Transfers</title>
+<link rel="icon" type="image/png" href="/api/bravo/icon-64.png">
+<link rel="apple-touch-icon" href="/api/bravo/icon-180.png">
+<style>
+  /* Área del cliente (fase de pruebas, escondida). Mismos colores que la web de reservas. */
+  :root {
+    --ink: #17120d; --cream: #faf6ee; --card: #ffffff;
+    --gold: #c8922f; --gold-2: #e5b44b; --orange: #df7a2c;
+    --muted: #6f6252; --line: #e7dccb; --ok: #2f7d4f; --err: #b3261e;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--cream); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.5; }
+  a { color: inherit; }
+  [hidden] { display: none !important; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 16px; }
+  .test-bar { background: var(--orange); color: #fff; text-align: center; font-size: .82rem; font-weight: 600; padding: 6px 16px; }
+
+  header.top { background: #fffaf2; border-bottom: 3px solid var(--gold-2); }
+  header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 64px; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .brand img { flex: none; height: 46px; width: auto; display: block; }
+  .word { display: flex; flex-direction: column; line-height: 1; }
+  .word b { font-family: Georgia, 'Times New Roman', serif; font-size: 1.3rem; letter-spacing: .08em; }
+  .word small { font-size: .58rem; letter-spacing: .42em; color: var(--orange); margin-top: 4px; }
+  .langs { display: flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: #fff; }
+  .langs button { background: none; border: 0; color: var(--muted); font-weight: 700; font-size: .8rem; padding: 7px 11px; cursor: pointer; }
+  .langs button.on { background: var(--ink); color: #fff; }
+
+  main { padding: 22px 0 40px; }
+  h1 { font-family: Georgia, 'Times New Roman', serif; font-size: 1.6rem; margin: 0 0 4px; overflow-wrap: anywhere; }
+  .lead { color: var(--muted); margin: 0 0 18px; }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
+  .narrow { max-width: 440px; margin: 0 auto; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 5px; }
+  input, select, textarea { width: 100%; font: inherit; font-size: 16px; color: var(--ink); background: #fff; border: 1.5px solid var(--line); border-radius: 10px; padding: 11px 12px; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(200,146,47,.18); }
+  textarea { min-height: 96px; resize: vertical; }
+  .btn { display: block; width: 100%; border: 0; border-radius: 12px; padding: 13px; font-size: 1rem; font-weight: 800; cursor: pointer; background: linear-gradient(135deg, var(--gold-2), var(--orange)); color: var(--ink); text-align: center; text-decoration: none; }
+  .btn:disabled { opacity: .55; cursor: wait; }
+  .btn.dark { background: var(--ink); color: #fff; }
+  .btn.ghost { background: #fff; border: 1.5px solid var(--line); color: var(--ink); }
+  .link { background: none; border: 0; padding: 6px 0; color: var(--muted); font-weight: 600; cursor: pointer; font-size: .92rem; text-decoration: underline; }
+  .err { background: #fdecea; color: var(--err); border-radius: 10px; padding: 10px 12px; font-size: .9rem; margin: 0 0 12px; }
+  .ok { background: #eef6f0; color: #1f5b37; border-radius: 10px; padding: 10px 12px; font-size: .9rem; margin: 0 0 12px; }
+  .note { font-size: .85rem; color: var(--muted); margin: 12px 0 0; }
+  .test-note { font-size: .8rem; color: var(--orange); font-weight: 600; text-align: center; margin: 14px 0 0; }
+
+  .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: #f3ece0; padding: 4px; border-radius: 12px; margin: 0 0 16px; }
+  .tabs button { position: relative; border: 0; background: none; padding: 10px 4px; border-radius: 9px; font-weight: 700; font-size: .9rem; color: var(--muted); cursor: pointer; }
+  .tabs button.on { background: var(--ink); color: #fff; }
+  .badge { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 4px; border-radius: 999px; background: var(--orange); color: #fff; font-size: .72rem; line-height: 18px; }
+
+  h2.sub { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 18px 0 8px; }
+  .bk { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+  .bk.past { opacity: .8; }
+  .bk-head { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+  .bk-head .pill { order: -1; }
+  .bk-when { font-weight: 800; font-size: 1.05rem; }
+  .bk-ref { color: var(--muted); font-size: .82rem; }
+  .pill { display: inline-block; border-radius: 999px; padding: 3px 10px; font-size: .75rem; font-weight: 700; white-space: nowrap; background: #f3ece0; color: var(--muted); }
+  .pill.asignada { background: #e3f0ff; color: #1d4f91; }
+  .pill.hecha { background: #eef6f0; color: var(--ok); }
+  .pill.cancelada { background: #fdecea; color: var(--err); }
+  .route { margin: 10px 0; padding-left: 14px; border-left: 3px solid var(--gold-2); }
+  .route div { overflow-wrap: anywhere; }
+  .route small { display: block; color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; }
+  .facts { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .88rem; color: var(--muted); margin: 6px 0; }
+  .facts b { color: var(--ink); }
+  .driver { background: #f7f1e6; border-radius: 10px; padding: 10px 12px; margin: 10px 0; font-size: .92rem; }
+  .total { display: flex; justify-content: space-between; align-items: baseline; border-top: 1px dashed var(--line); padding-top: 8px; margin-top: 8px; }
+  .total b { font-size: 1.2rem; }
+  .acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .acts .btn { font-size: .88rem; padding: 10px 8px; font-weight: 700; }
+  .acts .btn small { display: block; font-weight: 600; color: var(--muted); font-size: .78rem; white-space: nowrap; }
+  .acts .full { grid-column: 1 / -1; }
+  .warn { font-size: .82rem; color: var(--muted); margin: 8px 0 0; }
+  .empty { text-align: center; color: var(--muted); padding: 24px 8px; }
+
+  .chat { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+  .msg { max-width: 86%; border-radius: 14px; padding: 9px 12px; font-size: .95rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .msg.me { align-self: flex-end; background: var(--ink); color: #fff; border-bottom-right-radius: 4px; }
+  .msg.them { align-self: flex-start; background: #fff; border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+  .msg.sys { align-self: center; background: #f3ece0; color: var(--muted); font-size: .82rem; }
+  .msg small { display: block; opacity: .7; font-size: .72rem; margin-top: 3px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 420px) { .row2 { grid-template-columns: 1fr; } .brand img { height: 40px; } }
+</style>
+</head>
+<body>
+<div class="test-bar" data-i18n="testBar"></div>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="/bravo/" aria-label="Bravo Transfers">
+      <img src="/api/bravo/logo.png" alt="" width="64" height="46">
+      <span class="word"><b>BRAVO</b><small>TRANSFERS</small></span>
+    </a>
+    <div class="langs" role="group" aria-label="Language">
+      <button type="button" data-lang="es">ES</button><button type="button" data-lang="en">EN</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- Entrar -->
+  <section id="v-login" class="narrow" hidden>
+    <h1 data-i18n="loginTitle"></h1>
+    <p class="lead" data-i18n="loginLead"></p>
+    <form class="panel" id="f-login" novalidate>
+      <div class="err" id="login-err" role="alert" hidden></div>
+      <div class="field"><label for="l-email" data-i18n="email"></label><input id="l-email" type="email" autocomplete="username" inputmode="email" required></div>
+      <div class="field"><label for="l-pass" data-i18n="password"></label><input id="l-pass" type="password" autocomplete="current-password" required></div>
+      <button class="btn" type="submit" data-i18n="enter"></button>
+      <button class="link" type="button" id="go-forgot" data-i18n="forgot"></button>
+    </form>
+    <p class="note" data-i18n="noAccount"></p>
+    <a class="btn ghost" href="/bravo/" data-i18n="book" style="margin-top:8px"></a>
+  </section>
+
+  <!-- He olvidado la contraseña -->
+  <section id="v-forgot" class="narrow" hidden>
+    <h1 data-i18n="forgotTitle"></h1>
+    <p class="lead" data-i18n="forgotLead"></p>
+    <form class="panel" id="f-forgot" novalidate>
+      <div class="err" id="forgot-err" role="alert" hidden></div>
+      <div class="ok" id="forgot-ok" hidden></div>
+      <div class="field"><label for="fg-email" data-i18n="email"></label><input id="fg-email" type="email" autocomplete="username" inputmode="email" required></div>
+      <button class="btn" type="submit" data-i18n="sendLink"></button>
+      <button class="link" type="button" id="back-login" data-i18n="backLogin"></button>
+    </form>
+  </section>
+
+  <!-- La cuenta -->
+  <section id="v-area" hidden>
+    <h1 id="hello"></h1>
+    <p class="lead" id="hello-sub"></p>
+    <div class="tabs" role="tablist">
+      <button type="button" data-tab="bookings"><span data-i18n="tabBookings"></span><span class="badge" id="b-up" hidden></span></button>
+      <button type="button" data-tab="messages"><span data-i18n="tabMessages"></span><span class="badge" id="b-msg" hidden></span></button>
+      <button type="button" data-tab="profile" data-i18n="tabProfile"></button>
+    </div>
+    <div class="ok" id="area-ok" role="status" hidden></div>
+    <div class="err" id="area-err" role="alert" hidden></div>
+
+    <div id="t-bookings">
+      <div id="list-up"></div>
+      <div id="list-past"></div>
+      <a class="btn" href="/bravo/" data-i18n="newBooking" style="margin-top:6px"></a>
+    </div>
+
+    <div id="t-messages" hidden>
+      <div class="chat" id="chat"></div>
+      <form class="panel" id="f-msg" novalidate>
+        <div class="field"><label for="m-ref" data-i18n="aboutBooking"></label><select id="m-ref"></select></div>
+        <div class="field"><label for="m-text" data-i18n="yourMessage"></label><textarea id="m-text" maxlength="2000" required></textarea></div>
+        <input type="hidden" id="m-kind" value="mensaje">
+        <button class="btn" type="submit" data-i18n="send"></button>
+        <p class="note" data-i18n="msgNote"></p>
+      </form>
+    </div>
+
+    <div id="t-profile" hidden>
+      <form class="panel" id="f-profile" novalidate style="margin-bottom:14px">
+        <div class="field"><label data-i18n="email"></label><input id="p-email" type="email" disabled></div>
+        <div class="row2">
+          <div class="field"><label for="p-name" data-i18n="name"></label><input id="p-name" autocomplete="name" maxlength="80" required></div>
+          <div class="field"><label for="p-phone" data-i18n="phone"></label><input id="p-phone" type="tel" autocomplete="tel" maxlength="25"></div>
+        </div>
+        <div class="field"><label for="p-lang" data-i18n="emailLang"></label><select id="p-lang"><option value="es">Español</option><option value="en">English</option></select></div>
+        <button class="btn" type="submit" data-i18n="save"></button>
+      </form>
+      <form class="panel" id="f-pass" novalidate style="margin-bottom:14px">
+        <div class="field"><label for="pw-cur" data-i18n="curPass"></label><input id="pw-cur" type="password" autocomplete="current-password" required></div>
+        <div class="field"><label for="pw-new" data-i18n="newPass"></label><input id="pw-new" type="password" autocomplete="new-password" minlength="8" required></div>
+        <button class="btn dark" type="submit" data-i18n="changePass"></button>
+      </form>
+      <button class="btn ghost" type="button" id="logout" data-i18n="logout"></button>
+      <p class="note" data-i18n="privacy"></p>
+    </div>
+  </section>
+
+  <section id="v-loading" class="narrow"><p class="empty" data-i18n="loading"></p></section>
+  <p class="test-note" data-i18n="testNote"></p>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  var NOTIFY_KEY = '51f8ca24-f99c-4869-827a-3d13671053e9';
+  var T = {
+    es: {
+      testBar: 'Versión de prueba · solo la vemos nosotros', testNote: 'Versión de prueba: no se cobra nada.', loading: 'Cargando…',
+      loginTitle: 'Mi cuenta', loginLead: 'Entra con tu correo y la contraseña que te mandamos al reservar.',
+      email: 'Correo electrónico', password: 'Contraseña', enter: 'Entrar', forgot: 'He olvidado la contraseña',
+      noAccount: 'La cuenta se crea sola con tu primera reserva: te mandamos la contraseña por correo.', book: 'Reservar un traslado',
+      forgotTitle: 'Entrar sin contraseña', forgotLead: 'Te mandamos un enlace a tu correo para entrar. Vale durante 2 horas.',
+      sendLink: 'Enviarme el enlace', backLogin: '← Volver', forgotOk: 'Si ese correo tiene una cuenta, te acabamos de mandar el enlace. Mira también en el correo no deseado.',
+      forgotOff: 'Todavía no podemos mandar correos desde aquí. Escríbenos por WhatsApp y te ayudamos.',
+      hello: 'Hola, {name}', helloSub: 'Aquí tienes tus reservas, tus facturas y tus mensajes.',
+      tabBookings: 'Reservas', tabMessages: 'Mensajes', tabProfile: 'Mis datos',
+      upcoming: 'Próximas', past: 'Anteriores y canceladas', noBookings: 'Todavía no tienes reservas.', newBooking: 'Hacer una reserva nueva',
+      st_pendiente: 'Confirmada · buscando conductor', st_asignada: 'Conductor asignado', st_hecha: 'Hecha', st_cancelada: 'Cancelada', st_quote: 'Presupuesto pendiente',
+      from: 'Recogida', to: 'Destino', ret: 'Vuelta', pax: 'Pasajeros', veh_car: 'Coche', veh_van: 'Monovolumen', flight: 'Vuelo', bags: 'Maletas', seats: 'Sillas de niño',
+      hours: '{h} horas con conductor', group: 'Grupo', total: 'Total', ivaInc: 'IVA incluido', quotePending: 'Te mandaremos el presupuesto',
+      driver: 'Tu conductor', car: 'Coche', call: 'Llamar',
+      docConf: '📄 Justificante', docInv: '🧾 Factura', docRect: '🧾 Rectificativa', docVoid: '(anulada)', ics: '📅 A mi calendario',
+      change: '✏️ Pedir un cambio', cancel: '✖ Cancelar', cancelAsk: '¿Seguro que quieres cancelar la reserva {ref} del {when}?',
+      cancelInv: 'Como ya tiene factura, te haremos la factura de anulación y, si la pagaste, te devolveremos el dinero.',
+      cancelled: 'Reserva {ref} cancelada. Te escribiremos si hace falta algo más.',
+      tooLate: 'Para cancelar o cambiar con menos de {h} horas, escríbenos en «Mensajes» o por WhatsApp.',
+      changeText: 'Hola, quiero cambiar la reserva {ref}: ',
+      aboutBooking: 'Sobre la reserva', general: 'Consulta general', yourMessage: 'Tu mensaje', send: 'Enviar',
+      msgNote: 'Te contestamos aquí y por correo. Si es urgente (hoy mismo), mejor por WhatsApp.',
+      sent: 'Mensaje enviado. Te contestaremos lo antes posible.', noMessages: 'Aquí verás lo que nos escribas y nuestras respuestas.',
+      from_bravo: 'Bravo Transfers', from_me: 'Tú',
+      name: 'Nombre y apellidos', phone: 'Teléfono (con prefijo)', emailLang: 'Idioma de los correos', save: 'Guardar mis datos', saved: 'Datos guardados.',
+      curPass: 'Contraseña actual', newPass: 'Contraseña nueva (8 letras o más)', changePass: 'Cambiar la contraseña', passChanged: 'Contraseña cambiada.',
+      logout: 'Salir de mi cuenta',
+      privacy: 'Tus datos solo se usan para tus viajes. Si quieres que borremos tu cuenta, escríbenos en «Mensajes» (las facturas hay que guardarlas por ley).',
+      err_wrong_login: 'El correo o la contraseña no son correctos.', err_bad_link: 'Ese enlace ha caducado o ya se usó. Entra con tu contraseña o pide otro enlace.',
+      err_too_many_attempts: 'Demasiados intentos. Espera un rato y vuelve a probar.', err_too_many: 'Demasiados intentos. Espera un rato.',
+      err_wrong_password: 'La contraseña actual no es correcta.', err_short_password: 'La contraseña nueva tiene que tener 8 letras o más.',
+      err_bad_name: 'Escribe tu nombre.', err_bad_phone: 'Revisa el teléfono.', err_empty: 'Escribe el mensaje.',
+      err_cannot_cancel: 'Esta reserva ya no se puede cancelar desde aquí. Escríbenos.', err_network: 'No hay conexión. Prueba otra vez.',
+      err_need: 'Rellena el correo y la contraseña.', err_generic: 'Algo ha fallado. Prueba otra vez o escríbenos por WhatsApp.'
+    },
+    en: {
+      testBar: 'Test version · only visible to us', testNote: 'Test version: nothing is charged.', loading: 'Loading…',
+      loginTitle: 'My account', loginLead: 'Sign in with your email and the password we sent you when you booked.',
+      email: 'Email', password: 'Password', enter: 'Sign in', forgot: 'I forgot my password',
+      noAccount: 'Your account is created with your first booking: we email you the password.', book: 'Book a transfer',
+      forgotTitle: 'Sign in without a password', forgotLead: 'We will email you a link to sign in. It works for 2 hours.',
+      sendLink: 'Send me the link', backLogin: '← Back', forgotOk: 'If that email has an account, we have just sent the link. Check your spam folder too.',
+      forgotOff: 'We cannot send emails from here yet. Message us on WhatsApp and we will help.',
+      hello: 'Hello, {name}', helloSub: 'Here are your bookings, your invoices and your messages.',
+      tabBookings: 'Bookings', tabMessages: 'Messages', tabProfile: 'My details',
+      upcoming: 'Upcoming', past: 'Past and cancelled', noBookings: 'You have no bookings yet.', newBooking: 'Make a new booking',
+      st_pendiente: 'Confirmed · assigning driver', st_asignada: 'Driver assigned', st_hecha: 'Completed', st_cancelada: 'Cancelled', st_quote: 'Quote pending',
+      from: 'Pick-up', to: 'Drop-off', ret: 'Return', pax: 'Passengers', veh_car: 'Car', veh_van: 'People carrier', flight: 'Flight', bags: 'Suitcases', seats: 'Child seats',
+      hours: '{h} hours with driver', group: 'Group', total: 'Total', ivaInc: 'VAT included', quotePending: 'We will send you a quote',
+      driver: 'Your driver', car: 'Car', call: 'Call',
+      docConf: '📄 Confirmation', docInv: '🧾 Invoice', docRect: '🧾 Credit note', docVoid: '(cancelled)', ics: '📅 Add to calendar',
+      change: '✏️ Request a change', cancel: '✖ Cancel', cancelAsk: 'Are you sure you want to cancel booking {ref} on {when}?',
+      cancelInv: 'As it has already been invoiced, we will issue a credit note and refund you if you paid.',
+      cancelled: 'Booking {ref} cancelled. We will contact you if anything else is needed.',
+      tooLate: 'To cancel or change with less than {h} hours’ notice, message us in “Messages” or on WhatsApp.',
+      changeText: 'Hello, I would like to change booking {ref}: ',
+      aboutBooking: 'About booking', general: 'General question', yourMessage: 'Your message', send: 'Send',
+      msgNote: 'We reply here and by email. If it is urgent (today), WhatsApp is faster.',
+      sent: 'Message sent. We will reply as soon as possible.', noMessages: 'Your messages and our replies will appear here.',
+      from_bravo: 'Bravo Transfers', from_me: 'You',
+      name: 'Full name', phone: 'Phone (with country code)', emailLang: 'Email language', save: 'Save my details', saved: 'Details saved.',
+      curPass: 'Current password', newPass: 'New password (8 characters or more)', changePass: 'Change password', passChanged: 'Password changed.',
+      logout: 'Sign out',
+      privacy: 'Your details are only used for your trips. To delete your account, message us in “Messages” (invoices must be kept by law).',
+      err_wrong_login: 'Wrong email or password.', err_bad_link: 'That link has expired or was already used. Sign in with your password or ask for a new link.',
+      err_too_many_attempts: 'Too many attempts. Please wait a while and try again.', err_too_many: 'Too many attempts. Please wait a while.',
+      err_wrong_password: 'The current password is not correct.', err_short_password: 'The new password must have 8 characters or more.',
+      err_bad_name: 'Please write your name.', err_bad_phone: 'Please check the phone number.', err_empty: 'Please write the message.',
+      err_cannot_cancel: 'This booking can no longer be cancelled here. Please message us.', err_network: 'No connection. Please try again.',
+      err_need: 'Please fill in the email and password.', err_generic: 'Something went wrong. Please try again or message us on WhatsApp.'
+    }
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+  var qsa = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); };
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+
+  var lang = 'es';
+  try {
+    var saved = localStorage.getItem('bravo_lang');
+    if (saved === 'es' || saved === 'en') lang = saved;
+    else if ((navigator.language || '').slice(0, 2) !== 'es') lang = 'en';
+  } catch (e) { if ((navigator.language || '').slice(0, 2) !== 'es') lang = 'en'; }
+  function t(k) { return (T[lang] && T[lang][k]) || T.es[k] || k; }
+
+  function money(n) {
+    try { return new Intl.NumberFormat(lang === 'es' ? 'es-ES' : 'en-IE', { style: 'currency', currency: 'EUR' }).format(n); }
+    catch (e) { return '€' + n; }
+  }
+  function fmtDate(d) {
+    try { return new Date(d + 'T12:00:00').toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'long' }); }
+    catch (e) { return d; }
+  }
+  function fmtStamp(iso) {
+    try { return new Date(iso).toLocaleString(lang === 'es' ? 'es-ES' : 'en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); }
+    catch (e) { return iso; }
+  }
+
+  var state = { view: 'loading', tab: 'bookings', me: null };
+
+  async function api(route, body) {
+    var res;
+    try {
+      res = await fetch('/api/bravo/customer/' + route, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), credentials: 'same-origin' } : { credentials: 'same-origin' });
+    } catch (e) { throw { code: 'network' }; }
+    var data = {};
+    try { data = await res.json(); } catch (e) { /* vacío */ }
+    if (res.status === 401 && data.error === 'unauthorized') { location.reload(); throw { code: 'generic' }; }
+    if (!res.ok) throw { code: data.error || 'generic', status: res.status };
+    return data;
+  }
+  function errText(e) { var c = (e && e.code) || 'generic'; return T.es['err_' + c] ? t('err_' + c) : t('err_generic'); }
+  function setMsg(id, text) { $(id).textContent = text || ''; $(id).hidden = !text; }
+  function busy(form, on) { qsa('button[type=submit]', form).forEach(function (b) { b.disabled = on; }); }
+
+  function show(view) {
+    state.view = view;
+    ['login', 'forgot', 'area', 'loading'].forEach(function (v) { $('v-' + v).hidden = v !== view; });
+    window.scrollTo(0, 0);
+  }
+  function setTab(tab) {
+    state.tab = tab;
+    qsa('[data-tab]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-tab') === tab); });
+    ['bookings', 'messages', 'profile'].forEach(function (x) { $('t-' + x).hidden = x !== tab; });
+    setMsg('area-ok', ''); setMsg('area-err', '');
+    if (tab === 'messages' && state.me && state.me.newFromBravo) {
+      $('b-msg').hidden = true; state.me.newFromBravo = 0;
+      api('read', {}).catch(function () {});
+    }
+  }
+  qsa('[data-tab]').forEach(function (b) { b.addEventListener('click', function () { setTab(b.getAttribute('data-tab')); }); });
+
+  // ---------- cargar la cuenta ----------
+  async function load() {
+    try {
+      state.me = await api('me');
+      renderArea();
+      if (state.view !== 'area') { show('area'); setTab(state.tab); }
+    } catch (e) {
+      if (e.status === 401) show('login');
+      else { show('login'); setMsg('login-err', errText(e)); }
+    }
+  }
+
+  function upcoming(b) {
+    if (b.status === 'cancelada' || b.status === 'hecha') return false;
+    var end = (b.roundTrip && b.returnDate ? b.returnDate + 'T' + (b.returnTime || '23:59') : b.date + 'T' + (b.time || '23:59'));
+    return new Date(end + ':00').getTime() > Date.now() - 6 * 3600000;
+  }
+
+  function renderArea() {
+    var me = state.me;
+    $('hello').textContent = t('hello').replace('{name}', (me.customer.name || '').split(' ')[0] || '');
+    $('hello-sub').textContent = t('helloSub');
+    var up = me.bookings.filter(upcoming).sort(function (a, b) { return (a.date + a.time).localeCompare(b.date + b.time); });
+    var past = me.bookings.filter(function (b) { return !upcoming(b); });
+    $('b-up').textContent = up.length; $('b-up').hidden = !up.length;
+    $('list-up').innerHTML = up.length ? '<h2 class="sub">' + esc(t('upcoming')) + '</h2>' + up.map(function (b) { return card(b, false); }).join('') : '<p class="empty">' + esc(t('noBookings')) + '</p>';
+    $('list-past').innerHTML = past.length ? '<h2 class="sub">' + esc(t('past')) + '</h2>' + past.map(function (b) { return card(b, true); }).join('') : '';
+    // mensajes
+    $('chat').innerHTML = me.messages.length ? me.messages.map(function (m) {
+      var cls = m.from === 'cliente' ? 'me' : m.from === 'bravo' ? 'them' : 'sys';
+      var who = m.from === 'cliente' ? t('from_me') : m.from === 'bravo' ? t('from_bravo') : '';
+      return '<div class="msg ' + cls + '">' + esc(m.text) + '<small>' + esc((who ? who + ' · ' : '') + (m.ref ? m.ref + ' · ' : '') + fmtStamp(m.at)) + '</small></div>';
+    }).join('') : '<p class="empty">' + esc(t('noMessages')) + '</p>';
+    $('b-msg').textContent = me.newFromBravo || ''; $('b-msg').hidden = !me.newFromBravo || state.tab === 'messages';
+    var sel = $('m-ref'), keep = sel.value;
+    sel.innerHTML = '<option value="">' + esc(t('general')) + '</option>' + me.bookings.map(function (b) {
+      return '<option value="' + esc(b.ref) + '">' + esc(b.ref + ' · ' + b.date.split('-').reverse().join('/') + ' ' + b.time) + '</option>';
+    }).join('');
+    sel.value = keep;
+    // datos
+    $('p-email').value = me.customer.email;
+    if (document.activeElement !== $('p-name')) $('p-name').value = me.customer.name || '';
+    if (document.activeElement !== $('p-phone')) $('p-phone').value = me.customer.phone || '';
+    $('p-lang').value = me.customer.lang || 'es';
+  }
+
+  function card(b, isPast) {
+    var group = b.kind === 'group';
+    var st = group && b.status === 'pendiente' && b.price == null ? 'quote' : b.status;
+    var h = '<article class="bk' + (isPast ? ' past' : '') + '">';
+    h += '<div class="bk-head"><div><div class="bk-when">' + esc(fmtDate(b.date)) + ' · ' + esc(b.time) + '</div><div class="bk-ref">' + esc(b.ref) + '</div></div>' +
+      '<span class="pill ' + esc(b.status) + '">' + esc(t('st_' + st)) + '</span></div>';
+    h += '<div class="route"><small>' + esc(t('from')) + '</small><div>' + esc(b.from) + '</div>';
+    if (b.to) h += '<small style="margin-top:6px">' + esc(t('to')) + '</small><div>' + esc(b.to) + '</div>';
+    h += '</div>';
+    var f = [];
+    if (b.kind === 'hourly') f.push('<b>' + esc(t('hours').replace('{h}', b.hours)) + '</b>');
+    if (group) f.push('<b>' + esc(t('group')) + '</b>');
+    if (b.roundTrip) f.push(esc(t('ret')) + ': <b>' + esc(b.returnDate.split('-').reverse().join('/') + ' · ' + b.returnTime) + '</b>');
+    f.push(esc(t('pax')) + ': <b>' + esc(b.passengers) + '</b>');
+    if (b.vehicle) f.push('<b>' + esc(t('veh_' + b.vehicle)) + '</b>');
+    if (b.flight) f.push(esc(t('flight')) + ': <b>' + esc(b.flight) + '</b>');
+    if (b.bags) f.push(esc(t('bags')) + ': <b>' + esc(b.bags) + '</b>');
+    if (b.childSeats) f.push(esc(t('seats')) + ': <b>' + esc(b.childSeats) + '</b>');
+    h += '<div class="facts">' + f.map(function (x) { return '<span>' + x + '</span>'; }).join('') + '</div>';
+    if (b.driver) {
+      h += '<div class="driver">🚗 ' + esc(t('driver')) + ': <b>' + esc(b.driver.name) + '</b>' + (b.driver.car ? '<br>' + esc(t('car')) + ': ' + esc(b.driver.car) : '') +
+        (b.driver.phone ? '<br><a href="tel:' + esc(b.driver.phone.replace(/[^0-9+]/g, '')) + '">' + esc(t('call')) + ' ' + esc(b.driver.phone) + '</a>' : '') + '</div>';
+    }
+    h += '<div class="total"><span>' + esc(t('total')) + (b.price != null ? ' <small style="color:var(--muted)">(' + esc(t('ivaInc')) + ')</small>' : '') + '</span><b>' +
+      esc(b.price != null ? money(b.price) : t('quotePending')) + '</b></div>';
+    h += '<div class="acts">';
+    if (!group) h += '<a class="btn ghost" href="' + esc(b.docs.justificante) + '" target="_blank" rel="noopener">' + esc(t('docConf')) + '<small>' + esc(b.ref) + '</small></a>';
+    b.docs.invoices.slice().sort(function (x, y) { return (x.status === 'emitida' ? 0 : 1) - (y.status === 'emitida' ? 0 : 1) || (x.number < y.number ? 1 : -1); }).forEach(function (i) {
+      var rect = i.number.charAt(0) === 'R';
+      h += '<a class="btn ghost" href="' + esc(i.url) + '" target="_blank" rel="noopener">' + esc(t(rect ? 'docRect' : 'docInv')) +
+        '<small>' + esc(i.number + (!rect && i.status !== 'emitida' ? ' ' + t('docVoid') : '')) + '</small></a>';
+    });
+    if (!isPast && b.status !== 'cancelada') {
+      h += '<button type="button" class="btn ghost" data-ics="' + esc(b.ref) + '">' + esc(t('ics')) + '</button>';
+      h += '<button type="button" class="btn ghost" data-change="' + esc(b.ref) + '">' + esc(t('change')) + '</button>';
+      if (b.canCancel) h += '<button type="button" class="btn ghost full" style="color:var(--err)" data-cancel="' + esc(b.ref) + '">' + esc(t('cancel')) + '</button>';
+    }
+    h += '</div>';
+    if (!isPast && !b.canCancel && (b.status === 'pendiente' || b.status === 'asignada')) h += '<p class="warn">' + esc(t('tooLate').replace('{h}', state.me.cancelHours)) + '</p>';
+    return h + '</article>';
+  }
+
+  // Botones de las reservas
+  document.addEventListener('click', async function (ev) {
+    var el = ev.target.closest('[data-ics],[data-change],[data-cancel]');
+    if (!el) return;
+    var ref = el.getAttribute('data-ics') || el.getAttribute('data-change') || el.getAttribute('data-cancel');
+    var b = state.me.bookings.filter(function (x) { return x.ref === ref; })[0];
+    if (!b) return;
+    if (el.hasAttribute('data-ics')) return ics(b);
+    if (el.hasAttribute('data-change')) {
+      setTab('messages');
+      $('m-ref').value = b.ref; $('m-kind').value = 'cambio';
+      $('m-text').value = t('changeText').replace('{ref}', b.ref);
+      $('m-text').focus();
+      return;
+    }
+    var q = t('cancelAsk').replace('{ref}', b.ref).replace('{when}', fmtDate(b.date) + ' · ' + b.time);
+    if (b.docs.invoices.some(function (i) { return i.status === 'emitida'; })) q += '\n\n' + t('cancelInv');
+    if (!window.confirm(q)) return;
+    el.disabled = true;
+    try {
+      await api('cancel', { ref: b.ref });
+      notify('Cancelación ' + b.ref, ['El cliente ' + state.me.customer.name + ' (' + state.me.customer.email + ') ha cancelado la reserva ' + b.ref + ' del ' + b.date + ' a las ' + b.time + '.']);
+      await load();
+      setMsg('area-ok', t('cancelled').replace('{ref}', b.ref));
+    } catch (e) { el.disabled = false; setMsg('area-err', errText(e)); }
+  });
+
+  // El viaje en el calendario del móvil (.ics)
+  function ics(b) {
+    var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+    var dt = function (d, tm) { return d.replace(/-/g, '') + 'T' + tm.replace(':', '') + '00'; };
+    var stamp = new Date(), st = stamp.getUTCFullYear() + pad(stamp.getUTCMonth() + 1) + pad(stamp.getUTCDate()) + 'T' + pad(stamp.getUTCHours()) + pad(stamp.getUTCMinutes()) + '00Z';
+    var txt = function (s) { return String(s || '').replace(/[\\;,]/g, function (c) { return '\\' + c; }).replace(/\n/g, '\\n'); };
+    var desc = b.ref + (b.to ? '\n' + b.from + ' → ' + b.to : '\n' + b.from) + (b.flight ? '\n' + t('flight') + ': ' + b.flight : '') + (b.driver ? '\n' + t('driver') + ': ' + b.driver.name + ' ' + b.driver.phone : '');
+    var ev = function (d, tm, id, title) {
+      var end = new Date(d + 'T' + tm + ':00'); end.setHours(end.getHours() + (b.hours || 1));
+      var ed = end.getFullYear() + '-' + pad(end.getMonth() + 1) + '-' + pad(end.getDate()), et = pad(end.getHours()) + ':' + pad(end.getMinutes());
+      return ['BEGIN:VEVENT', 'UID:' + id + '@bravo-transfers', 'DTSTAMP:' + st, 'DTSTART;TZID=Europe/Madrid:' + dt(d, tm), 'DTEND;TZID=Europe/Madrid:' + dt(ed, et),
+        'SUMMARY:' + txt(title), 'LOCATION:' + txt(b.from), 'DESCRIPTION:' + txt(desc), 'BEGIN:VALARM', 'TRIGGER:-PT2H', 'ACTION:DISPLAY', 'DESCRIPTION:' + txt(title), 'END:VALARM', 'END:VEVENT'];
+    };
+    var lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Bravo Transfers//ES', 'CALSCALE:GREGORIAN'].concat(ev(b.date, b.time, b.ref, 'Bravo Transfers · ' + b.ref));
+    if (b.roundTrip && b.returnDate) lines = lines.concat(ev(b.returnDate, b.returnTime, b.ref + '-R', 'Bravo Transfers · ' + b.ref + ' (' + t('ret') + ')'));
+    lines.push('END:VCALENDAR');
+    var blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = b.ref + '.ics';
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+  }
+
+  // Aviso a Alberto (Web3Forms, como la web de reservas). Si falla, el mensaje ya está guardado.
+  function notify(subject, lines) {
+    try {
+      fetch('https://api.web3forms.com/submit', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ access_key: NOTIFY_KEY, subject: 'Bravo Transfers (pruebas) — ' + subject, from_name: 'Bravo Transfers',
+          message: lines.concat(['', 'Panel: https://albertcourierexpress.com/bravo/panel/']).join('\n') })
+      }).catch(function () {});
+    } catch (e) { /* sin aviso */ }
+  }
+
+  // ---------- formularios ----------
+  $('f-login').addEventListener('submit', async function (ev) {
+    ev.preventDefault(); setMsg('login-err', '');
+    var email = $('l-email').value.trim(), pw = $('l-pass').value;
+    if (!email || !pw) return setMsg('login-err', t('err_need'));
+    busy(this, true);
+    try { await api('login', { email: email, password: pw }); $('l-pass').value = ''; await load(); }
+    catch (e) { setMsg('login-err', errText(e)); }
+    finally { busy(this, false); }
+  });
+  $('go-forgot').addEventListener('click', function () { $('fg-email').value = $('l-email').value; setMsg('forgot-ok', ''); setMsg('forgot-err', ''); show('forgot'); });
+  $('back-login').addEventListener('click', function () { show('login'); });
+  $('f-forgot').addEventListener('submit', async function (ev) {
+    ev.preventDefault(); setMsg('forgot-err', ''); setMsg('forgot-ok', '');
+    var email = $('fg-email').value.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return setMsg('forgot-err', t('err_need'));
+    busy(this, true);
+    try { var r = await api('forgot', { email: email }); setMsg('forgot-ok', r.emailOn ? t('forgotOk') : t('forgotOff')); }
+    catch (e) { setMsg('forgot-err', errText(e)); }
+    finally { busy(this, false); }
+  });
+
+  $('f-msg').addEventListener('submit', async function (ev) {
+    ev.preventDefault(); setMsg('area-ok', ''); setMsg('area-err', '');
+    var text = $('m-text').value.trim();
+    if (!text) return setMsg('area-err', t('err_empty'));
+    var body = { text: text, ref: $('m-ref').value, kind: $('m-kind').value };
+    busy(this, true);
+    try {
+      await api('message', body);
+      notify((body.kind === 'cambio' ? 'Petición de cambio' : 'Mensaje') + ' de ' + state.me.customer.name + (body.ref ? ' (' + body.ref + ')' : ''),
+        [text, '', 'Cliente: ' + state.me.customer.name + ' · ' + state.me.customer.email + (state.me.customer.phone ? ' · ' + state.me.customer.phone : '')]);
+      $('m-text').value = ''; $('m-kind').value = 'mensaje';
+      await load();
+      setMsg('area-ok', t('sent'));
+    } catch (e) { setMsg('area-err', errText(e)); }
+    finally { busy(this, false); }
+  });
+
+  $('f-profile').addEventListener('submit', async function (ev) {
+    ev.preventDefault(); setMsg('area-ok', ''); setMsg('area-err', '');
+    busy(this, true);
+    try {
+      await api('profile', { name: $('p-name').value, phone: $('p-phone').value, lang: $('p-lang').value });
+      await load(); setMsg('area-ok', t('saved'));
+    } catch (e) { setMsg('area-err', errText(e)); }
+    finally { busy(this, false); }
+  });
+  $('f-pass').addEventListener('submit', async function (ev) {
+    ev.preventDefault(); setMsg('area-ok', ''); setMsg('area-err', '');
+    busy(this, true);
+    try {
+      await api('password', { current: $('pw-cur').value, next: $('pw-new').value });
+      $('pw-cur').value = ''; $('pw-new').value = ''; setMsg('area-ok', t('passChanged'));
+    } catch (e) { setMsg('area-err', errText(e)); }
+    finally { busy(this, false); }
+  });
+  $('logout').addEventListener('click', async function () {
+    try { await api('logout', {}); } catch (e) { /* da igual */ }
+    state.me = null; state.tab = 'bookings'; show('login');
+  });
+
+  // ---------- idioma ----------
+  function applyLang() {
+    document.documentElement.lang = lang;
+    qsa('[data-i18n]').forEach(function (el) { el.textContent = t(el.getAttribute('data-i18n')); });
+    qsa('[data-lang]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-lang') === lang); });
+    if (state.me) renderArea();
+  }
+  qsa('[data-lang]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      lang = b.getAttribute('data-lang');
+      try { localStorage.setItem('bravo_lang', lang); } catch (e) { /* sin memoria */ }
+      applyLang();
+    });
+  });
+  applyLang();
+
+  // ---------- arranque: con el enlace del correo (?t=…) se entra sin contraseña ----------
+  (async function start() {
+    var m = /[?&]t=([a-f0-9]{48})/.exec(location.search);
+    if (m) {
+      try { history.replaceState(null, '', location.pathname); } catch (e) { /* da igual */ }
+      try { await api('link', { token: m[1] }); }
+      catch (e) { await load(); if (state.view !== 'area') setMsg('login-err', errText(e)); return; }
+    }
+    await load();
+  })();
+})();
+</script>
+</body>
+</html>

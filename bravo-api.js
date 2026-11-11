@@ -12,6 +12,8 @@ const crypto = require('crypto');
 const http = require('http');
 const https = require('https');
 const pdf = require('./bravo-pdf');
+const createMail = require('./bravo-mail');
+const TPL = createMail.templates;
 
 const DEFAULTS = {
   vehicles: {
@@ -20,6 +22,8 @@ const DEFAULTS = {
   },
   minHoursAhead: 24,
   hourly: { min: 2, max: 12 },
+  autoInvoice: true, // factura automática al reservar (con el IVA por defecto)
+  cancelHours: 24, // el cliente cancela solo hasta estas horas antes
   // Provisional: solo salidas desde la provincia de Málaga (caja aproximada)
   originBox: { latMin: 36.28, latMax: 37.32, lonMin: -5.65, lonMax: -3.75 },
   // Datos de las facturas: PROVISIONALES, se cambian desde el panel (Ajustes).
@@ -32,6 +36,8 @@ const COOKIE = 'bravo_pass';
 
 module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
   const KEY = process.env.BRAVO_KEY || process.env.STATS_KEY || '';
+  const mail = createMail();
+  const BASE = (process.env.PUBLIC_URL || 'https://albertcourierexpress.com').replace(/\/$/, '');
   const OSRM = (process.env.BRAVO_OSRM_URL || 'https://router.project-osrm.org').replace(/\/$/, '');
   const DIR = path.join(DATA_DIR, 'bravo');
   const BOOKINGS = path.join(DIR, 'bookings');
@@ -84,6 +90,8 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
     if (s.vehicles) for (const id of Object.keys(out.vehicles)) Object.assign(out.vehicles[id], s.vehicles[id] || {});
     if (Number.isFinite(s.minHoursAhead)) out.minHoursAhead = s.minHoursAhead;
     if (s.invoice) Object.assign(out.invoice, s.invoice);
+    if (typeof s.autoInvoice === 'boolean') out.autoInvoice = s.autoInvoice;
+    if (Number.isFinite(s.cancelHours)) out.cancelHours = s.cancelHours;
     return out;
   }
   function num(v, min, max, decimals) {
@@ -95,7 +103,13 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
   // Ajustes que manda el panel: se comprueba todo antes de guardar
   function readSettings(d) {
     const cur = settings();
-    const out = { vehicles: {}, minHoursAhead: cur.minHoursAhead, invoice: {} };
+    const out = { vehicles: {}, minHoursAhead: cur.minHoursAhead, invoice: {}, autoInvoice: cur.autoInvoice, cancelHours: cur.cancelHours };
+    if (d.autoInvoice !== undefined) out.autoInvoice = d.autoInvoice === true || d.autoInvoice === 'true';
+    if (d.cancelHours !== undefined) {
+      const ch = num(d.cancelHours, 0, 168, 0);
+      if (ch == null) return { error: 'bad_cancel_hours' };
+      out.cancelHours = ch;
+    }
     for (const id of Object.keys(cur.vehicles)) {
       const v = (d.vehicles || {})[id] || {};
       const perKm = num(v.perKm, 0, 20, 2), minFare = num(v.minFare, 0, 5000, 2), perHour = num(v.perHour, 0, 1000, 2);
@@ -145,6 +159,133 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
     return series + '-' + year + '-' + String(c[key]).padStart(4, '0');
   }
   function activeInvoice(b) { return Boolean(b.invoice && b.invoice.status === 'emitida'); }
+  function makeInvoice(b, vatRate, cus) {
+    const s = settings().invoice;
+    const date = today();
+    const total = Math.round(b.price * 100) / 100;
+    const base = Math.round((total / (1 + vatRate / 100)) * 100) / 100;
+    const previous = b.invoice ? [b.invoice].concat(b.previousInvoices || []) : (b.previousInvoices || []);
+    b.invoice = {
+      number: nextInvoiceNumber(date.slice(0, 4)), date, status: 'emitida', vatRate, total, base,
+      vat: Math.round((total - base) * 100) / 100,
+      issuer: { name: s.issuerName, taxId: s.taxId, address: s.address, email: s.email, phone: s.phone, footer: s.footer },
+      customer: { name: clean(cus.customerName, 120) || b.name, taxId: clean(cus.customerTaxId, 30), address: cleanLong(cus.customerAddress, 200), email: b.email },
+      concept: pdf.concept(b), createdAt: new Date().toISOString()
+    };
+    if (previous.length) b.previousInvoices = previous;
+    ensureTokens(b);
+  }
+
+  // ---------- clientes: su cuenta, contraseña, sesiones y mensajes ----------
+  const CUSTOMERS = path.join(DIR, 'customers.json');
+  const MESSAGES = path.join(DIR, 'messages.json');
+  function customers() { try { return JSON.parse(fs.readFileSync(CUSTOMERS, 'utf8')); } catch (e) { return []; } }
+  function saveCustomers(list) { writeJson(CUSTOMERS, list); }
+  function messages() { try { return JSON.parse(fs.readFileSync(MESSAGES, 'utf8')); } catch (e) { return []; } }
+  function saveMessages(list) { writeJson(MESSAGES, list); }
+  const sha = (x) => crypto.createHash('sha256').update(String(x)).digest('hex');
+  const hashPw = (pw, salt) => crypto.scryptSync(String(pw), salt, 32).toString('hex');
+  const normEmail = (e) => String(e || '').trim().toLowerCase();
+  function newPassword() {
+    const A = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    let out = '';
+    for (const x of crypto.randomBytes(10)) out += A[x % A.length];
+    return out;
+  }
+  // Al reservar: busca la cuenta por el correo o la crea con una contraseña nueva (que solo va en el correo)
+  function upsertCustomer(b) {
+    const list = customers(), email = normEmail(b.email);
+    let c = list.find((x) => x.email === email), password = null;
+    if (!c) {
+      password = newPassword();
+      const salt = crypto.randomBytes(16).toString('hex');
+      c = { id: crypto.randomBytes(6).toString('hex'), email, name: b.name, phone: b.phone, lang: b.lang, salt, pw: hashPw(password, salt), createdAt: new Date().toISOString(), sessions: [], tokens: [] };
+      list.push(c);
+    }
+    saveCustomers(list);
+    return { c, password };
+  }
+  function custCookie(req, value, maxAge) {
+    const secure = String(req.headers['x-forwarded-proto'] || '').includes('https') ? '; Secure' : '';
+    return `bravo_cust=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
+  }
+  function newSession(c) {
+    const tok = crypto.randomBytes(24).toString('hex');
+    c.sessions = (c.sessions || []).filter((x) => x.exp > Date.now()).slice(-9);
+    c.sessions.push({ h: sha(tok), exp: Date.now() + 60 * 86400000 });
+    return tok;
+  }
+  function loginToken(c, hours) {
+    const tok = crypto.randomBytes(24).toString('hex');
+    c.tokens = (c.tokens || []).filter((x) => x.exp > Date.now()).slice(-4);
+    c.tokens.push({ h: sha(tok), exp: Date.now() + hours * 3600000 });
+    return tok;
+  }
+  function currentCustomer(req) {
+    const tok = cookies(req).bravo_cust;
+    if (!tok || !/^[a-f0-9]{48}$/.test(tok)) return null;
+    const h = sha(tok), list = customers();
+    const c = list.find((x) => (x.sessions || []).some((y) => y.h === h && y.exp > Date.now()));
+    return c ? { c, list, h } : null;
+  }
+  const areaUrl = (tok) => BASE + '/bravo/cuenta/' + (tok ? '?t=' + tok : '');
+  function mine(c) { return allBookings().filter((b) => b.customerId === c.id || normEmail(b.email) === c.email); }
+  function custView(b, cfg) {
+    const assigned = ['asignada', 'hecha'].includes(b.status);
+    const when = madridMs(b.date, b.time);
+    return {
+      ref: b.ref, kind: b.kind, date: b.date, time: b.time, hours: b.hours || null,
+      from: b.kind === 'group' ? b.fromText : (b.from && b.from.label) || '', to: b.kind === 'group' ? b.toText : (b.to && b.to.label) || '',
+      roundTrip: Boolean(b.roundTrip), returnDate: b.returnDate || '', returnTime: b.returnTime || '', passengers: b.passengers, vehicle: b.vehicle || '',
+      km: b.km || null, price: b.price, status: b.status, payment: b.payment || '', flight: b.flight || '', bags: b.bags, childSeats: b.childSeats, comments: b.comments || '',
+      driver: assigned && b.driverName ? { name: b.driverName, phone: b.driverPhone || '', car: b.driverCar || '' } : null,
+      docs: {
+        justificante: '/api/bravo/doc/' + b.clientToken + '/justificante.pdf',
+        invoices: allInvoices(b).map((i) => ({ number: i.number, kind: i.kind || 'factura', status: i.status, total: i.total, url: '/api/bravo/doc/' + b.clientToken + '/f/' + i.number + '.pdf' }))
+      },
+      canCancel: ['pendiente', 'asignada'].includes(b.status) && Boolean(when) && when > Date.now() + cfg.cancelHours * 3600000,
+      cancelledBy: b.cancelledBy || null
+    };
+  }
+
+  // ---------- correos ----------
+  function issuerOf(cfg) { return { name: cfg.invoice.issuerName, email: cfg.invoice.email, phone: cfg.invoice.phone }; }
+  // Manda al cliente el correo de su reserva, con la factura y el justificante; lo apunta en la reserva
+  async function sendBookingEmail(ref, o) {
+    o = o || {};
+    let b;
+    try { b = JSON.parse(fs.readFileSync(bookingFile(ref), 'utf8')); } catch (e) { return { ok: false, error: 'not_found' }; }
+    const cfg = settings();
+    const list = customers(), c = list.find((x) => x.id === b.customerId) || list.find((x) => x.email === normEmail(b.email));
+    let link = areaUrl('');
+    if (c) { link = areaUrl(loginToken(c, 14 * 24)); saveCustomers(list); }
+    const atts = [];
+    if (activeInvoice(b)) atts.push({ name: b.invoice.number + '.pdf', buf: pdf.invoicePdf(b) });
+    atts.push({ name: (b.lang === 'en' ? 'booking-' : 'reserva-') + b.ref + '.pdf', buf: pdf.confirmationPdf(b, issuerOf(cfg)) });
+    const m = TPL.bookingEmail(b, { password: o.password, update: o.update, withInvoice: activeInvoice(b), areaUrl: link, cancelHours: cfg.cancelHours, base: BASE, test: /pruebas/.test(b.payment || '') });
+    const r = await mail.send({ to: b.email, toName: b.name, subject: m.subject, html: m.html, text: m.text, attachments: atts });
+    try {
+      const fresh = JSON.parse(fs.readFileSync(bookingFile(ref), 'utf8'));
+      fresh.emails = (fresh.emails || []).concat([{ at: new Date().toISOString(), kind: o.update ? 'actualización' : 'reserva', ok: r.ok, error: r.error || '' }]).slice(-20);
+      saveBooking(fresh);
+    } catch (e) { /* la reserva ya no está */ }
+    return r;
+  }
+  function notifyOwner(subject, lines) {
+    if (!mail.configured()) return;
+    const m = TPL.ownerEmail(subject, lines.filter(Boolean), { url: BASE + '/bravo/panel/', base: BASE });
+    mail.send({ to: mail.owner, subject: m.subject, html: m.html, text: m.text }).catch(() => {});
+  }
+  // Tras reservar: la cuenta del cliente, la factura automática y el correo
+  function afterBooking(b) {
+    const { c, password } = upsertCustomer(b);
+    b.customerId = c.id;
+    const cfg = settings();
+    if (cfg.autoInvoice && b.price > 0 && !activeInvoice(b)) makeInvoice(b, cfg.invoice.defaultVat, {});
+    saveBooking(b);
+    setImmediate(() => { sendBookingEmail(b.ref, { password }).catch(() => {}); });
+    return { newAccount: Boolean(password) };
+  }
   function allInvoices(b) { return [b.invoice].concat(b.previousInvoices || [], b.creditNotes || []).filter(Boolean); }
 
   // Cuentas del Plan General Contable (PGC) para cada categoría
@@ -853,7 +994,8 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
         const b = Object.assign({ ref: nextRef(), kind: 'group', fromText, toText, passengers: people, price: null }, base);
         ensureTokens(b);
         saveBooking(b);
-        return json(res, 200, { ref: b.ref, kind: 'group' });
+        const acct = afterBooking(b);
+        return json(res, 200, { ref: b.ref, kind: 'group', newAccount: acct.newAccount, emailOn: mail.configured(), area: '/bravo/cuenta/' });
       }
 
       if (when < Date.now() + cfg.minHoursAhead * 3600000) return json(res, 400, { error: 'too_soon', minHoursAhead: cfg.minHoursAhead });
@@ -878,7 +1020,173 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       }, base);
       ensureTokens(b);
       saveBooking(b);
-      return json(res, 200, { ref: b.ref, kind: b.kind, price: b.price, km: b.km, doc: '/api/bravo/doc/' + b.clientToken + '/justificante.pdf' });
+      const acct = afterBooking(b);
+      return json(res, 200, { ref: b.ref, kind: b.kind, price: b.price, km: b.km, doc: '/api/bravo/doc/' + b.clientToken + '/justificante.pdf',
+        invoiceDoc: activeInvoice(b) ? '/api/bravo/doc/' + b.clientToken + '/f/' + b.invoice.number + '.pdf' : '', newAccount: acct.newAccount, emailOn: mail.configured(), area: '/bravo/cuenta/' });
+    }
+
+    // ---------- área de cliente ----------
+    if (route.startsWith('customer/')) {
+      const sub = route.slice('customer/'.length);
+      if (req.method === 'POST' && (sub === 'login' || sub === 'link')) {
+        if (over('clogin:' + ip, 10, 900000) || over('clogin:all', 300, 3600000)) return json(res, 429, { error: 'too_many_attempts' });
+        let d;
+        try { d = JSON.parse(await readBody(req, 2000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+        const list = customers();
+        let c = null;
+        const ekey = 'clogin:e:' + sha(normEmail(d.email));
+        if (sub === 'login' && over(ekey, 8, 3600000)) return json(res, 429, { error: 'too_many_attempts' });
+        if (sub === 'login') {
+          const cand = list.find((x) => x.email === normEmail(d.email));
+          if (cand && cand.pw) {
+            const a = Buffer.from(hashPw(String(d.password || '').slice(0, 200), cand.salt), 'hex'), b2 = Buffer.from(cand.pw, 'hex');
+            if (a.length === b2.length && crypto.timingSafeEqual(a, b2)) c = cand;
+          }
+        } else if (/^[a-f0-9]{48}$/.test(d.token || '')) {
+          const h = sha(d.token);
+          c = list.find((x) => (x.tokens || []).some((t) => t.h === h && t.exp > Date.now()));
+          if (c) c.tokens = c.tokens.filter((t) => t.h !== h); // el enlace vale una sola vez
+        }
+        if (!c) {
+          over('clogin:' + ip, 10, 900000, true); over('clogin:all', 300, 3600000, true);
+          if (sub === 'login') over(ekey, 8, 3600000, true);
+          return json(res, 401, { error: sub === 'login' ? 'wrong_login' : 'bad_link' });
+        }
+        const tok = newSession(c);
+        c.lastLogin = new Date().toISOString();
+        saveCustomers(list);
+        return json(res, 200, { ok: true }, { 'Set-Cookie': custCookie(req, tok, 60 * 86400) });
+      }
+      if (req.method === 'POST' && sub === 'forgot') {
+        if (over('cforgot:' + ip, 5, 3600000, true)) return json(res, 429, { error: 'too_many' });
+        let d;
+        try { d = JSON.parse(await readBody(req, 1000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+        const list = customers(), c = list.find((x) => x.email === normEmail(d.email));
+        if (c && mail.configured() && !over('cforgot:e:' + c.id, 3, 3600000, true)) {
+          const tok = loginToken(c, 2);
+          saveCustomers(list);
+          const m = TPL.loginEmail(c, { url: areaUrl(tok), hours: 2, base: BASE });
+          mail.send({ to: c.email, toName: c.name, subject: m.subject, html: m.html, text: m.text }).catch(() => {});
+        }
+        // La misma respuesta exista o no la cuenta (para no delatar qué correos son clientes)
+        return json(res, 200, { ok: true, emailOn: mail.configured() });
+      }
+      if (req.method === 'POST' && sub === 'logout') {
+        const cur = currentCustomer(req);
+        if (cur) { cur.c.sessions = cur.c.sessions.filter((x) => x.h !== cur.h); saveCustomers(cur.list); }
+        return json(res, 200, { ok: true }, { 'Set-Cookie': custCookie(req, '', 0) });
+      }
+      const cur = currentCustomer(req);
+      if (!cur) return json(res, 401, { error: 'no_session' });
+      const { c, list } = cur;
+      if (req.method === 'POST' && sub === 'read') {
+        const all = messages();
+        for (const m of all) if (m.customerId === c.id && m.from === 'bravo') m.readByCustomer = true;
+        saveMessages(all);
+        return json(res, 200, { ok: true });
+      }
+      if (req.method === 'GET' && sub === 'me') {
+        const all = messages();
+        const bookings = mine(c).sort((a, b2) => (b2.date + b2.time).localeCompare(a.date + a.time)).map((b) => custView(b, cfg));
+        return json(res, 200, {
+          customer: { email: c.email, name: c.name, phone: c.phone || '', lang: c.lang || 'es' }, bookings, cancelHours: cfg.cancelHours,
+          newFromBravo: all.filter((m) => m.customerId === c.id && m.from === 'bravo' && !m.readByCustomer).length,
+          messages: all.filter((m) => m.customerId === c.id).map((m) => ({ from: m.from, text: m.text, ref: m.ref || '', kind: m.kind || 'mensaje', at: m.at }))
+        });
+      }
+      if (req.method === 'POST' && sub === 'profile') {
+        let d;
+        try { d = JSON.parse(await readBody(req, 2000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+        const name = clean(d.name, 80), phone = clean(d.phone, 25);
+        if (name.length < 2) return json(res, 400, { error: 'bad_name' });
+        if (phone && !/^\+?[0-9 ()-]{6,24}$/.test(phone)) return json(res, 400, { error: 'bad_phone' });
+        c.name = name; c.phone = phone; c.lang = d.lang === 'en' ? 'en' : 'es';
+        saveCustomers(list);
+        return json(res, 200, { ok: true });
+      }
+      if (req.method === 'POST' && sub === 'password') {
+        let d;
+        try { d = JSON.parse(await readBody(req, 2000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+        const a = Buffer.from(hashPw(String(d.current || '').slice(0, 200), c.salt), 'hex'), b2 = Buffer.from(c.pw, 'hex');
+        if (!(a.length === b2.length && crypto.timingSafeEqual(a, b2))) return json(res, 400, { error: 'wrong_password' });
+        const np = String(d.next || '');
+        if (np.length < 8 || np.length > 200) return json(res, 400, { error: 'short_password' });
+        c.salt = crypto.randomBytes(16).toString('hex'); c.pw = hashPw(np, c.salt);
+        c.sessions = c.sessions.filter((x) => x.h === cur.h); // cierra la sesión en los demás aparatos
+        saveCustomers(list);
+        return json(res, 200, { ok: true });
+      }
+      if (req.method === 'POST' && sub === 'cancel') {
+        let d;
+        try { d = JSON.parse(await readBody(req, 1000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+        const b = mine(c).find((x) => x.ref === d.ref);
+        if (!b) return json(res, 404, { error: 'not_found' });
+        if (!custView(b, cfg).canCancel) return json(res, 400, { error: 'cannot_cancel', cancelHours: cfg.cancelHours });
+        b.status = 'cancelada'; b.cancelledBy = 'cliente'; b.cancelledAt = new Date().toISOString();
+        saveBooking(b);
+        const all = messages();
+        all.push({ id: crypto.randomBytes(5).toString('hex'), customerId: c.id, from: 'sistema', text: (c.lang === 'en' ? 'Booking ' + b.ref + ' cancelled by the customer.' : 'Reserva ' + b.ref + ' cancelada por el cliente.'), ref: b.ref, kind: 'cancelación', at: new Date().toISOString(), readByBravo: false, readByCustomer: true });
+        saveMessages(all);
+        notifyOwner('Cancelación de ' + b.ref, ['El cliente ' + c.name + ' (' + c.email + ') ha cancelado la reserva ' + b.ref + ' del ' + b.date + ' a las ' + b.time + '.', activeInvoice(b) ? 'Tiene la factura ' + b.invoice.number + ': hay que hacer la rectificativa (y devolver el dinero si lo pagó).' : '']);
+        return json(res, 200, { ok: true, booking: custView(b, cfg), invoiced: activeInvoice(b) });
+      }
+      if (req.method === 'POST' && sub === 'message') {
+        if (over('cmsg:' + c.id, 30, 3600000, true)) return json(res, 429, { error: 'too_many' });
+        let d;
+        try { d = JSON.parse(await readBody(req, 6000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+        const text = cleanLong(d.text, 2000);
+        if (!text) return json(res, 400, { error: 'empty' });
+        const ref = d.ref && mine(c).some((x) => x.ref === d.ref) ? d.ref : '';
+        const kind = d.kind === 'cambio' ? 'cambio' : 'mensaje';
+        const all = messages();
+        all.push({ id: crypto.randomBytes(5).toString('hex'), customerId: c.id, from: 'cliente', text, ref, kind, at: new Date().toISOString(), readByBravo: false });
+        saveMessages(all);
+        notifyOwner((kind === 'cambio' ? 'Petición de cambio' : 'Mensaje') + ' de ' + c.name + (ref ? ' (' + ref + ')' : ''), [text, 'Cliente: ' + c.name + ' · ' + c.email + (c.phone ? ' · ' + c.phone : '')]);
+        return json(res, 200, { ok: true });
+      }
+      return json(res, 404, { error: 'not_found' });
+    }
+
+    // ---------- mensajes de los clientes, para el panel ----------
+    if (req.method === 'GET' && route === 'admin/messages') {
+      const all = messages(), cs = customers();
+      const threads = cs.map((c) => {
+        const ms = all.filter((m) => m.customerId === c.id);
+        return { customer: { id: c.id, email: c.email, name: c.name, phone: c.phone || '', lang: c.lang || 'es', lastLogin: c.lastLogin || null }, messages: ms,
+          unread: ms.filter((m) => m.from !== 'bravo' && !m.readByBravo).length, last: ms.length ? ms[ms.length - 1].at : c.createdAt,
+          bookings: mine(c).map((b) => ({ ref: b.ref, date: b.date, status: b.status })) };
+      }).sort((a, b) => (b.unread - a.unread) || String(b.last).localeCompare(String(a.last)));
+      return json(res, 200, { threads, unread: threads.reduce((a, t) => a + t.unread, 0), emailOn: mail.configured() });
+    }
+    if (req.method === 'POST' && (route === 'admin/messages/reply' || route === 'admin/messages/read')) {
+      let d;
+      try { d = JSON.parse(await readBody(req, 6000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+      const cl = customers(), c = cl.find((x) => x.id === d.customerId);
+      if (!c) return json(res, 404, { error: 'not_found' });
+      const all = messages();
+      for (const m of all) if (m.customerId === c.id && m.from !== 'bravo') m.readByBravo = true;
+      if (route === 'admin/messages/read') { saveMessages(all); return json(res, 200, { ok: true }); }
+      const text = cleanLong(d.text, 2000);
+      if (!text) return json(res, 400, { error: 'empty' });
+      all.push({ id: crypto.randomBytes(5).toString('hex'), customerId: c.id, from: 'bravo', text, ref: clean(d.ref, 12), kind: 'mensaje', at: new Date().toISOString(), readByBravo: true, readByCustomer: false });
+      saveMessages(all);
+      let emailed = false;
+      if (mail.configured()) {
+        const tok = loginToken(c, 14 * 24);
+        saveCustomers(cl);
+        const m = TPL.messageEmail(c, text, { url: areaUrl(tok), base: BASE });
+        const r = await mail.send({ to: c.email, toName: c.name, subject: m.subject, html: m.html, text: m.text });
+        emailed = r.ok;
+      }
+      return json(res, 200, { ok: true, emailed });
+    }
+    if (req.method === 'POST' && route === 'admin/email-booking') {
+      let d;
+      try { d = JSON.parse(await readBody(req, 1000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+      if (!/^BT-\d{4,6}$/.test(d.ref || '')) return json(res, 400, { error: 'bad_ref' });
+      if (!mail.configured()) return json(res, 400, { error: 'email_not_configured' });
+      const r = await sendBookingEmail(d.ref, { update: true });
+      return json(res, r.ok ? 200 : 502, r);
     }
 
     if (req.method === 'GET' && route === 'admin/bookings') {
@@ -890,7 +1198,8 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
     if (route === 'admin/settings') {
       if (req.method === 'GET') {
         const s = settings();
-        return json(res, 200, { vehicles: s.vehicles, minHoursAhead: s.minHoursAhead, invoice: s.invoice, weakKey: !process.env.BRAVO_KEY || KEY.length < 10 });
+        return json(res, 200, { vehicles: s.vehicles, minHoursAhead: s.minHoursAhead, invoice: s.invoice, autoInvoice: s.autoInvoice, cancelHours: s.cancelHours,
+          email: { configured: mail.configured(), provider: mail.provider }, weakKey: !process.env.BRAVO_KEY || KEY.length < 10 });
       }
       if (req.method === 'POST') {
         let d;
@@ -901,7 +1210,8 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
         fs.writeFileSync(file + '.tmp', JSON.stringify(r.settings, null, 1));
         fs.renameSync(file + '.tmp', file);
         const s = settings();
-        return json(res, 200, { ok: true, vehicles: s.vehicles, minHoursAhead: s.minHoursAhead, invoice: s.invoice });
+        return json(res, 200, { ok: true, vehicles: s.vehicles, minHoursAhead: s.minHoursAhead, invoice: s.invoice, autoInvoice: s.autoInvoice, cancelHours: s.cancelHours,
+          email: { configured: mail.configured(), provider: mail.provider }, weakKey: !process.env.BRAVO_KEY || KEY.length < 10 });
       }
     }
 
@@ -941,20 +1251,7 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       if (b.price == null || !(b.price > 0)) return json(res, 400, { error: 'no_price' });
       const vatRate = num(d.vatRate, 0, 30, 2);
       if (vatRate == null) return json(res, 400, { error: 'bad_vat' });
-      const s = settings().invoice;
-      const date = today();
-      const total = Math.round(b.price * 100) / 100;
-      const base = Math.round((total / (1 + vatRate / 100)) * 100) / 100;
-      const previous = b.invoice ? [b.invoice].concat(b.previousInvoices || []) : (b.previousInvoices || []);
-      b.invoice = {
-        number: nextInvoiceNumber(date.slice(0, 4)), date, status: 'emitida', vatRate, total, base,
-        vat: Math.round((total - base) * 100) / 100,
-        issuer: { name: s.issuerName, taxId: s.taxId, address: s.address, email: s.email, phone: s.phone, footer: s.footer },
-        customer: { name: clean(d.customerName, 120) || b.name, taxId: clean(d.customerTaxId, 30), address: cleanLong(d.customerAddress, 200), email: b.email },
-        concept: pdf.concept(b), createdAt: new Date().toISOString()
-      };
-      if (previous.length) b.previousInvoices = previous;
-      ensureTokens(b);
+      makeInvoice(b, vatRate, d);
       saveBooking(b);
       return json(res, 200, { ok: true, booking: b });
     }
@@ -1043,6 +1340,11 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       if (d.ministry !== undefined) b.ministry = Boolean(d.ministry);
       if (d.notes !== undefined) b.notes = cleanLong(d.notes, 2000);
       if (d.driverNote !== undefined) b.driverNote = cleanLong(d.driverNote, 500);
+      if (d.date !== undefined || d.time !== undefined) {
+        const nd = d.date !== undefined ? clean(d.date, 10) : b.date, nt = d.time !== undefined ? clean(d.time, 5) : b.time;
+        if (!madridMs(nd, nt)) return json(res, 400, { error: 'bad_date' });
+        b.date = nd; b.time = nt;
+      }
       if (d.driverVat !== undefined) {
         const v = num(d.driverVat, 0, 30, 2);
         if (v == null) return json(res, 400, { error: 'bad_vat' });
@@ -1377,7 +1679,8 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
         'Content-Type': 'application/json; charset=utf-8', 'Content-Disposition': 'attachment; filename="bravo-copia-' + today() + '.json"',
         'Cache-Control': 'no-store, private', 'X-Robots-Tag': 'noindex, nofollow'
       });
-      return res.end(JSON.stringify({ exportedAt: new Date().toISOString(), settings: settings(), drivers: drivers(), bookings: allBookings(), ledger: ledger(), bank: bank(), inbox: inbox(), invoiceCounters: counters }, null, 1));
+      return res.end(JSON.stringify({ exportedAt: new Date().toISOString(), settings: settings(), drivers: drivers(), bookings: allBookings(), ledger: ledger(), bank: bank(), inbox: inbox(), invoiceCounters: counters,
+        customers: customers().map((c) => ({ id: c.id, email: c.email, name: c.name, phone: c.phone, lang: c.lang, createdAt: c.createdAt, lastLogin: c.lastLogin || null })), messages: messages() }, null, 1));
     }
 
     return json(res, 404, { error: 'not_found' });

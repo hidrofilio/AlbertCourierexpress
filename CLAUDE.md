@@ -27,7 +27,7 @@ Web de una empresa de transporte urgente dedicado (vehículo exclusivo punto a p
   - El panel de Alberto está en `/bravo/panel/`. Las reservas (`bookings/BT-0001.json`…) y los precios (`settings.json`) se guardan en `DATA_DIR/bravo/`, nunca en git. Los precios de `DEFAULTS` en el código son **ficticios**. La regla 7 (no publicar precios) es de la mensajería; Bravo enseña precios por naturaleza.
   - **El servidor recalcula los km y el precio** antes de guardar: no te fíes de lo que mande la página. Los km salen de OSRM; `BRAVO_OSRM_URL` permite apuntar a uno falso en las pruebas.
   - El JS va dentro del HTML, porque `isPublicPath()` solo deja servir `.js` de `cpc/`. El aviso a Alberto se manda con Web3Forms, como la mensajería (solo funciona desde el dominio propio).
-  - **Panel** con cinco pestañas: Viajes, Facturas, Cuentas, Conductores y Ajustes. En Ajustes se cambian los precios y los datos de las facturas (en `settings.json`). Los conductores se guardan en `drivers.json`.
+  - **Panel** con seis pestañas: Viajes, Mensajes, Facturas, Cuentas, Conductores y Ajustes. En Ajustes se cambian los precios, los datos de las facturas, la factura automática (`autoInvoice`) y las horas para que el cliente cancele (`cancelHours`), en `settings.json`. Los conductores se guardan en `drivers.json`.
   - **Cuentas (la contabilidad):** muestra los movimientos de cualquier periodo, con sus totales y el IVA (cobrado, pagado y la diferencia), y se descarga en CSV.
     - Los ingresos salen de las facturas no anuladas, por su fecha. Los pagos a conductores salen de las reservas no canceladas, por el día del servicio, con el IVA que se ponga en la reserva (`driverVat`).
     - Lo apuntado a mano va en `ledger.json`, y los tickets en `receipts/`. Al subir un ticket se comprueba por sus primeros bytes: JPG, PNG, WEBP o PDF, de 6 MB como mucho. La foto se reduce en el móvil antes de subirla.
@@ -49,7 +49,21 @@ Web de una empresa de transporte urgente dedicado (vehículo exclusivo punto a p
     - Cada factura guarda una copia de los datos del emisor. **No se borra ni se anula: se rectifica**, como en España. Se hace una **factura rectificativa** `R-AAAA-0001`, en negativo y con el motivo; la original queda «rectificada» y se puede hacer otra nueva.
     - Cualquier factura o rectificativa de una reserva se abre con `/api/bravo/doc/<clave del cliente>/f/<número>.pdf`.
   - Los botones de WhatsApp y de correo solo abren el mensaje ya escrito: lo envía Alberto.
-  - Las pruebas, con Playwright: un OSRM falso, Nominatim y Web3Forms simulados, y `pdftotext` para leer los PDF.
+  - **Correos automáticos** (`bravo-mail.js`, sin dependencias):
+    - Salen por la API de **Brevo** (o Resend con `EMAIL_API=resend`). La clave va en la variable **`EMAIL_KEY`** de Railway, nunca en el repo. Sin ella no sale ningún correo, pero todo lo demás funciona.
+    - Otras variables: `EMAIL_FROM` (por defecto `info@albertcourierexpress.com`), `EMAIL_OWNER` (a quién avisar), `PUBLIC_URL`. En las pruebas, `BRAVO_EMAIL_URL` apunta a un servidor falso: **nunca se mandan correos de verdad al probar**.
+    - Al reservar, el cliente recibe sus datos y el total. Con `autoInvoice` se hace también la factura, con el IVA por defecto. Llevan adjuntos la factura y el justificante en PDF, la contraseña (solo la primera vez) y un enlace para entrar. Lo enviado se apunta en la reserva (`emails`). Desde el panel se reenvía con «Enviar el correo de la reserva», por ejemplo tras cambiar el día o la hora.
+  - **Cuenta del cliente** en `/bravo/cuenta/` (en la fase 1, también tras la contraseña de pruebas):
+    - Se crea sola con la primera reserva, una por correo, en `customers.json`. Guarda la contraseña con scrypt, las sesiones (cookie `bravo_cust`) y los enlaces de un solo uso, todo con hash.
+    - **La contraseña no se enseña nunca en la página, solo va por correo.** Si no, cualquiera que reservara con el correo de otro entraría en su cuenta.
+    - El cliente puede:
+      - ver sus reservas, el conductor (solo si está asignada) y sus PDF;
+      - añadir el viaje al calendario;
+      - pedir un cambio;
+      - cancelar hasta `cancelHours` antes del viaje. Alberto hace después la rectificativa, si había factura.
+      - escribir mensajes (en `messages.json`; se contestan en la pestaña Mensajes) y cambiar sus datos y su contraseña.
+    - Hay un freno contra contraseñas malas, por IP y por correo. «He olvidado la contraseña» responde lo mismo exista o no la cuenta, y en la cuenta del cliente nunca salen `driverPay`, notas ni tokens.
+  - Las pruebas, con Playwright: un OSRM falso, un servicio de correo falso, Nominatim y Web3Forms simulados, y `pdftotext` para leer los PDF.
 - **`stats/`** y **`notas/`** — panel de analíticas y buzón de notas. **La clave no se escribe nunca aquí**: vive en la variable `STATS_KEY` de Railway, y apuntada en el repo privado (`NEGOCIO/empresa/acceso.md`)
 - **`data/events.jsonl`** — registro de visitas, en un volumen persistente de Railway montado en `/app/data`. **No está en git.**
 

@@ -37,6 +37,8 @@
   .langs { display: flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: #fff; }
   .langs button { background: none; border: 0; color: var(--muted); font-weight: 700; font-size: .8rem; padding: 7px 11px; cursor: pointer; }
   .langs button.on { background: var(--ink); color: #fff; }
+  .acct { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 7px 11px; font-weight: 700; font-size: .8rem; color: var(--ink); white-space: nowrap; }
+  .done-mail { background: #eef6f0; color: #1f5b37; border-radius: 10px; padding: 10px 12px; font-size: .9rem; margin: 0 0 12px; text-align: left; }
   .wa { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 50%; background: #25d366; }
 
   .hero { background: radial-gradient(120% 90% at 85% 0%, #3a2a17 0%, var(--ink) 55%); color: #f6efe3; padding: 28px 0 40px; position: relative; overflow: hidden; }
@@ -100,6 +102,7 @@
   footer { background: var(--ink); color: #b8a98d; font-size: .85rem; padding: 26px 0; }
   footer p { margin: 0 0 4px; }
 
+  @media (max-width: 440px) { .acct span { display: none; } .acct { padding: 9px; } .brand img { height: 42px; } }
   @media (min-width: 720px) {
     .hero { padding: 48px 0 60px; }
     .booker { padding: 22px; }
@@ -122,6 +125,7 @@
       <div class="langs" role="group" aria-label="Language">
         <button type="button" data-lang="es">ES</button><button type="button" data-lang="en">EN</button>
       </div>
+      <a class="acct" href="/bravo/cuenta/"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-4.4 0-8 2.2-8 5v3h16v-3c0-2.8-3.6-5-8-5z"/></svg><span data-i18n="myAccount"></span></a>
       <a class="wa" href="https://wa.me/353874592308" target="_blank" rel="noopener" aria-label="WhatsApp">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.8-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.8 11.9 11.9 0 0 0 4.6 4c1.7.7 2.4.8 3.2.7a2.8 2.8 0 0 0 1.8-1.3 2.3 2.3 0 0 0 .2-1.3c-.1-.1-.2-.2-.5-.3z"/></svg>
       </a>
@@ -242,7 +246,10 @@
         <h2 id="done-title"></h2>
         <p id="done-text"></p>
         <div class="summary" id="done-summary" style="text-align:left"></div>
+        <p class="done-mail" id="done-mail" hidden></p>
+        <a class="btn" id="done-inv" href="#" target="_blank" rel="noopener" style="text-decoration:none;margin-bottom:10px;background:#17120d;color:#fff" data-i18n="downloadInv" hidden></a>
         <a class="btn" id="done-doc" href="#" target="_blank" rel="noopener" style="text-decoration:none;margin-bottom:10px;background:#17120d;color:#fff" data-i18n="downloadDoc" hidden></a>
+        <a class="btn" id="done-acct" href="/bravo/cuenta/" style="text-decoration:none;margin-bottom:10px;background:#fff;border:1.5px solid var(--ink)" data-i18n="goAccount"></a>
         <button type="button" class="btn" id="new-booking" data-i18n="newBooking"></button>
         <p class="test-note" data-i18n="testNote"></p>
       </div>
@@ -362,7 +369,11 @@
       doneTitle: 'Reserva {ref} recibida',
       doneText: 'Te escribiremos por WhatsApp con el nombre de tu conductor, el coche y la matrícula.',
       doneGroup: 'Te enviaremos el presupuesto por correo lo antes posible.',
-      newBooking: 'Hacer otra reserva', downloadDoc: '📄 Descargar el justificante (PDF)', return: 'Vuelta', price: 'Precio', vehicle: 'Vehículo',
+      newBooking: 'Hacer otra reserva', downloadDoc: '📄 Descargar el justificante (PDF)', downloadInv: '🧾 Descargar la factura (PDF)',
+      myAccount: 'Mi cuenta', goAccount: '👤 Ir a mi cuenta',
+      mailSent: 'Te hemos enviado un correo a {email} con todos los datos{inv}.', mailInv: ', la factura y el justificante',
+      mailNew: ' También hemos creado tu cuenta: la contraseña va en ese correo. Con ella ves tus reservas, descargas tus facturas y nos escribes.',
+      mailOff: 'Te mandaremos a {email} los datos y la contraseña de «Mi cuenta», donde verás tus reservas y tus facturas.', return: 'Vuelta', price: 'Precio', vehicle: 'Vehículo',
       groupIntro: 'Para grupos de 8 personas o más, en minibús o autobús. Te mandamos el presupuesto.',
       people: 'Número de personas', askQuote: 'Pedir presupuesto', groupDone: 'Grupo de {n} personas',
       how_t: 'Cómo funciona',
@@ -427,6 +438,10 @@
       doneTitle: 'Booking {ref} received',
       doneText: 'We will message you on WhatsApp with your driver’s name, the car and its number plate.',
       doneGroup: 'We will email you a quote as soon as possible.',
+      downloadInv: '🧾 Download the invoice (PDF)', myAccount: 'My account', goAccount: '👤 Go to my account',
+      mailSent: 'We have emailed {email} with all the details{inv}.', mailInv: ', the invoice and the booking confirmation',
+      mailNew: ' We have also created your account: the password is in that email. Use it to see your bookings, download your invoices and message us.',
+      mailOff: 'We will send the details and your “My account” password to {email}. There you will see your bookings and invoices.',
       newBooking: 'Make another booking', downloadDoc: '📄 Download your booking confirmation (PDF)', return: 'Return', price: 'Price', vehicle: 'Vehicle',
       groupIntro: 'For groups of 8 or more, by minibus or coach. We will send you a quote.',
       people: 'Number of people', askQuote: 'Ask for a quote', groupDone: 'Group of {n} people',
@@ -704,7 +719,7 @@
       var r = await api('book', body);
       var o = chosen();
       var summary = tripLine(trip, state.quote) + '<br>' + whenLine(trip) + '<br>' + esc(t('veh_' + o.id)) + ' · ' + esc(money(r.price));
-      finish(r.ref, 'doneText', summary, r.doc);
+      finish(r.ref, 'doneText', summary, r.doc, r, body.email);
       notify(r.ref, body, r.price, r.km);
     } catch (e) { showErr(e); }
     finally { busy(this, false); }
@@ -725,14 +740,15 @@
       var r = await api('book', body);
       var summary = '<b>' + esc(body.fromText) + ' → ' + esc(body.toText) + '</b>' + esc(fmtDate(body.date) + ' · ' + body.time) +
         '<br>' + esc(t('groupDone').replace('{n}', body.passengers));
-      finish(r.ref, 'doneGroup', summary);
+      finish(r.ref, 'doneGroup', summary, '', r, body.email);
       notify(r.ref, body, null, null);
     } catch (e) { showErr(e); }
     finally { busy(this, false); }
   });
 
-  function finish(ref, textKey, summary, doc) {
-    state.done = { ref: ref, textKey: textKey, summary: summary, doc: doc || '' };
+  function finish(ref, textKey, summary, doc, r, email) {
+    state.done = { ref: ref, textKey: textKey, summary: summary, doc: doc || '', inv: (r && r.invoiceDoc) || '', email: email || '',
+      emailOn: Boolean(r && r.emailOn), newAccount: Boolean(r && r.newAccount) };
     renderDone(); show('done');
   }
   function renderDone() {
@@ -742,6 +758,13 @@
     $('done-summary').innerHTML = state.done.summary;
     $('done-doc').hidden = !state.done.doc;
     if (state.done.doc) $('done-doc').href = state.done.doc;
+    $('done-inv').hidden = !state.done.inv;
+    if (state.done.inv) $('done-inv').href = state.done.inv;
+    var d = state.done, msg;
+    if (d.emailOn) msg = t('mailSent').replace('{email}', d.email).replace('{inv}', d.inv ? t('mailInv') : '') + (d.newAccount ? t('mailNew') : '');
+    else msg = t('mailOff').replace('{email}', d.email);
+    $('done-mail').textContent = msg;
+    $('done-mail').hidden = !d.email;
   }
   $('new-booking').addEventListener('click', function () {
     ['f-transfer', 'f-hourly', 'f-group', 'step-details'].forEach(function (id) { $(id).reset(); });
