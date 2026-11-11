@@ -27,7 +27,13 @@ Web de una empresa de transporte urgente dedicado (vehículo exclusivo punto a p
   - El panel de Alberto está en `/bravo/panel/`. Las reservas (`bookings/BT-0001.json`…) y los precios (`settings.json`) se guardan en `DATA_DIR/bravo/`, nunca en git. Los precios de `DEFAULTS` en el código son **ficticios**. La regla 7 (no publicar precios) es de la mensajería; Bravo enseña precios por naturaleza.
   - **El servidor recalcula los km y el precio** antes de guardar: no te fíes de lo que mande la página. Los km salen de OSRM; `BRAVO_OSRM_URL` permite apuntar a uno falso en las pruebas.
   - El JS va dentro del HTML, porque `isPublicPath()` solo deja servir `.js` de `cpc/`. El aviso a Alberto se manda con Web3Forms, como la mensajería (solo funciona desde el dominio propio).
-  - Las pruebas, con Playwright: un OSRM falso, Nominatim y Web3Forms simulados.
+  - **Panel** con cuatro pestañas: Viajes, Facturación, Conductores y Ajustes. En Ajustes se cambian los precios y los datos de las facturas (en `settings.json`). Los conductores se guardan en `drivers.json`.
+  - **Facturas y PDFs:** `bravo-pdf.js` hace tres PDF sin dependencias (Helvetica en WinAnsi): la factura, el justificante del cliente y la hoja de servicio del conductor.
+    - Se abren por un **enlace privado** `/api/bravo/doc/<clave>/…pdf`, sin contraseña. El enlace del cliente nunca abre la hoja del conductor.
+    - Las facturas van numeradas `F-AAAA-0001`, seguidas por año. El IVA (0–30 %) se elige al crearlas, y los precios llevan el IVA incluido.
+    - Cada factura guarda una copia de los datos del emisor. **No se borra: se anula**, y el número no se reutiliza.
+  - Los botones de WhatsApp y de correo solo abren el mensaje ya escrito: lo envía Alberto.
+  - Las pruebas, con Playwright: un OSRM falso, Nominatim y Web3Forms simulados, y `pdftotext` para leer los PDF.
 - **`stats/`** y **`notas/`** — panel de analíticas y buzón de notas. **La clave no se escribe nunca aquí**: vive en la variable `STATS_KEY` de Railway, y apuntada en el repo privado (`NEGOCIO/empresa/acceso.md`)
 - **`data/events.jsonl`** — registro de visitas, en un volumen persistente de Railway montado en `/app/data`. **No está en git.**
 

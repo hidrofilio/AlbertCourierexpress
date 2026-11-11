@@ -241,6 +241,7 @@
         <h2 id="done-title"></h2>
         <p id="done-text"></p>
         <div class="summary" id="done-summary" style="text-align:left"></div>
+        <a class="btn" id="done-doc" href="#" target="_blank" rel="noopener" style="text-decoration:none;margin-bottom:10px;background:#17120d;color:#fff" data-i18n="downloadDoc" hidden></a>
         <button type="button" class="btn" id="new-booking" data-i18n="newBooking"></button>
         <p class="test-note" data-i18n="testNote"></p>
       </div>
@@ -360,7 +361,7 @@
       doneTitle: 'Reserva {ref} recibida',
       doneText: 'Te escribiremos por WhatsApp con el nombre de tu conductor, el coche y la matrícula.',
       doneGroup: 'Te enviaremos el presupuesto por correo lo antes posible.',
-      newBooking: 'Hacer otra reserva', return: 'Vuelta', price: 'Precio', vehicle: 'Vehículo',
+      newBooking: 'Hacer otra reserva', downloadDoc: '📄 Descargar el justificante (PDF)', return: 'Vuelta', price: 'Precio', vehicle: 'Vehículo',
       groupIntro: 'Para grupos de 8 personas o más, en minibús o autobús. Te mandamos el presupuesto.',
       people: 'Número de personas', askQuote: 'Pedir presupuesto', groupDone: 'Grupo de {n} personas',
       how_t: 'Cómo funciona',
@@ -425,7 +426,7 @@
       doneTitle: 'Booking {ref} received',
       doneText: 'We will message you on WhatsApp with your driver’s name, the car and its number plate.',
       doneGroup: 'We will email you a quote as soon as possible.',
-      newBooking: 'Make another booking', return: 'Return', price: 'Price', vehicle: 'Vehicle',
+      newBooking: 'Make another booking', downloadDoc: '📄 Download your booking confirmation (PDF)', return: 'Return', price: 'Price', vehicle: 'Vehicle',
       groupIntro: 'For groups of 8 or more, by minibus or coach. We will send you a quote.',
       people: 'Number of people', askQuote: 'Ask for a quote', groupDone: 'Group of {n} people',
       how_t: 'How it works',
@@ -702,7 +703,7 @@
       var r = await api('book', body);
       var o = chosen();
       var summary = tripLine(trip, state.quote) + '<br>' + whenLine(trip) + '<br>' + esc(t('veh_' + o.id)) + ' · ' + esc(money(r.price));
-      finish(r.ref, 'doneText', summary);
+      finish(r.ref, 'doneText', summary, r.doc);
       notify(r.ref, body, r.price, r.km);
     } catch (e) { showErr(e); }
     finally { busy(this, false); }
@@ -729,8 +730,8 @@
     finally { busy(this, false); }
   });
 
-  function finish(ref, textKey, summary) {
-    state.done = { ref: ref, textKey: textKey, summary: summary };
+  function finish(ref, textKey, summary, doc) {
+    state.done = { ref: ref, textKey: textKey, summary: summary, doc: doc || '' };
     renderDone(); show('done');
   }
   function renderDone() {
@@ -738,6 +739,8 @@
     $('done-title').textContent = t('doneTitle').replace('{ref}', state.done.ref);
     $('done-text').textContent = t(state.done.textKey);
     $('done-summary').innerHTML = state.done.summary;
+    $('done-doc').hidden = !state.done.doc;
+    if (state.done.doc) $('done-doc').href = state.done.doc;
   }
   $('new-booking').addEventListener('click', function () {
     ['f-transfer', 'f-hourly', 'f-group', 'step-details'].forEach(function (id) { $(id).reset(); });

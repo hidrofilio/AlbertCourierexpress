@@ -11,6 +11,7 @@ const path = require('path');
 const crypto = require('crypto');
 const http = require('http');
 const https = require('https');
+const pdf = require('./bravo-pdf');
 
 const DEFAULTS = {
   vehicles: {
@@ -20,7 +21,10 @@ const DEFAULTS = {
   minHoursAhead: 24,
   hourly: { min: 2, max: 12 },
   // Provisional: solo salidas desde la provincia de Málaga (caja aproximada)
-  originBox: { latMin: 36.28, latMax: 37.32, lonMin: -5.65, lonMax: -3.75 }
+  originBox: { latMin: 36.28, latMax: 37.32, lonMin: -5.65, lonMax: -3.75 },
+  // Datos de las facturas: PROVISIONALES, se cambian desde el panel (Ajustes).
+  // Nunca la dirección de casa de Alberto.
+  invoice: { issuerName: 'Bravo Transfers', taxId: '', address: '', email: 'info@albertcourierexpress.com', phone: '+353 87 459 2308', defaultVat: 10, footer: '' }
 };
 const SPAIN_BOX = { latMin: 35.8, latMax: 43.9, lonMin: -9.5, lonMax: 4.5 };
 const STATUSES = ['pendiente', 'asignada', 'hecha', 'cancelada'];
@@ -79,8 +83,65 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
     const out = JSON.parse(JSON.stringify(DEFAULTS));
     if (s.vehicles) for (const id of Object.keys(out.vehicles)) Object.assign(out.vehicles[id], s.vehicles[id] || {});
     if (Number.isFinite(s.minHoursAhead)) out.minHoursAhead = s.minHoursAhead;
+    if (s.invoice) Object.assign(out.invoice, s.invoice);
     return out;
   }
+  function num(v, min, max, decimals) {
+    const n = Number(v);
+    if (v === '' || v == null || !Number.isFinite(n) || n < min || n > max) return null;
+    const f = Math.pow(10, decimals || 0);
+    return Math.round(n * f) / f;
+  }
+  // Ajustes que manda el panel: se comprueba todo antes de guardar
+  function readSettings(d) {
+    const cur = settings();
+    const out = { vehicles: {}, minHoursAhead: cur.minHoursAhead, invoice: {} };
+    for (const id of Object.keys(cur.vehicles)) {
+      const v = (d.vehicles || {})[id] || {};
+      const perKm = num(v.perKm, 0, 20, 2), minFare = num(v.minFare, 0, 5000, 2), perHour = num(v.perHour, 0, 1000, 2);
+      if (perKm == null || minFare == null || perHour == null) return { error: 'bad_price', vehicle: id };
+      out.vehicles[id] = { perKm, minFare, perHour };
+    }
+    const ahead = num(d.minHoursAhead, 0, 168, 0);
+    if (ahead == null) return { error: 'bad_hours_ahead' };
+    out.minHoursAhead = ahead;
+    const inv = d.invoice || {};
+    const vat = num(inv.defaultVat, 0, 30, 2);
+    if (vat == null) return { error: 'bad_vat' };
+    out.invoice = {
+      issuerName: clean(inv.issuerName, 80) || 'Bravo Transfers', taxId: clean(inv.taxId, 30),
+      address: cleanLong(inv.address, 200), email: clean(inv.email, 120), phone: clean(inv.phone, 30),
+      defaultVat: vat, footer: cleanLong(inv.footer, 300)
+    };
+    return { settings: out };
+  }
+
+  // ---------- conductores ----------
+  const DRIVERS = path.join(DIR, 'drivers.json');
+  function drivers() {
+    try { return JSON.parse(fs.readFileSync(DRIVERS, 'utf8')); } catch (e) { return []; }
+  }
+
+  // ---------- enlaces privados a los PDFs (sin contraseña, con una clave larga al azar) ----------
+  function token() { return crypto.randomBytes(16).toString('hex'); }
+  function ensureTokens(b) {
+    let changed = false;
+    if (!b.clientToken) { b.clientToken = token(); changed = true; }
+    if (!b.driverToken) { b.driverToken = token(); changed = true; }
+    return changed;
+  }
+  function today() {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  }
+  function nextInvoiceNumber(year) {
+    const file = path.join(DIR, 'invoice-counter.json');
+    let c = {};
+    try { c = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (e) { /* primera */ }
+    c[year] = (c[year] || 0) + 1;
+    fs.writeFileSync(file, JSON.stringify(c));
+    return 'F-' + year + '-' + String(c[year]).padStart(4, '0');
+  }
+  function activeInvoice(b) { return b.invoice && b.invoice.status !== 'anulada'; }
 
   // ---------- la contraseña de la fase de pruebas ----------
   const TOKEN = KEY ? crypto.createHmac('sha256', KEY).update('bravo-preview-v1').digest('hex') : '';
@@ -276,6 +337,27 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       return json(res, 200, { ok: true }, { 'Set-Cookie': cookieHeader(req, '', 0) });
     }
 
+    // PDFs por enlace privado: el cliente y el conductor no tienen contraseña.
+    // El enlace del cliente abre su justificante y su factura; el del conductor, solo su hoja.
+    const docm = /^doc\/([a-f0-9]{32})\/(justificante|factura|hoja)\.pdf$/.exec(route);
+    if (req.method === 'GET' && docm) {
+      if (over('doc:' + ip, 200, 3600000, true)) return json(res, 429, { error: 'too_many' });
+      const [, tok, kind] = docm;
+      const isDriver = kind === 'hoja';
+      const b = allBookings().find((x) => (isDriver ? x.driverToken : x.clientToken) === tok);
+      if (!b || (kind === 'factura' && !b.invoice)) return json(res, 404, { error: 'not_found' });
+      const cfg0 = settings();
+      const issuer = { name: cfg0.invoice.issuerName, email: cfg0.invoice.email, phone: cfg0.invoice.phone };
+      const buf = kind === 'factura' ? pdf.invoicePdf(b) : kind === 'hoja' ? pdf.driverSheetPdf(b, issuer) : pdf.confirmationPdf(b, issuer);
+      const name = (kind === 'factura' ? b.invoice.number : (kind === 'hoja' ? 'hoja-' : 'reserva-') + b.ref) + '.pdf';
+      res.writeHead(200, {
+        'Content-Type': 'application/pdf', 'Content-Length': buf.length,
+        'Content-Disposition': 'inline; filename="' + name + '"',
+        'Cache-Control': 'no-store, private', 'X-Robots-Tag': 'noindex, nofollow', 'X-Content-Type-Options': 'nosniff'
+      });
+      return res.end(buf);
+    }
+
     // Todo lo demás, solo con la contraseña (fase de pruebas)
     if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
     const cfg = settings();
@@ -321,6 +403,7 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
         if (!fromText || !toText) return json(res, 400, { error: 'bad_places' });
         over('book:' + ip, 20, 3600000, true); over('book:all', 300, 86400000, true);
         const b = Object.assign({ ref: nextRef(), kind: 'group', fromText, toText, passengers: people, price: null }, base);
+        ensureTokens(b);
         saveBooking(b);
         return json(res, 200, { ref: b.ref, kind: 'group' });
       }
@@ -345,13 +428,131 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
         passengers: trip.passengers, vehicle: opt.id, price: opt.price,
         flight: clean(d.flight, 12), bags: int(d.bags, 0, 20) || 0, childSeats: int(d.childSeats, 0, 6) || 0
       }, base);
+      ensureTokens(b);
       saveBooking(b);
-      return json(res, 200, { ref: b.ref, kind: b.kind, price: b.price, km: b.km });
+      return json(res, 200, { ref: b.ref, kind: b.kind, price: b.price, km: b.km, doc: '/api/bravo/doc/' + b.clientToken + '/justificante.pdf' });
     }
 
     if (req.method === 'GET' && route === 'admin/bookings') {
       const list = allBookings().sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+      for (const b of list) if (ensureTokens(b)) saveBooking(b);
       return json(res, 200, { bookings: list });
+    }
+
+    if (route === 'admin/settings') {
+      if (req.method === 'GET') {
+        const s = settings();
+        return json(res, 200, { vehicles: s.vehicles, minHoursAhead: s.minHoursAhead, invoice: s.invoice });
+      }
+      if (req.method === 'POST') {
+        let d;
+        try { d = JSON.parse(await readBody(req, 8000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+        const r = readSettings(d);
+        if (r.error) return json(res, 400, r);
+        const file = path.join(DIR, 'settings.json');
+        fs.writeFileSync(file + '.tmp', JSON.stringify(r.settings, null, 1));
+        fs.renameSync(file + '.tmp', file);
+        const s = settings();
+        return json(res, 200, { ok: true, vehicles: s.vehicles, minHoursAhead: s.minHoursAhead, invoice: s.invoice });
+      }
+    }
+
+    if (route === 'admin/drivers') {
+      if (req.method === 'GET') return json(res, 200, { drivers: drivers() });
+      if (req.method === 'POST') {
+        let d;
+        try { d = JSON.parse(await readBody(req, 60000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+        if (!Array.isArray(d.drivers) || d.drivers.length > 200) return json(res, 400, { error: 'bad_list' });
+        const list = d.drivers.map((x) => ({
+          id: /^[a-f0-9]{8}$/.test(x.id || '') ? x.id : crypto.randomBytes(4).toString('hex'),
+          name: clean(x.name, 80), phone: clean(x.phone, 25), licence: clean(x.licence, 40),
+          car: clean(x.car, 60), plate: clean(x.plate, 15), seats: int(x.seats, 1, 80) || null, notes: cleanLong(x.notes, 500)
+        })).filter((x) => x.name);
+        fs.writeFileSync(DRIVERS + '.tmp', JSON.stringify(list, null, 1));
+        fs.renameSync(DRIVERS + '.tmp', DRIVERS);
+        return json(res, 200, { ok: true, drivers: list });
+      }
+    }
+
+    // Una reserva concreta, para las acciones de abajo
+    async function loadRef() {
+      let d;
+      try { d = JSON.parse(await readBody(req, 6000)); } catch (e) { return { error: 'bad_json' }; }
+      const ref = /^BT-\d{4,6}$/.test(d.ref || '') ? d.ref : null;
+      let b = null;
+      try { b = ref && JSON.parse(fs.readFileSync(bookingFile(ref), 'utf8')); } catch (e) { /* no existe */ }
+      if (!b) return { error: 'not_found' };
+      return { d, b };
+    }
+
+    if (req.method === 'POST' && route === 'admin/invoice') {
+      const r = await loadRef();
+      if (r.error) return json(res, r.error === 'not_found' ? 404 : 400, r);
+      const { d, b } = r;
+      if (activeInvoice(b)) return json(res, 409, { error: 'already_invoiced', number: b.invoice.number });
+      if (b.price == null || !(b.price > 0)) return json(res, 400, { error: 'no_price' });
+      const vatRate = num(d.vatRate, 0, 30, 2);
+      if (vatRate == null) return json(res, 400, { error: 'bad_vat' });
+      const s = settings().invoice;
+      const date = today();
+      const total = Math.round(b.price * 100) / 100;
+      const base = Math.round((total / (1 + vatRate / 100)) * 100) / 100;
+      const previous = b.invoice ? [b.invoice].concat(b.previousInvoices || []) : (b.previousInvoices || []);
+      b.invoice = {
+        number: nextInvoiceNumber(date.slice(0, 4)), date, status: 'emitida', vatRate, total, base,
+        vat: Math.round((total - base) * 100) / 100,
+        issuer: { name: s.issuerName, taxId: s.taxId, address: s.address, email: s.email, phone: s.phone, footer: s.footer },
+        customer: { name: clean(d.customerName, 120) || b.name, taxId: clean(d.customerTaxId, 30), address: cleanLong(d.customerAddress, 200), email: b.email },
+        concept: pdf.concept(b), createdAt: new Date().toISOString()
+      };
+      if (previous.length) b.previousInvoices = previous;
+      ensureTokens(b);
+      saveBooking(b);
+      return json(res, 200, { ok: true, booking: b });
+    }
+
+    if (req.method === 'POST' && route === 'admin/invoice-void') {
+      const r = await loadRef();
+      if (r.error) return json(res, r.error === 'not_found' ? 404 : 400, r);
+      const { b } = r;
+      if (!activeInvoice(b)) return json(res, 400, { error: 'no_invoice' });
+      b.invoice.status = 'anulada';
+      b.invoice.voidedAt = new Date().toISOString();
+      saveBooking(b);
+      return json(res, 200, { ok: true, booking: b });
+    }
+
+    if (req.method === 'POST' && route === 'admin/delete') {
+      const r = await loadRef();
+      if (r.error) return json(res, r.error === 'not_found' ? 404 : 400, r);
+      if (r.b.invoice || r.b.previousInvoices) return json(res, 409, { error: 'has_invoice' });
+      fs.unlinkSync(bookingFile(r.b.ref));
+      return json(res, 200, { ok: true });
+    }
+
+    if (req.method === 'GET' && route === 'admin/export.csv') {
+      const month = new URL(url, 'http://x').searchParams.get('month') || today().slice(0, 7);
+      if (!/^\d{4}-\d{2}$/.test(month)) return json(res, 400, { error: 'bad_month' });
+      const n2 = (v) => (v == null || v === '' ? '' : String(Math.round(Number(v) * 100) / 100).replace('.', ','));
+      const q = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+      const head = ['Reserva', 'Día', 'Hora', 'Tipo', 'Desde', 'Hasta', 'Personas', 'Vehículo', 'Km', 'Cliente', 'Teléfono', 'Correo',
+        'Precio', 'Conductor', 'Pago al conductor', 'Te queda', 'Estado', 'Factura', 'Fecha factura', 'Estado factura', 'Base', 'IVA %', 'IVA', 'Total factura'];
+      const lines = [head.map(q).join(';')];
+      for (const b of allBookings().filter((x) => x.date.slice(0, 7) === month).sort((a, c) => (a.date + a.time).localeCompare(c.date + c.time))) {
+        const inv = b.invoice || {};
+        const from = b.kind === 'group' ? b.fromText : (b.from && b.from.label) || '';
+        const to = b.kind === 'group' ? b.toText : b.kind === 'hourly' ? b.hours + ' h' : (b.to && b.to.label) || '';
+        lines.push([b.ref, b.date, b.time, b.kind === 'group' ? 'Grupo' : b.kind === 'hourly' ? 'Por horas' : (b.roundTrip ? 'Ida y vuelta' : 'Traslado'),
+          from, to, b.passengers, b.vehicle === 'van' ? 'Monovolumen' : b.vehicle === 'car' ? 'Coche' : '', n2(b.km), b.name, b.phone, b.email,
+          n2(b.price), b.driverName, n2(b.driverPay), b.price != null && b.driverPay != null ? n2(b.price - b.driverPay) : '', b.status,
+          inv.number || '', inv.date || '', inv.status || '', n2(inv.base), n2(inv.vatRate), n2(inv.vat), n2(inv.total)].map(q).join(';'));
+      }
+      const body = '\ufeff' + lines.join('\r\n') + '\r\n';
+      res.writeHead(200, {
+        'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="bravo-' + month + '.csv"',
+        'Cache-Control': 'no-store, private', 'X-Robots-Tag': 'noindex, nofollow'
+      });
+      return res.end(body);
     }
 
     if (req.method === 'POST' && route === 'admin/update') {
@@ -377,6 +578,16 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       }
       if (d.ministry !== undefined) b.ministry = Boolean(d.ministry);
       if (d.notes !== undefined) b.notes = cleanLong(d.notes, 2000);
+      if (d.driverNote !== undefined) b.driverNote = cleanLong(d.driverNote, 500);
+      if (d.driverCar !== undefined) b.driverCar = clean(d.driverCar, 80);
+      if (d.price !== undefined) {
+        const p = d.price === '' || d.price === null ? null : num(d.price, 0, 100000, 2);
+        if (p === null && !(d.price === '' || d.price === null)) return json(res, 400, { error: 'bad_price' });
+        if (p !== b.price) {
+          if (activeInvoice(b)) return json(res, 409, { error: 'invoiced' });
+          b.price = p;
+        }
+      }
       b.updatedAt = new Date().toISOString();
       saveBooking(b);
       return json(res, 200, { ok: true, booking: b });

@@ -10,25 +10,31 @@
 <title>Panel · Bravo Transfers</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2317120d'/%3E%3Cpath d='M12 44a20 20 0 0 1 40 0z' fill='%23e5b44b'/%3E%3C/svg%3E">
 <style>
-  :root { --ink: #17120d; --cream: #faf6ee; --gold: #c8922f; --gold-2: #e5b44b; --orange: #df7a2c; --muted: #6f6252; --line: #e7dccb; --ok: #2f7d4f; --err: #b3261e; color-scheme: light; }
+  :root { --ink: #17120d; --cream: #faf6ee; --gold: #c8922f; --gold-2: #e5b44b; --orange: #df7a2c; --muted: #6f6252; --line: #e7dccb; --ok: #2f7d4f; --err: #b3261e; --blue: #1f4f99; color-scheme: light; }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--cream); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.45; }
   [hidden] { display: none !important; }
-  header { background: var(--ink); color: #f6efe3; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; position: sticky; top: 0; z-index: 5; }
-  header b { font-family: Georgia, serif; letter-spacing: .06em; }
-  header small { display: block; color: var(--gold-2); font-size: .7rem; letter-spacing: .2em; }
-  header .acts { display: flex; gap: 6px; }
-  header button, header a { background: #2a2118; color: #f6efe3; border: 1px solid #5a4a34; border-radius: 8px; padding: 7px 10px; font-size: .82rem; text-decoration: none; cursor: pointer; }
+  .top { background: var(--ink); color: #f6efe3; position: sticky; top: 0; z-index: 5; }
+  .bar { padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .bar b { font-family: Georgia, serif; letter-spacing: .06em; }
+  .bar small { display: block; color: var(--gold-2); font-size: .66rem; letter-spacing: .2em; }
+  .acts { display: flex; gap: 6px; }
+  .acts button, .acts a { background: #2a2118; color: #f6efe3; border: 1px solid #5a4a34; border-radius: 8px; padding: 7px 10px; font-size: .82rem; text-decoration: none; cursor: pointer; }
+  nav { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid #3a2e22; }
+  nav button { background: none; border: 0; color: #cbb994; padding: 10px 2px; font-weight: 700; font-size: .82rem; cursor: pointer; border-bottom: 3px solid transparent; }
+  nav button.on { color: #fff; border-bottom-color: var(--gold-2); }
   .wrap { max-width: 760px; margin: 0 auto; padding: 14px 16px 60px; }
+  h2 { font-family: Georgia, serif; font-size: 1.25rem; margin: 4px 0 12px; }
+  h3 { font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 18px 0 8px; }
   .filters { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 10px; -webkit-overflow-scrolling: touch; }
   .filters button { flex: none; border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 7px 12px; font-weight: 700; font-size: .85rem; cursor: pointer; color: var(--ink); }
   .filters button.on { background: var(--ink); color: #fff; border-color: var(--ink); }
   .filters .n { color: var(--orange); margin-left: 4px; }
   .totals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px; }
-  .totals div { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 8px; text-align: center; }
-  .totals b { display: block; font-size: 1.05rem; }
-  .totals span { font-size: .68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
-  .empty { text-align: center; color: var(--muted); padding: 30px 0; }
+  .totals div { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 8px 4px; text-align: center; }
+  .totals b { display: block; font-size: 1rem; }
+  .totals span { font-size: .64rem; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+  .empty { text-align: center; color: var(--muted); padding: 26px 0; }
   details.bk { background: #fff; border: 1px solid var(--line); border-radius: 12px; margin-bottom: 8px; overflow: hidden; }
   details.bk > summary { list-style: none; padding: 11px 12px; cursor: pointer; }
   details.bk > summary::-webkit-details-marker { display: none; }
@@ -37,213 +43,504 @@
   .l3 { font-size: .8rem; color: var(--muted); margin-top: 2px; }
   .badge { font-size: .7rem; font-weight: 800; text-transform: uppercase; border-radius: 6px; padding: 2px 6px; white-space: nowrap; }
   .st-pendiente { background: #fff1d6; color: #8a5a00; }
-  .st-asignada { background: #e3effe; color: #1f4f99; }
+  .st-asignada { background: #e3effe; color: var(--blue); }
   .st-hecha { background: #e2f3e8; color: var(--ok); }
   .st-cancelada { background: #f1e9e9; color: #8a3b36; }
   .grp { background: var(--ink); color: var(--gold-2); }
-  .body { border-top: 1px solid var(--line); padding: 12px; font-size: .9rem; }
-  .kv { display: grid; grid-template-columns: 110px 1fr; gap: 3px 10px; margin-bottom: 12px; }
+  .body { border-top: 1px solid var(--line); padding: 4px 12px 14px; font-size: .9rem; }
+  .kv { display: grid; grid-template-columns: 105px 1fr; gap: 3px 10px; margin: 10px 0 4px; }
   .kv dt { color: var(--muted); }
   .kv dd { margin: 0; overflow-wrap: anywhere; }
-  .kv a { color: #1f4f99; }
-  label { display: block; font-size: .75rem; font-weight: 700; text-transform: uppercase; color: var(--muted); margin: 8px 0 4px; }
+  .kv a { color: var(--blue); }
+  label { display: block; font-size: .72rem; font-weight: 700; text-transform: uppercase; color: var(--muted); margin: 8px 0 4px; }
   input, select, textarea { width: 100%; font: inherit; font-size: 16px; border: 1.5px solid var(--line); border-radius: 9px; padding: 9px 10px; background: #fff; color: var(--ink); }
-  textarea { min-height: 64px; }
+  input:disabled { background: #f3efe8; color: var(--muted); }
+  textarea { min-height: 60px; }
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
   .margin { background: #f7f1e6; border-radius: 9px; padding: 9px 10px; margin-top: 8px; font-weight: 700; }
   .check { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; font-weight: 600; text-transform: none; font-size: .9rem; color: var(--ink); }
   .check input { width: 20px; height: 20px; }
   .save { margin-top: 12px; width: 100%; border: 0; border-radius: 10px; padding: 12px; font-weight: 800; font-size: 1rem; background: linear-gradient(135deg, var(--gold-2), var(--orange)); color: var(--ink); cursor: pointer; }
+  .save:disabled { opacity: .6; }
   .msg { font-size: .85rem; margin-top: 6px; min-height: 1.2em; }
   .msg.ok { color: var(--ok); } .msg.bad { color: var(--err); }
-  .note { font-size: .8rem; color: var(--muted); margin-top: 18px; }
+  .box { background: #fbf8f2; border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin-top: 12px; }
+  .btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .b { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: 8px; padding: 8px 10px; font-size: .85rem; font-weight: 700; text-decoration: none; cursor: pointer; }
+  .b.wa { background: #1f9e4f; color: #fff; border-color: #1f9e4f; }
+  .b.dark { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .b.red { color: var(--err); border-color: #e9c3bf; }
+  .b[aria-disabled=true] { opacity: .45; pointer-events: none; }
+  .inv-line { font-weight: 700; }
+  .inv-void { color: var(--err); font-weight: 700; }
+  table { width: 100%; border-collapse: collapse; font-size: .85rem; background: #fff; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  th, td { padding: 7px 6px; border-bottom: 1px solid var(--line); text-align: left; }
+  th { background: #f3ece0; font-size: .7rem; text-transform: uppercase; color: var(--muted); }
+  td.r, th.r { text-align: right; white-space: nowrap; }
+  tr.void td { color: var(--muted); text-decoration: line-through; }
+  .inv-row { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; margin-bottom: 6px; }
+  .inv-row a { color: var(--blue); }
+  .inv-row.void .l1 { color: var(--muted); text-decoration: line-through; }
+  .inv-total { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .inv-total .l3 { color: var(--gold-2); }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; }
+  .note { font-size: .8rem; color: var(--muted); margin-top: 14px; }
 </style>
 </head>
 <body>
-<header>
-  <div><b>BRAVO</b> <small>PANEL · PRUEBAS</small></div>
-  <div class="acts">
-    <a href="/bravo/" target="_blank" rel="noopener">Web</a>
-    <button type="button" id="reload">↻</button>
-    <button type="button" id="logout">Salir</button>
+<div class="top">
+  <div class="bar">
+    <div><b>BRAVO</b> <small>PANEL · PRUEBAS</small></div>
+    <div class="acts">
+      <a href="/bravo/" target="_blank" rel="noopener">Web</a>
+      <button type="button" id="reload">↻</button>
+      <button type="button" id="logout">Salir</button>
+    </div>
   </div>
-</header>
-<div class="wrap">
-  <div class="filters" id="filters"></div>
-  <div class="totals" id="totals"></div>
-  <div id="list"></div>
-  <p class="note">Fase 1: no se cobra nada. Los precios son ficticios. Lo que pones aquí se guarda en el servidor.</p>
+  <nav>
+    <button type="button" data-tab="trips">Viajes</button>
+    <button type="button" data-tab="billing">Facturación</button>
+    <button type="button" data-tab="drivers">Conductores</button>
+    <button type="button" data-tab="settings">Ajustes</button>
+  </nav>
 </div>
+
+<div class="wrap">
+  <!-- VIAJES -->
+  <section id="tab-trips">
+    <div class="filters" id="filters"></div>
+    <div class="totals" id="totals"></div>
+    <div id="list"></div>
+    <p class="note">Fase de pruebas: no se cobra nada y los precios son ficticios.</p>
+  </section>
+
+  <!-- FACTURACIÓN -->
+  <section id="tab-billing" hidden>
+    <h2>Facturación</h2>
+    <label for="month">Mes</label>
+    <input type="month" id="month">
+    <h3>Viajes del mes (por día del servicio)</h3>
+    <div class="totals" id="m-totals"></div>
+    <h3>Facturas emitidas en el mes</h3>
+    <div id="m-invoices"></div>
+    <div class="btns"><a class="b dark" id="csv" href="#">⬇︎ Descargar el mes en Excel (CSV)</a></div>
+    <p class="note">Los precios llevan el IVA incluido: la base y el IVA de cada factura salen del precio, según el porcentaje que elijas al crearla.</p>
+  </section>
+
+  <!-- CONDUCTORES -->
+  <section id="tab-drivers" hidden>
+    <h2>Conductores</h2>
+    <div id="drv-list"></div>
+    <div class="btns"><button type="button" class="b" id="drv-add">＋ Añadir conductor</button></div>
+    <button type="button" class="save" id="drv-save">Guardar conductores</button>
+    <div class="msg" id="drv-msg"></div>
+  </section>
+
+  <!-- AJUSTES -->
+  <section id="tab-settings" hidden>
+    <h2>Ajustes</h2>
+    <h3>Precios (con IVA incluido) · ahora son ficticios</h3>
+    <div class="card">
+      <b>🚗 Coche (hasta 4)</b>
+      <div class="row3">
+        <div><label>€ por km</label><input type="number" step="0.01" min="0" inputmode="decimal" data-s="vehicles.car.perKm"></div>
+        <div><label>Mínimo €</label><input type="number" step="0.01" min="0" inputmode="decimal" data-s="vehicles.car.minFare"></div>
+        <div><label>€ por hora</label><input type="number" step="0.01" min="0" inputmode="decimal" data-s="vehicles.car.perHour"></div>
+      </div>
+    </div>
+    <div class="card">
+      <b>🚐 Monovolumen (hasta 7)</b>
+      <div class="row3">
+        <div><label>€ por km</label><input type="number" step="0.01" min="0" inputmode="decimal" data-s="vehicles.van.perKm"></div>
+        <div><label>Mínimo €</label><input type="number" step="0.01" min="0" inputmode="decimal" data-s="vehicles.van.minFare"></div>
+        <div><label>€ por hora</label><input type="number" step="0.01" min="0" inputmode="decimal" data-s="vehicles.van.perHour"></div>
+      </div>
+    </div>
+    <label>Antelación mínima para reservar (horas)</label>
+    <input type="number" min="0" max="168" step="1" inputmode="numeric" data-s="minHoursAhead">
+
+    <h3>Datos de las facturas</h3>
+    <label>Nombre que sale en la factura</label><input data-s="invoice.issuerName">
+    <label>NIF / CIF</label><input data-s="invoice.taxId" placeholder="Pendiente">
+    <label>Dirección (no la de casa)</label><textarea data-s="invoice.address"></textarea>
+    <div class="row">
+      <div><label>Correo</label><input type="email" data-s="invoice.email"></div>
+      <div><label>Teléfono</label><input type="tel" data-s="invoice.phone"></div>
+    </div>
+    <label>IVA por defecto (%)</label><input type="number" min="0" max="30" step="0.01" inputmode="decimal" data-s="invoice.defaultVat">
+    <label>Texto al pie de la factura</label><textarea data-s="invoice.footer" placeholder="Por ejemplo: Gracias por viajar con nosotros"></textarea>
+    <button type="button" class="save" id="set-save">Guardar ajustes</button>
+    <div class="msg" id="set-msg"></div>
+    <p class="note">Las facturas ya hechas no cambian: guardan los datos que tenían al crearlas.</p>
+  </section>
+</div>
+
+<datalist id="drivers-dl"></datalist>
 
 <script>
 (function () {
   'use strict';
   function $(id) { return document.getElementById(id); }
+  function qsa(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
-  function euro(n) { return n == null ? '—' : (Math.round(n * 100) / 100).toLocaleString('es-ES') + ' €'; }
+  function euro(n) { return n == null || n === '' ? '—' : (Math.round(Number(n) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 }) + ' €'; }
+  function r2(n) { return Math.round(n * 100) / 100; }
 
-  var FILTERS = [
-    ['today', 'Hoy'], ['tomorrow', 'Mañana'], ['week', '7 días'], ['nodriver', 'Sin conductor'], ['groups', 'Grupos'], ['all', 'Todas']
-  ];
-  var current = 'week';
-  var list = [];
-  var open = {};
+  var list = [], drivers = [], cfg = null;
+  var current = 'week', tab = 'trips', open = {};
 
-  // La fecha de hoy en Málaga, como AAAA-MM-DD
+  async function api(route, body) {
+    var res = await fetch('/api/bravo/' + route, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
+    if (res.status === 401) { location.reload(); throw new Error('sin contraseña'); }
+    var data = {};
+    try { data = await res.json(); } catch (e) { /* vacío */ }
+    if (!res.ok) throw new Error(ERRORS[data.error] || data.error || 'error');
+    return data;
+  }
+  var ERRORS = {
+    no_price: 'Pon primero el precio y guarda', bad_vat: 'El IVA tiene que estar entre 0 y 30',
+    already_invoiced: 'Esta reserva ya tiene factura', invoiced: 'Tiene factura: para cambiar el precio, anúlala antes',
+    has_invoice: 'Tiene o tuvo factura: no se puede borrar', bad_price: 'Precio no válido', bad_pay: 'Pago no válido',
+    bad_hours_ahead: 'Antelación no válida (0 a 168 horas)'
+  };
+
+  // ---------- fechas de Málaga ----------
   function madridDay(offset) {
     var d = new Date(Date.now() + (offset || 0) * 86400000);
     try { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d); }
     catch (e) { return d.toISOString().slice(0, 10); }
   }
+  function dayLabel(d) {
+    try { return new Date(d + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' }); } catch (e) { return d; }
+  }
+  function dmy(d) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || ''); return m ? m[3] + '/' + m[2] + '/' + m[1] : (d || ''); }
+
+  // ---------- pestañas ----------
+  function setTab(t) {
+    tab = t;
+    qsa('nav [data-tab]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-tab') === t); });
+    ['trips', 'billing', 'drivers', 'settings'].forEach(function (x) { $('tab-' + x).hidden = x !== t; });
+    if (t === 'billing') renderBilling();
+    if (t === 'drivers') renderDrivers();
+    if (t === 'settings') renderSettings();
+    window.scrollTo(0, 0);
+  }
+  qsa('nav [data-tab]').forEach(function (b) { b.addEventListener('click', function () { setTab(b.getAttribute('data-tab')); }); });
+
+  // ---------- VIAJES ----------
+  var FILTERS = [['today', 'Hoy'], ['tomorrow', 'Mañana'], ['week', '7 días'], ['nodriver', 'Sin conductor'], ['groups', 'Grupos'], ['all', 'Todas']];
   function matches(b, f) {
     var today = madridDay(0);
     if (f === 'today') return b.date === today;
     if (f === 'tomorrow') return b.date === madridDay(1);
     if (f === 'week') return b.date >= today && b.date <= madridDay(7);
-    if (f === 'nodriver') return b.kind !== 'group' && b.status !== 'cancelada' && b.status !== 'hecha' && !b.driverName;
+    if (f === 'nodriver') return b.status !== 'cancelada' && b.status !== 'hecha' && !b.driverName;
     if (f === 'groups') return b.kind === 'group';
     return true;
-  }
-  function dayLabel(d) {
-    try { return new Date(d + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' }); } catch (e) { return d; }
   }
   function kindLabel(b) {
     if (b.kind === 'group') return 'Grupo';
     if (b.kind === 'hourly') return 'Por horas (' + b.hours + ' h)';
     return b.roundTrip ? 'Ida y vuelta' : 'Traslado';
   }
-  function route(b) {
-    if (b.kind === 'group') return b.fromText + ' → ' + b.toText;
-    if (b.kind === 'hourly') return (b.from && b.from.label) || '';
-    return ((b.from && b.from.label) || '') + ' → ' + ((b.to && b.to.label) || '');
-  }
-
-  function render() {
-    var fh = '';
-    FILTERS.forEach(function (f) {
-      var n = list.filter(function (b) { return matches(b, f[0]); }).length;
-      fh += '<button type="button" data-f="' + f[0] + '" class="' + (f[0] === current ? 'on' : '') + '">' + f[1] + '<span class="n">' + n + '</span></button>';
-    });
-    $('filters').innerHTML = fh;
-    Array.prototype.forEach.call($('filters').querySelectorAll('[data-f]'), function (b) {
-      b.addEventListener('click', function () { current = b.getAttribute('data-f'); render(); });
-    });
-
-    var shown = list.filter(function (b) { return matches(b, current); });
-    var cobrado = 0, pagado = 0, n = 0;
-    shown.forEach(function (b) {
+  function fromOf(b) { return b.kind === 'group' ? b.fromText : (b.from && b.from.label) || ''; }
+  function toOf(b) { return b.kind === 'group' ? b.toText : (b.to && b.to.label) || ''; }
+  function route(b) { return b.kind === 'hourly' ? fromOf(b) : fromOf(b) + ' → ' + toOf(b); }
+  function vehName(v) { return v === 'van' ? 'Monovolumen' : (v === 'car' ? 'Coche' : ''); }
+  function activeInv(b) { return b.invoice && b.invoice.status !== 'anulada'; }
+  function sums(arr) {
+    var n = 0, cobrado = 0, pagado = 0;
+    arr.forEach(function (b) {
       if (b.status === 'cancelada') return;
       n++;
       if (b.price != null) cobrado += b.price;
       if (b.driverPay != null) pagado += b.driverPay;
     });
-    $('totals').innerHTML =
-      '<div><b>' + n + '</b><span>Reservas</span></div>' +
-      '<div><b>' + euro(cobrado) + '</b><span>Cobrado</span></div>' +
-      '<div><b>' + euro(pagado) + '</b><span>Conductores</span></div>' +
-      '<div><b>' + euro(cobrado - pagado) + '</b><span>Te queda</span></div>';
+    return '<div><b>' + n + '</b><span>Viajes</span></div><div><b>' + euro(r2(cobrado)) + '</b><span>Cobrado</span></div>' +
+      '<div><b>' + euro(r2(pagado)) + '</b><span>Conductores</span></div><div><b>' + euro(r2(cobrado - pagado)) + '</b><span>Te queda</span></div>';
+  }
 
+  function renderTrips() {
+    $('filters').innerHTML = FILTERS.map(function (f) {
+      var n = list.filter(function (b) { return matches(b, f[0]); }).length;
+      return '<button type="button" data-f="' + f[0] + '" class="' + (f[0] === current ? 'on' : '') + '">' + f[1] + '<span class="n">' + n + '</span></button>';
+    }).join('');
+    qsa('[data-f]', $('filters')).forEach(function (b) { b.addEventListener('click', function () { current = b.getAttribute('data-f'); renderTrips(); }); });
+    var shown = list.filter(function (b) { return matches(b, current); });
+    $('totals').innerHTML = sums(shown);
     if (!shown.length) { $('list').innerHTML = '<p class="empty">No hay reservas aquí.</p>'; return; }
     $('list').innerHTML = shown.map(card).join('');
-    shown.forEach(function (b) { wire(b); });
+    shown.forEach(wire);
+  }
+
+  // ---------- enlaces y mensajes ----------
+  function docUrl(b, kind) { return location.origin + '/api/bravo/doc/' + (kind === 'hoja' ? b.driverToken : b.clientToken) + '/' + kind + '.pdf'; }
+  function waNumber(p) {
+    var d = String(p || '').replace(/[^0-9]/g, '');
+    if (d.indexOf('00') === 0) d = d.slice(2);
+    if (d.length === 9 && /^[6789]/.test(d)) d = '34' + d;
+    return d;
+  }
+  function wa(phone, text) { return 'https://wa.me/' + waNumber(phone) + '?text=' + encodeURIComponent(text); }
+  function mail(to, subject, body) { return 'mailto:' + encodeURIComponent(to) + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body); }
+  function clientMsg(b) {
+    var en = b.lang === 'en';
+    var trip = b.kind === 'hourly' ? fromOf(b) + (en ? ' (' + b.hours + ' hours)' : ' (' + b.hours + ' horas)') : fromOf(b) + ' → ' + toOf(b);
+    var drv = b.driverName ? (en ? ' Your driver: ' : ' Tu conductor: ') + b.driverName + (b.driverCar ? ', ' + b.driverCar : '') + (b.driverPhone ? (en ? ', phone ' : ', tel. ') + b.driverPhone : '') + '.' : '';
+    return (en ? 'Hi ' + b.name + ', this is Bravo Transfers about your booking ' + b.ref + ': ' + dmy(b.date) + ' at ' + b.time + ', ' + trip + '.' + drv + ' Your booking confirmation: '
+      : 'Hola ' + b.name + ', te escribimos de Bravo Transfers por tu reserva ' + b.ref + ': ' + dmy(b.date) + ' a las ' + b.time + ', ' + trip + '.' + drv + ' Tu justificante: ') + docUrl(b, 'justificante');
+  }
+  function driverMsg(b) {
+    var dest = b.kind === 'hourly' ? 'Horas: ' + b.hours : 'Destino: ' + toOf(b);
+    return 'Hola ' + (b.driverName || '') + ', servicio ' + b.ref + ' de Bravo Transfers: ' + dmy(b.date) + ' a las ' + b.time +
+      '. Recogida: ' + fromOf(b) + '. ' + dest + '. ' + b.passengers + ' pers.' + (b.flight ? ' Vuelo ' + b.flight + '.' : '') +
+      ' Cliente: ' + b.name + ' ' + b.phone + '. Hoja de servicio: ' + docUrl(b, 'hoja');
+  }
+  function invoiceMsg(b) {
+    var en = b.lang === 'en';
+    return (en ? 'Hi ' + b.name + ', here is your invoice ' + b.invoice.number + ' from Bravo Transfers: ' : 'Hola ' + b.name + ', aquí tienes tu factura ' + b.invoice.number + ' de Bravo Transfers: ') + docUrl(b, 'factura');
   }
 
   function card(b) {
-    var badge = b.kind === 'group' ? '<span class="badge grp">Grupo</span> ' : '';
-    var veh = b.vehicle === 'van' ? 'Monovolumen' : (b.vehicle === 'car' ? 'Coche' : '');
-    var l3 = [b.passengers + ' pers.', veh, b.price != null ? euro(b.price) : 'presupuesto', b.driverName ? '🚗 ' + b.driverName : 'sin conductor']
+    var veh = vehName(b.vehicle);
+    var inv = b.invoice;
+    var l3 = [b.passengers + ' pers.', veh, b.price != null ? euro(b.price) : 'sin precio', b.driverName ? '🚗 ' + b.driverName : 'sin conductor', inv ? '🧾 ' + inv.number + (inv.status === 'anulada' ? ' (anulada)' : '') : '']
       .filter(Boolean).join(' · ');
     var kv = [
-      ['Reserva', b.ref + ' · ' + kindLabel(b)],
-      ['Cliente', b.name],
-      ['Teléfono', '<a href="tel:' + esc(b.phone.replace(/[^+0-9]/g, '')) + '">' + esc(b.phone) + '</a>', true],
-      ['Correo', '<a href="mailto:' + esc(b.email) + '">' + esc(b.email) + '</a>', true],
+      ['Reserva', esc(b.ref + ' · ' + kindLabel(b))],
+      ['Cliente', esc(b.name)],
+      ['Teléfono', '<a href="tel:' + esc(String(b.phone).replace(/[^+0-9]/g, '')) + '">' + esc(b.phone) + '</a>'],
+      ['Correo', '<a href="mailto:' + esc(b.email) + '">' + esc(b.email) + '</a>'],
       ['Idioma', b.lang === 'en' ? 'Inglés' : 'Español'],
-      ['Día', dayLabel(b.date) + ' · ' + b.time],
-      b.roundTrip ? ['Vuelta', dayLabel(b.returnDate) + ' · ' + b.returnTime] : null,
-      b.kind === 'group' ? ['Desde', b.fromText] : ['Desde', (b.from && b.from.label) || ''],
-      b.kind === 'hourly' ? ['Horas', b.hours] : (b.kind === 'group' ? ['Hasta', b.toText] : ['Hasta', (b.to && b.to.label) || '']),
-      b.km ? ['Distancia', b.km + ' km · ~' + b.minutes + ' min'] : null,
-      ['Personas', b.passengers],
-      veh ? ['Vehículo', veh] : null,
-      b.flight ? ['Vuelo', b.flight] : null,
-      b.kind !== 'group' ? ['Maletas', b.bags + ' · sillas de niño: ' + b.childSeats] : null,
-      b.comments ? ['Comentarios', b.comments] : null,
-      ['Precio', b.price != null ? euro(b.price) : 'Presupuesto pendiente'],
-      ['Pago', b.payment || '']
-    ].filter(Boolean).map(function (r) { return '<dt>' + esc(r[0]) + '</dt><dd>' + (r[2] ? r[1] : esc(r[1])) + '</dd>'; }).join('');
+      ['Día', esc(dayLabel(b.date) + ' · ' + b.time)],
+      b.roundTrip ? ['Vuelta', esc(dayLabel(b.returnDate) + ' · ' + b.returnTime)] : null,
+      ['Desde', esc(fromOf(b))],
+      b.kind === 'hourly' ? ['Horas', esc(b.hours)] : ['Hasta', esc(toOf(b))],
+      b.km ? ['Distancia', esc(b.km + ' km · ~' + b.minutes + ' min')] : null,
+      ['Personas', esc(b.passengers)],
+      veh ? ['Vehículo', esc(veh)] : null,
+      b.flight ? ['Vuelo', esc(b.flight)] : null,
+      b.kind !== 'group' ? ['Maletas', esc(b.bags + ' · sillas de niño: ' + b.childSeats)] : null,
+      b.comments ? ['Comentarios', esc(b.comments)] : null,
+      ['Pago', esc(b.payment || '')]
+    ].filter(Boolean).map(function (r) { return '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>'; }).join('');
     var opts = ['pendiente', 'asignada', 'hecha', 'cancelada'].map(function (s) {
       return '<option value="' + s + '"' + (b.status === s ? ' selected' : '') + '>' + s.charAt(0).toUpperCase() + s.slice(1) + '</option>';
     }).join('');
+    var locked = activeInv(b);
     return '<details class="bk" id="bk-' + esc(b.ref) + '"' + (open[b.ref] ? ' open' : '') + '>' +
       '<summary><div class="l1"><span>' + esc(dayLabel(b.date) + ' · ' + b.time) + '</span>' +
       '<span class="badge st-' + esc(b.status) + '">' + esc(b.status) + '</span></div>' +
-      '<div class="l2">' + badge + esc(route(b)) + '</div><div class="l3">' + esc(b.ref + ' · ' + l3) + '</div></summary>' +
+      '<div class="l2">' + (b.kind === 'group' ? '<span class="badge grp">Grupo</span> ' : '') + esc(route(b)) + '</div><div class="l3">' + esc(b.ref + ' · ' + l3) + '</div></summary>' +
       '<div class="body"><dl class="kv">' + kv + '</dl>' +
-      '<label>Conductor</label><input data-k="driverName" value="' + esc(b.driverName) + '" placeholder="Nombre">' +
+      '<label>Precio para el cliente (€, IVA incluido)' + (locked ? ' · bloqueado por la factura' : '') + '</label>' +
+      '<input data-k="price" type="number" inputmode="decimal" min="0" step="0.01" value="' + (b.price == null ? '' : esc(b.price)) + '"' + (locked ? ' disabled' : '') + (b.kind === 'group' ? ' placeholder="Pon el precio del presupuesto"' : '') + '>' +
+      '<h3>Conductor</h3>' +
+      '<input data-k="driverName" list="drivers-dl" value="' + esc(b.driverName) + '" placeholder="Nombre (elige de la lista o escribe)">' +
       '<div class="row"><div><label>Su teléfono</label><input data-k="driverPhone" type="tel" value="' + esc(b.driverPhone) + '"></div>' +
       '<div><label>Le pagas (€)</label><input data-k="driverPay" type="number" inputmode="decimal" min="0" step="0.01" value="' + (b.driverPay == null ? '' : esc(b.driverPay)) + '"></div></div>' +
+      '<label>Coche y matrícula</label><input data-k="driverCar" value="' + esc(b.driverCar) + '" placeholder="Ej.: Toyota Corolla · 1234 ABC">' +
+      '<label>Nota para el conductor (sale en su hoja)</label><input data-k="driverNote" value="' + esc(b.driverNote) + '">' +
       '<div class="margin" data-margin></div>' +
       '<label>Estado</label><select data-k="status">' + opts + '</select>' +
       '<label class="check"><input type="checkbox" data-k="ministry"' + (b.ministry ? ' checked' : '') + '> Comunicado al Ministerio</label>' +
-      '<label>Notas</label><textarea data-k="notes">' + esc(b.notes) + '</textarea>' +
+      '<label>Notas internas (solo las ves tú)</label><textarea data-k="notes">' + esc(b.notes) + '</textarea>' +
       '<button type="button" class="save" data-save>Guardar</button><div class="msg" data-msg></div>' +
+      '<div class="box"><b>Documentos y mensajes</b><div class="btns">' +
+      '<a class="b" target="_blank" rel="noopener" href="' + esc(docUrl(b, 'justificante')) + '">📄 Justificante</a>' +
+      '<a class="b" target="_blank" rel="noopener" href="' + esc(docUrl(b, 'hoja')) + '">🚗 Hoja del conductor</a>' +
+      '<a class="b wa" target="_blank" rel="noopener" href="' + esc(wa(b.phone, clientMsg(b))) + '">WhatsApp al cliente</a>' +
+      '<a class="b wa" target="_blank" rel="noopener" href="' + esc(wa(b.driverPhone, driverMsg(b))) + '"' + (b.driverPhone ? '' : ' aria-disabled="true"') + '>WhatsApp al conductor</a>' +
+      '<a class="b" href="' + esc(mail(b.email, (b.lang === 'en' ? 'Your booking ' : 'Tu reserva ') + b.ref + ' – Bravo Transfers', clientMsg(b))) + '">✉️ Correo al cliente</a>' +
+      '</div><div class="msg">Los botones mandan lo que hay guardado: guarda antes los cambios.</div></div>' +
+      invoiceBox(b) +
+      (b.invoice || b.previousInvoices ? '' : '<div class="btns"><button type="button" class="b red" data-del>🗑 Borrar esta reserva</button></div>') +
       '</div></details>';
+  }
+
+  function invoiceBox(b) {
+    var h = '<div class="box"><b>Factura</b>';
+    if (activeInv(b)) {
+      var i = b.invoice;
+      h += '<p class="inv-line">' + esc(i.number) + ' · ' + esc(dmy(i.date)) + '</p>' +
+        '<div>Base ' + euro(i.base) + ' · IVA ' + esc(i.vatRate) + ' %: ' + euro(i.vat) + ' · <b>Total ' + euro(i.total) + '</b></div>' +
+        '<div class="btns"><a class="b dark" target="_blank" rel="noopener" href="' + esc(docUrl(b, 'factura')) + '">🧾 Ver la factura (PDF)</a>' +
+        '<a class="b" href="' + esc(mail(b.email, (b.lang === 'en' ? 'Invoice ' : 'Factura ') + i.number + ' – Bravo Transfers', invoiceMsg(b))) + '">✉️ Mandarla por correo</a>' +
+        '<a class="b wa" target="_blank" rel="noopener" href="' + esc(wa(b.phone, invoiceMsg(b))) + '">Mandarla por WhatsApp</a>' +
+        '<button type="button" class="b red" data-void>Anular</button></div>';
+    } else {
+      if (b.invoice) h += '<p class="inv-void">' + esc(b.invoice.number) + ' anulada · <a target="_blank" rel="noopener" href="' + esc(docUrl(b, 'factura')) + '">ver PDF</a></p>';
+      if (b.price == null || !(b.price > 0)) {
+        h += '<p class="msg">Para hacer la factura, pon antes el precio y guarda.</p>';
+      } else {
+        var def = cfg ? cfg.invoice.defaultVat : 10;
+        var vats = []; for (var v = 0; v <= 30; v++) vats.push(v);
+        if (vats.indexOf(Number(def)) < 0) vats.push(Number(def));
+        vats.sort(function (a, c) { return a - c; });
+        h += '<div class="row"><div><label>IVA (%)</label><select data-inv="vat">' + vats.map(function (x) {
+          return '<option value="' + x + '"' + (Number(x) === Number(def) ? ' selected' : '') + '>' + String(x).replace('.', ',') + ' %</option>';
+        }).join('') + '</select></div><div><label>Total</label><input value="' + esc(euro(b.price)) + '" disabled></div></div>' +
+          '<div data-inv-preview class="msg"></div>' +
+          '<label>Nombre en la factura</label><input data-inv="customerName" value="' + esc(b.name) + '">' +
+          '<label>NIF / CIF del cliente (opcional, para empresas)</label><input data-inv="customerTaxId">' +
+          '<label>Dirección del cliente (opcional)</label><input data-inv="customerAddress">' +
+          '<button type="button" class="save" data-invoice>Crear la factura</button>';
+      }
+    }
+    return h + '<div class="msg" data-inv-msg></div></div>';
   }
 
   function wire(b) {
     var el = $('bk-' + b.ref);
     if (!el) return;
     el.addEventListener('toggle', function () { open[b.ref] = el.open; });
-    var pay = el.querySelector('[data-k=driverPay]');
+    var pay = el.querySelector('[data-k=driverPay]'), price = el.querySelector('[data-k=price]');
     function margin() {
       var m = el.querySelector('[data-margin]');
-      if (b.price == null) { m.textContent = 'Sin precio: es un presupuesto.'; return; }
-      var p = pay.value === '' ? null : Number(pay.value);
-      m.textContent = p == null ? 'Cobrado ' + euro(b.price) + ' · pon lo que le pagas para ver lo que te queda'
-        : 'Te queda: ' + euro(b.price - p) + ' (cobrado ' + euro(b.price) + ')';
+      var pr = price.value === '' ? null : Number(price.value), p = pay.value === '' ? null : Number(pay.value);
+      if (pr == null) { m.textContent = 'Sin precio todavía.'; return; }
+      m.textContent = p == null ? 'Cobrado ' + euro(pr) + ' · pon lo que le pagas para ver lo que te queda' : 'Te queda: ' + euro(r2(pr - p)) + ' (cobrado ' + euro(pr) + ')';
     }
-    pay.addEventListener('input', margin); margin();
+    pay.addEventListener('input', margin); price.addEventListener('input', margin); margin();
+    // Al elegir un conductor de la lista, se rellenan su teléfono y su coche
+    var dn = el.querySelector('[data-k=driverName]');
+    dn.addEventListener('change', function () {
+      var d = drivers.filter(function (x) { return x.name === dn.value; })[0];
+      if (!d) return;
+      el.querySelector('[data-k=driverPhone]').value = d.phone || '';
+      el.querySelector('[data-k=driverCar]').value = [d.car, d.plate].filter(Boolean).join(' · ');
+    });
     el.querySelector('[data-save]').addEventListener('click', async function () {
-      var msg = el.querySelector('[data-msg]');
-      var btn = this; btn.disabled = true; msg.className = 'msg'; msg.textContent = 'Guardando…';
+      var msg = el.querySelector('[data-msg]'), btn = this;
+      btn.disabled = true; msg.className = 'msg'; msg.textContent = 'Guardando…';
       var body = { ref: b.ref };
-      Array.prototype.forEach.call(el.querySelectorAll('[data-k]'), function (i) {
-        body[i.getAttribute('data-k')] = i.type === 'checkbox' ? i.checked : i.value;
-      });
+      qsa('[data-k]', el).forEach(function (i) { if (!i.disabled) body[i.getAttribute('data-k')] = i.type === 'checkbox' ? i.checked : i.value; });
       try {
-        var res = await fetch('/api/bravo/admin/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-        if (res.status === 401) { location.reload(); return; }
-        var data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'error');
-        for (var i = 0; i < list.length; i++) if (list[i].ref === b.ref) list[i] = data.booking;
-        open[b.ref] = true;
-        render();
-        var again = $('bk-' + b.ref);
-        if (again) { var m2 = again.querySelector('[data-msg]'); m2.className = 'msg ok'; m2.textContent = '✓ Guardado'; }
-      } catch (e) {
-        msg.className = 'msg bad'; msg.textContent = 'No se ha guardado (' + e.message + '). Prueba otra vez.';
-        btn.disabled = false;
-      }
+        var data = await api('admin/update', body);
+        replace(data.booking); open[b.ref] = true; renderTrips(); flash(b.ref, '[data-msg]', '✓ Guardado');
+      } catch (e) { msg.className = 'msg bad'; msg.textContent = 'No se ha guardado: ' + e.message; btn.disabled = false; }
+    });
+    var vatSel = el.querySelector('[data-inv=vat]');
+    if (vatSel) {
+      var prev = el.querySelector('[data-inv-preview]');
+      var showPrev = function () {
+        var r = Number(vatSel.value), base = r2(b.price / (1 + r / 100));
+        prev.textContent = 'Base ' + euro(base) + ' + IVA ' + String(r).replace('.', ',') + ' % ' + euro(r2(b.price - base)) + ' = ' + euro(b.price);
+      };
+      vatSel.addEventListener('change', showPrev); showPrev();
+      el.querySelector('[data-invoice]').addEventListener('click', async function () {
+        var msg = el.querySelector('[data-inv-msg]'), btn = this;
+        btn.disabled = true; msg.className = 'msg'; msg.textContent = 'Creando…';
+        var body = { ref: b.ref, vatRate: Number(vatSel.value) };
+        qsa('[data-inv]', el).forEach(function (i) { if (i !== vatSel) body[i.getAttribute('data-inv')] = i.value; });
+        try { var data = await api('admin/invoice', body); replace(data.booking); open[b.ref] = true; renderTrips(); flash(b.ref, '[data-inv-msg]', '✓ Factura ' + data.booking.invoice.number + ' creada'); }
+        catch (e) { msg.className = 'msg bad'; msg.textContent = e.message; btn.disabled = false; }
+      });
+    }
+    var vd = el.querySelector('[data-void]');
+    if (vd) vd.addEventListener('click', async function () {
+      if (!confirm('¿Anular la factura ' + b.invoice.number + '? Se queda guardada como anulada y su número no se vuelve a usar.')) return;
+      try { var data = await api('admin/invoice-void', { ref: b.ref }); replace(data.booking); open[b.ref] = true; renderTrips(); flash(b.ref, '[data-inv-msg]', 'Factura anulada'); }
+      catch (e) { alert(e.message); }
+    });
+    var del = el.querySelector('[data-del]');
+    if (del) del.addEventListener('click', async function () {
+      if (!confirm('¿Borrar la reserva ' + b.ref + '? No se puede deshacer.')) return;
+      try { await api('admin/delete', { ref: b.ref }); list = list.filter(function (x) { return x.ref !== b.ref; }); renderTrips(); }
+      catch (e) { alert(e.message); }
     });
   }
+  function replace(nb) { for (var i = 0; i < list.length; i++) if (list[i].ref === nb.ref) list[i] = nb; }
+  function flash(ref, sel, text) { var e = $('bk-' + ref); if (!e) return; var m = e.querySelector(sel); if (m) { m.className = 'msg ok'; m.textContent = text; } }
 
+  // ---------- FACTURACIÓN ----------
+  $('month').value = madridDay(0).slice(0, 7);
+  $('month').addEventListener('change', renderBilling);
+  function renderBilling() {
+    var m = $('month').value || madridDay(0).slice(0, 7);
+    $('m-totals').innerHTML = sums(list.filter(function (b) { return b.date.slice(0, 7) === m; }));
+    var invs = [];
+    list.forEach(function (b) { [b.invoice].concat(b.previousInvoices || []).forEach(function (i) { if (i && i.date.slice(0, 7) === m) invs.push({ b: b, i: i }); }); });
+    invs.sort(function (a, c) { return a.i.number.localeCompare(c.i.number); });
+    if (!invs.length) { $('m-invoices').innerHTML = '<p class="empty">No hay facturas en este mes.</p>'; }
+    else {
+      var tb = 0, tv = 0, tt = 0;
+      var rows = invs.map(function (x) {
+        var i = x.i, v = i.status === 'anulada';
+        if (!v) { tb += i.base; tv += i.vat; tt += i.total; }
+        var num = i === x.b.invoice ? '<a target="_blank" rel="noopener" href="' + esc(docUrl(x.b, 'factura')) + '">' + esc(i.number) + '</a>' : esc(i.number);
+        return '<div class="inv-row' + (v ? ' void' : '') + '"><div class="l1"><span>' + num + (v ? ' · anulada' : '') + '</span><span>' + euro(i.total) + '</span></div>' +
+          '<div class="l3">' + esc(dmy(i.date) + ' · ' + ((i.customer && i.customer.name) || '') + ' · ' + x.b.ref) + '<br>Base ' + euro(i.base) + ' · IVA ' + esc(String(i.vatRate).replace('.', ',')) + ' %: ' + euro(i.vat) + '</div></div>';
+      }).join('');
+      $('m-invoices').innerHTML = rows + '<div class="inv-row inv-total"><div class="l1"><span>Total (sin anuladas)</span><span>' + euro(r2(tt)) + '</span></div>' +
+        '<div class="l3">Base ' + euro(r2(tb)) + ' · IVA ' + euro(r2(tv)) + '</div></div>';
+    }
+    $('csv').href = '/api/bravo/admin/export.csv?month=' + encodeURIComponent(m);
+  }
+
+  // ---------- CONDUCTORES ----------
+  function monthOf(name) {
+    var m = madridDay(0).slice(0, 7), n = 0, pay = 0;
+    list.forEach(function (b) { if (b.driverName === name && b.date.slice(0, 7) === m && b.status !== 'cancelada') { n++; pay += b.driverPay || 0; } });
+    return n ? 'Este mes: ' + n + ' viaje' + (n > 1 ? 's' : '') + ' · ' + euro(r2(pay)) : 'Este mes: sin viajes';
+  }
+  function renderDrivers() {
+    if (!drivers.length) { $('drv-list').innerHTML = '<p class="empty">Todavía no hay conductores. Añade el primero.</p>'; return; }
+    $('drv-list').innerHTML = drivers.map(function (d, i) {
+      return '<div class="card" data-drv="' + i + '"><div class="l1"><span>' + esc(d.name || 'Conductor nuevo') + '</span><span class="l3">' + esc(d.name ? monthOf(d.name) : '') + '</span></div>' +
+        '<div class="row"><div><label>Nombre</label><input data-d="name" value="' + esc(d.name) + '"></div><div><label>Teléfono</label><input data-d="phone" type="tel" value="' + esc(d.phone) + '"></div></div>' +
+        '<div class="row"><div><label>Licencia VTC</label><input data-d="licence" value="' + esc(d.licence) + '"></div><div><label>Plazas</label><input data-d="seats" type="number" min="1" max="80" value="' + esc(d.seats || '') + '"></div></div>' +
+        '<div class="row"><div><label>Coche</label><input data-d="car" value="' + esc(d.car) + '"></div><div><label>Matrícula</label><input data-d="plate" value="' + esc(d.plate) + '"></div></div>' +
+        '<label>Notas (lo que cobra, zona…)</label><textarea data-d="notes">' + esc(d.notes) + '</textarea>' +
+        '<div class="btns"><button type="button" class="b red" data-drv-del="' + i + '">Quitar</button></div></div>';
+    }).join('');
+    qsa('[data-drv-del]').forEach(function (b) { b.addEventListener('click', function () { readDrivers(); drivers.splice(Number(b.getAttribute('data-drv-del')), 1); renderDrivers(); }); });
+  }
+  function readDrivers() {
+    qsa('[data-drv]').forEach(function (c) {
+      var d = drivers[Number(c.getAttribute('data-drv'))];
+      qsa('[data-d]', c).forEach(function (i) { d[i.getAttribute('data-d')] = i.value; });
+    });
+  }
+  $('drv-add').addEventListener('click', function () { readDrivers(); drivers.push({ name: '', phone: '', licence: '', car: '', plate: '', seats: '', notes: '' }); renderDrivers(); });
+  $('drv-save').addEventListener('click', async function () {
+    readDrivers();
+    var msg = $('drv-msg'); msg.className = 'msg'; msg.textContent = 'Guardando…';
+    try { var data = await api('admin/drivers', { drivers: drivers }); drivers = data.drivers; renderDrivers(); fillDatalist(); msg.className = 'msg ok'; msg.textContent = '✓ Guardado'; }
+    catch (e) { msg.className = 'msg bad'; msg.textContent = 'No se ha guardado: ' + e.message; }
+  });
+  function fillDatalist() { $('drivers-dl').innerHTML = drivers.map(function (d) { return '<option value="' + esc(d.name) + '">'; }).join(''); }
+
+  // ---------- AJUSTES ----------
+  function getPath(o, p) { return p.split('.').reduce(function (a, k) { return a == null ? a : a[k]; }, o); }
+  function setPath(o, p, v) { var ks = p.split('.'), last = ks.pop(); ks.forEach(function (k) { o = o[k] = o[k] || {}; }); o[last] = v; }
+  function renderSettings() { if (!cfg) return; qsa('[data-s]').forEach(function (i) { var v = getPath(cfg, i.getAttribute('data-s')); i.value = v == null ? '' : v; }); }
+  $('set-save').addEventListener('click', async function () {
+    var body = {}, msg = $('set-msg');
+    qsa('[data-s]').forEach(function (i) { setPath(body, i.getAttribute('data-s'), i.value); });
+    msg.className = 'msg'; msg.textContent = 'Guardando…';
+    try { var data = await api('admin/settings', body); cfg = data; renderSettings(); msg.className = 'msg ok'; msg.textContent = '✓ Guardado. Los precios nuevos valen desde ya.'; }
+    catch (e) { msg.className = 'msg bad'; msg.textContent = 'No se ha guardado: ' + (e.message === 'bad_price' ? 'algún precio no es válido' : e.message === 'bad_vat' ? 'el IVA tiene que estar entre 0 y 30' : e.message); }
+  });
+
+  // ---------- carga ----------
   async function load() {
     try {
-      var res = await fetch('/api/bravo/admin/bookings');
-      if (res.status === 401) { location.reload(); return; }
-      var data = await res.json();
-      list = data.bookings || [];
-      render();
-    } catch (e) {
-      $('list').innerHTML = '<p class="empty">No se han podido cargar las reservas. Prueba con ↻.</p>';
-    }
+      var r = await Promise.all([api('admin/bookings'), api('admin/drivers'), api('admin/settings')]);
+      list = r[0].bookings || []; drivers = r[1].drivers || []; cfg = r[2];
+      fillDatalist(); renderTrips();
+      if (tab === 'billing') renderBilling();
+      if (tab === 'drivers') renderDrivers();
+      if (tab === 'settings') renderSettings();
+    } catch (e) { $('list').innerHTML = '<p class="empty">No se han podido cargar los datos. Prueba con ↻.</p>'; }
   }
   $('reload').addEventListener('click', load);
   $('logout').addEventListener('click', async function () {
     try { await fetch('/api/bravo/logout', { method: 'POST' }); } catch (e) { /* da igual */ }
     location.href = '/bravo/panel/';
   });
+  setTab('trips');
   load();
 })();
 </script>
