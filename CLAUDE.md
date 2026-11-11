@@ -34,6 +34,15 @@ Web de una empresa de transporte urgente dedicado (vehículo exclusivo punto a p
     - **Pensada para una empresa en España:** cada categoría tiene su cuenta del Plan General Contable (`PGC` en `bravo-api.js`: 607, 62x, 631, 705, 759…). `books()` saca los libros registro de facturas emitidas y recibidas, el IVA por tipos y el libro diario (430/705/477 en las facturas, 6xx/472/410 en los gastos; las rectificativas, al revés).
     - Todo eso sale en el **PDF del periodo** (`/api/bravo/admin/accounts.pdf?from=&to=`, de varias páginas), además del CSV. Falta todavía: cobros y pagos por banco, amortizaciones y nóminas.
     - Los apuntes llevan nº de factura y NIF del proveedor (o del cliente). **Los apuntes sí se pueden borrar. Las facturas no.**
+    - **Banco:** los extractos van a `statements/` y sus movimientos a `bank.json`.
+      - Se leen solos el CSV (con cabecera y formato español o inglés) y la **Norma 43**. El PDF se guarda y lo lee Claude: los movimientos se meten con `POST /api/bravo/admin/bank/lines`.
+      - `autoMatch()` solo casa lo que no tiene dudas: el importe exacto, un único candidato y que ese candidato no sirva para otro movimiento.
+      - Cada movimiento se puede casar con una factura, un apunte, una nómina o un pago a conductor (y entonces queda `paid`). También se puede marcar como comisión (crea el gasto 626), socio (551), pago a Hacienda (4750/4751/4752), Seguridad Social (476) o traspaso.
+      - Los cobros y pagos van al libro diario con la 572 (o la 570 si es en efectivo).
+    - **Nóminas:** son apuntes con `type: 'nomina'` y `payroll` (bruto, IRPF, SS del trabajador y de la empresa, y neto). El coste es bruto + SS de la empresa. **Se casa con el banco por el neto.** En el diario van a 640/642 contra 4751/476/465.
+    - **La bandeja de tickets** está en `inbox/` (`inbox.json`): al apuntar un ticket (`inboxId`), su archivo pasa a ser el ticket del apunte.
+    - **Copia de seguridad:** `/api/bravo/admin/backup.json` (sin los archivos).
+    - **Si Alberto dice «concilia el banco» o «apunta los tickets»,** el procedimiento está en `NEGOCIO/bravo-transfers/contabilidad/README.md`.
   - **Facturas y PDFs:** `bravo-pdf.js` hace tres PDF sin dependencias (Helvetica en WinAnsi): la factura, el justificante del cliente y la hoja de servicio del conductor.
     - Se abren por un **enlace privado** `/api/bravo/doc/<clave>/…pdf`, sin contraseña. El enlace del cliente nunca abre la hoja del conductor.
     - Las facturas van numeradas `F-AAAA-0001`, seguidas por año. El IVA (0–30 %) se elige al crearlas, y los precios llevan el IVA incluido.

@@ -351,7 +351,11 @@ function accountsPdf(rep, issuer) {
     ['Gastos', m(t.gastosBase), m(t.ivaSoportado), m(t.gastos)],
     { cells: ['Beneficio antes de impuestos (ingresos − gastos, sin IVA)', m(t.beneficio), '', ''], bold: true },
     { cells: [t.ivaResultado >= 0 ? 'IVA a pagar (repercutido − soportado)' : 'IVA a devolver (repercutido − soportado)', '', m(Math.abs(t.ivaResultado)), ''], bold: true }
-  ]);
+  ].concat(t.nominas ? [
+    ['Nóminas: coste para la empresa (ya incluido en gastos)', m(t.nominas), '', ''],
+    ['Retenciones de IRPF practicadas (modelo 111)', m(t.irpfRetenido), '', ''],
+    ['Seguridad Social (trabajador + empresa)', m(t.seguridadSocial), '', '']
+  ] : []));
   if (rep.unbilled && rep.unbilled.n) para('Aviso: ' + rep.unbilled.n + ' viaje(s) del periodo con precio y sin factura (' + m(rep.unbilled.total) + '): no cuentan como ingreso.', { color: C.orange });
 
   h1('2. IVA por tipo (para la declaración trimestral)');
@@ -365,6 +369,14 @@ function accountsPdf(rep, issuer) {
   h1('3. Gastos por cuenta');
   table([{ t: 'CUENTA', w: 235 }, { t: 'APUNTES', w: 50, r: 1 }, { t: 'BASE', w: 75, r: 1 }, { t: 'IVA', w: 70, r: 1 }, { t: 'TOTAL', w: 85, r: 1 }],
     rep.expenseAccounts.length ? rep.expenseAccounts.map((x) => [x.account + ' ' + x.name, String(x.n), m(x.base), m(x.vat), m(x.total)]) : [['Sin gastos en el periodo', '', '', '', '']]);
+
+  if ((rep.nominas || []).length) {
+    h1('3.1 Nóminas');
+    const nr = rep.nominas.map((x) => [day(x.date), x.party, m(x.payroll.gross), m(x.payroll.irpf), m(x.payroll.ssEmp), m(x.payroll.ssCo), m(x.payroll.net), m(x.total)]);
+    const sum = (k) => m(rep.nominas.reduce((a, x) => a + x.payroll[k], 0));
+    nr.push({ cells: ['', 'Total', sum('gross'), sum('irpf'), sum('ssEmp'), sum('ssCo'), sum('net'), m(rep.nominas.reduce((a, x) => a + x.total, 0))], bold: true });
+    table([{ t: 'FECHA', w: 52 }, { t: 'TRABAJADOR', w: 113 }, { t: 'BRUTO', w: 60, r: 1 }, { t: 'IRPF', w: 52, r: 1 }, { t: 'SS TRAB.', w: 55, r: 1 }, { t: 'SS EMPRESA', w: 58, r: 1 }, { t: 'NETO', w: 60, r: 1 }, { t: 'COSTE', w: 65, r: 1 }], nr);
+  }
 
   const regCols = [{ t: 'FECHA', w: 52 }, { t: 'Nº FACTURA', w: 68 }, { t: '', w: 128 }, { t: 'NIF', w: 62 }, { t: 'BASE', w: 58, r: 1 }, { t: 'TIPO', w: 36, r: 1 }, { t: 'CUOTA', w: 52, r: 1 }, { t: 'TOTAL', w: 59, r: 1 }];
   const regRows = (list) => list.map((x) => ({ cells: [day(x.date), x.number || '—', x.party, x.taxId || '', m(x.base), String(x.vatRate).replace('.', ',') + '%', m(x.vat), m(x.total)], color: x.total < 0 ? C.red : undefined }));
@@ -389,10 +401,34 @@ function accountsPdf(rep, issuer) {
   diaryRows.push({ cells: ['Sumas del periodo', m(tD), m(tH)], bold: true });
   table([{ t: 'CUENTA', w: 335 }, { t: 'DEBE', w: 90, r: 1 }, { t: 'HABER', w: 90, r: 1 }], rep.diario.length ? diaryRows : [['Sin asientos en el periodo', '', '']]);
 
+  h1('7. Banco: movimientos y conciliación');
+  const bl = rep.bankLines || [];
+  table([{ t: 'FECHA', w: 55 }, { t: 'CONCEPTO DEL BANCO', w: 205 }, { t: 'IMPORTE', w: 70, r: 1 }, { t: 'CONCILIADO CON', w: 185 }],
+    bl.length ? bl.map((l) => ({ cells: [day(l.date), l.concept, m(l.amount), l.status], color: l.status === 'pendiente' ? C.orange : undefined }))
+      : [['', 'Sin extractos del banco en el periodo', '', '']]);
+  if (bl.length) para(bl.filter((l) => l.status === 'pendiente').length + ' de ' + bl.length + ' movimientos sin conciliar.');
+
+  h1('8. Pendiente de cobro y de pago (a ' + day(rep.to) + ')');
+  const pr = (list) => list.map((x) => [day(x.date), x.label, m(Math.abs(x.amount))]);
+  c.text(40, y, 'Por cobrar (cuenta 430)', { size: 9, bold: true }); y += 6;
+  table([{ t: 'FECHA', w: 60 }, { t: 'FACTURA O INGRESO', w: 365 }, { t: 'IMPORTE', w: 90, r: 1 }], (rep.pendingIn || []).length ? pr(rep.pendingIn) : [['', 'Nada pendiente de cobro', '']]);
+  c.text(40, y, 'Por pagar (cuenta 410)', { size: 9, bold: true }); y += 6;
+  table([{ t: 'FECHA', w: 60 }, { t: 'GASTO O PAGO A CONDUCTOR', w: 365 }, { t: 'IMPORTE', w: 90, r: 1 }], (rep.pendingOut || []).length ? pr(rep.pendingOut) : [['', 'Nada pendiente de pago', '']]);
+  const pt = rep.pendingTaxes || { irpf: 0, ss: 0 };
+  if (pt.irpf || pt.ss) {
+    c.text(40, y, 'Con Hacienda y la Seguridad Social (de las nóminas)', { size: 9, bold: true }); y += 6;
+    table([{ t: 'CONCEPTO', w: 425 }, { t: 'IMPORTE', w: 90, r: 1 }], [
+      ['Retenciones de IRPF por ingresar a Hacienda (cuenta 4751)', m(pt.irpf)],
+      ['Cuotas por pagar a la Seguridad Social (cuenta 476)', m(pt.ss)]
+    ]);
+  }
+
   h1('Notas');
   para('· Los precios de los viajes llevan el IVA incluido; la base y la cuota se calculan con el tipo de cada factura o gasto.');
   para('· Las facturas no se borran: se corrigen con una factura rectificativa (serie R), que aparece en negativo.');
-  para('· El libro diario no incluye todavía los cobros y pagos por banco (cuentas 430, 410 y 572), las amortizaciones ni las nóminas: cuando se lleven, se completan aquí.');
+  para('· Los cobros y pagos salen de la conciliación con el banco (572) o de lo marcado como pagado en efectivo (570). Lo que mete o saca el socio va a la 551.');
+  para('· Las nóminas van al 640 (bruto) y 642 (Seguridad Social de la empresa); la retención al 4751, las cuotas al 476 y el neto al 465 hasta que se paga.');
+  para('· Los pagos a Hacienda (IVA, retenciones, sociedades) y a la Seguridad Social salen del banco. El libro diario no incluye todavía la liquidación trimestral del IVA (477 y 472 contra 4750) ni las amortizaciones.');
   para('· Informe generado por el panel. Antes de presentar impuestos, conviene que lo revise un profesional.');
 
   pages.forEach((ops, k) => {

@@ -93,8 +93,14 @@
   .kv2 { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; margin-top: 6px; }
   .kv2 span:nth-child(even) { text-align: right; font-weight: 700; white-space: nowrap; }
   .mv { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; margin-bottom: 6px; cursor: pointer; }
-  .mv .l1 > span:last-child, .inv-row .l1 > span:last-child, .bk .l1 > span:last-child { white-space: nowrap; }
+  .mv .l1 > span:last-child, .inv-row .l1 > span:last-child, .bk .l1 > span:last-child, .bl .l1 > span:last-child { white-space: nowrap; }
   .mv .src { font-size: .66rem; font-weight: 800; text-transform: uppercase; border-radius: 5px; padding: 1px 5px; background: #f3ece0; color: var(--muted); }
+  .bl { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; margin-bottom: 6px; }
+  .bl .acts2 { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+  .bl .acts2 .b { padding: 6px 8px; font-size: .78rem; }
+  .ok-line { color: var(--ok); font-weight: 700; font-size: .85rem; margin-top: 4px; }
+  .thumb { width: 54px; height: 54px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); background: #f3ece0; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex: none; }
+  .ib { display: flex; gap: 10px; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 8px; margin-bottom: 6px; }
   .warn { background: #fff1d6; color: #8a5a00; border-radius: 9px; padding: 8px 10px; margin-top: 8px; font-size: .85rem; }
 </style>
 </head>
@@ -142,40 +148,54 @@
   <!-- CUENTAS -->
   <section id="tab-accounts" hidden>
     <h2>Cuentas</h2>
-    <div class="filters" id="acc-quick"></div>
-    <div class="row">
-      <div><label for="acc-from">Desde</label><input type="date" id="acc-from"></div>
-      <div><label for="acc-to">Hasta</label><input type="date" id="acc-to"></div>
+    <div class="filters" id="acc-sub">
+      <button type="button" data-sub="summary">📊 Resumen</button>
+      <button type="button" data-sub="bank">🏦 Banco</button>
+      <button type="button" data-sub="inbox">🧾 Tickets <span class="n" id="inbox-n"></span></button>
     </div>
-    <div class="totals t2" id="acc-totals" style="margin-top:12px"></div>
-    <div class="box" id="acc-vat"></div>
-    <div class="box" id="acc-income"></div>
-    <div class="box" id="acc-cats"></div>
-    <div class="btns">
-      <button type="button" class="b dark" id="acc-add-exp">＋ Apuntar un gasto</button>
-      <button type="button" class="b" id="acc-add-inc">＋ Apuntar un ingreso</button>
-      <a class="b dark" id="acc-pdf" href="#" target="_blank" rel="noopener">⬇︎ PDF del periodo</a>
-      <a class="b" id="acc-csv" href="#">⬇︎ Excel del periodo</a>
+    <div id="acc-period">
+      <div class="filters" id="acc-quick"></div>
+      <div class="row">
+        <div><label for="acc-from">Desde</label><input type="date" id="acc-from"></div>
+        <div><label for="acc-to">Hasta</label><input type="date" id="acc-to"></div>
+      </div>
     </div>
 
     <div class="card" id="acc-form" hidden style="margin-top:12px">
       <b id="af-title"></b>
       <div class="row">
         <div><label for="af-date">Fecha</label><input type="date" id="af-date"></div>
-        <div><label for="af-cat">Categoría</label><select id="af-cat"></select></div>
+        <div id="af-cat-box"><label for="af-cat">Categoría</label><select id="af-cat"></select></div>
       </div>
       <label for="af-concept">Concepto</label><input id="af-concept" placeholder="Ej.: gasoil, seguro, anuncio…">
       <label for="af-party" id="af-party-l">Proveedor</label><input id="af-party">
       <div class="row">
-        <div><label for="af-number">Nº de la factura</label><input id="af-number" placeholder="El que trae el ticket"></div>
+        <div id="af-num-box"><label for="af-number">Nº de la factura</label><input id="af-number" placeholder="El que trae el ticket"></div>
         <div><label for="af-taxid" id="af-taxid-l">NIF del proveedor</label><input id="af-taxid"></div>
       </div>
-      <div class="row">
+      <div class="row" id="af-total-row">
         <div><label for="af-total">Total pagado (€, con IVA)</label><input type="number" id="af-total" min="0" step="0.01" inputmode="decimal"></div>
         <div><label for="af-vat">IVA (%)</label><select id="af-vat"></select></div>
       </div>
       <div class="msg" id="af-preview"></div>
+      <div id="af-payroll" hidden>
+        <div class="row">
+          <div><label for="af-gross">Sueldo bruto (€)</label><input type="number" id="af-gross" min="0" step="0.01" inputmode="decimal"></div>
+          <div><label for="af-irpf">Retención IRPF (€)</label><input type="number" id="af-irpf" min="0" step="0.01" inputmode="decimal" placeholder="0"></div>
+        </div>
+        <div class="row">
+          <div><label for="af-ssemp">Seg. Social del trabajador (€)</label><input type="number" id="af-ssemp" min="0" step="0.01" inputmode="decimal" placeholder="0"></div>
+          <div><label for="af-ssco">Seg. Social de la empresa (€)</label><input type="number" id="af-ssco" min="0" step="0.01" inputmode="decimal" placeholder="0"></div>
+        </div>
+        <div class="margin" id="af-payroll-sum"></div>
+        <p class="msg">Si solo sabes lo que le has pagado, pon esa cantidad en «Sueldo bruto» y deja lo demás en blanco. Los datos vienen en el papel de la nómina.</p>
+      </div>
       <label for="af-notes">Notas</label><textarea id="af-notes"></textarea>
+      <div class="row" id="af-paid-box">
+        <div><label for="af-paidvia" id="af-paidvia-l">¿Cómo se pagó?</label><select id="af-paidvia"><option value="">Sin pagar todavía</option><option value="banco">Por el banco</option><option value="tarjeta">Con tarjeta</option><option value="efectivo">En efectivo</option></select></div>
+        <div><label for="af-paiddate">Fecha del pago</label><input type="date" id="af-paiddate"></div>
+      </div>
+      <div class="msg" id="af-paid-line"></div>
       <label for="af-file">Foto del ticket o factura (PDF o imagen)</label>
       <input type="file" id="af-file" accept="image/*,application/pdf">
       <div class="msg" id="af-receipt"></div>
@@ -184,9 +204,46 @@
       <div class="msg" id="af-msg"></div>
     </div>
 
-    <h3>Movimientos</h3>
-    <div id="acc-list"></div>
-    <p class="note">Contabilidad pensada para España: libros registro de facturas emitidas y recibidas, IVA por tipos y libro diario con las cuentas del Plan General Contable (en el PDF). Los ingresos salen de las facturas (y de lo que apuntes); los pagos a conductores, de las reservas. Una factura no se borra: se rectifica. Al principio, que la revise un profesional antes de presentar impuestos.</p>
+
+    <div id="sub-summary">
+      <div class="totals t2" id="acc-totals" style="margin-top:12px"></div>
+      <div class="box" id="acc-vat"></div>
+      <div class="box" id="acc-income"></div>
+      <div class="box" id="acc-cats"></div>
+      <div class="btns">
+        <button type="button" class="b dark" id="acc-add-exp">＋ Apuntar un gasto</button>
+        <button type="button" class="b" id="acc-add-inc">＋ Apuntar un ingreso</button>
+        <button type="button" class="b" id="acc-add-nom">＋ Apuntar una nómina</button>
+        <a class="b dark" id="acc-pdf" href="#" target="_blank" rel="noopener">⬇︎ PDF del periodo</a>
+        <a class="b" id="acc-csv" href="#">⬇︎ Excel del periodo</a>
+      </div>
+      <h3>Movimientos</h3>
+      <div id="acc-list"></div>
+      <p class="note">Contabilidad pensada para España: libros registro de facturas emitidas y recibidas, IVA por tipos, cobros y pagos, y libro diario con las cuentas del Plan General Contable (en el PDF). Los ingresos salen de las facturas (y de lo que apuntes); los pagos a conductores, de las reservas; los cobros y pagos, del banco. Una factura no se borra: se rectifica. Al principio, que la revise un profesional antes de presentar impuestos.</p>
+    </div>
+
+    <div id="sub-bank" hidden>
+      <div class="warn" id="bank-weak" hidden>⚠️ Antes de subir extractos de verdad, pon una contraseña larga al panel (la variable <b>BRAVO_KEY</b> en Railway).</div>
+      <div class="box"><b>Subir un extracto del banco</b>
+        <p class="msg">Mejor en <b>CSV</b> o en <b>Norma 43</b> (los bancos españoles lo dan): el panel lo lee solo. Si solo tienes el <b>PDF</b>, súbelo igual y dime «concilia el banco»: lo leo yo.</p>
+        <input type="file" id="bank-file" accept=".pdf,.csv,.txt,.n43,.aeb,.q43,text/csv,text/plain,application/pdf">
+        <div class="msg" id="bank-msg"></div>
+      </div>
+      <div id="bank-statements"></div>
+      <div class="totals t2" id="bank-totals" style="margin-top:12px"></div>
+      <div class="filters" id="bank-filter"></div>
+      <div id="bank-lines"></div>
+      <div class="btns"><button type="button" class="b" id="bank-auto">🔎 Buscar coincidencias</button></div>
+    </div>
+
+    <div id="sub-inbox" hidden>
+      <div class="box"><b>Bandeja de tickets</b>
+        <p class="msg">Sube tickets o facturas (fotos o PDF), varios a la vez. Luego los apuntas uno a uno, o me dices «apunta los tickets» y los leo yo.</p>
+        <input type="file" id="inbox-file" accept="image/*,application/pdf" multiple>
+        <div class="msg" id="inbox-msg"></div>
+      </div>
+      <div id="inbox-list"></div>
+    </div>
   </section>
 
   <!-- CONDUCTORES -->
@@ -234,6 +291,9 @@
     <button type="button" class="save" id="set-save">Guardar ajustes</button>
     <div class="msg" id="set-msg"></div>
     <p class="note">Las facturas ya hechas no cambian: guardan los datos que tenían al crearlas.</p>
+    <h3>Copia de seguridad</h3>
+    <p class="msg">Descarga todos los datos (reservas, facturas, cuentas, banco, conductores y ajustes) en un archivo. Guárdalo de vez en cuando en el ordenador, en Albert-Privado.</p>
+    <div class="btns"><a class="b dark" href="/api/bravo/admin/backup.json">⬇︎ Descargar copia de seguridad</a></div>
   </section>
 </div>
 
@@ -283,7 +343,7 @@
     qsa('nav [data-tab]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-tab') === t); });
     ['trips', 'billing', 'accounts', 'drivers', 'settings'].forEach(function (x) { $('tab-' + x).hidden = x !== t; });
     if (t === 'billing') renderBilling();
-    if (t === 'accounts') loadAccounts();
+    if (t === 'accounts') setSub(accSub);
     if (t === 'drivers') renderDrivers();
     if (t === 'settings') renderSettings();
     window.scrollTo(0, 0);
@@ -556,7 +616,16 @@
   }
 
   // ---------- CUENTAS ----------
-  var acc = null, accCats = { gasto: [], ingreso: [] }, form = null;
+  var acc = null, accCats = { gasto: [], ingreso: [] }, form = null, accSub = 'summary';
+  function setSub(x) {
+    accSub = x;
+    qsa('[data-sub]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-sub') === x); });
+    $('sub-summary').hidden = x !== 'summary'; $('sub-bank').hidden = x !== 'bank'; $('sub-inbox').hidden = x !== 'inbox';
+    $('acc-period').hidden = x === 'inbox';
+    reloadSub();
+  }
+  function reloadSub() { if (accSub === 'bank') loadBank(); else if (accSub === 'inbox') loadInbox(); else loadAccounts(); }
+  qsa('[data-sub]').forEach(function (b) { b.addEventListener('click', function () { setSub(b.getAttribute('data-sub')); }); });
   function lastDay(y, m) { return new Date(Date.UTC(y, m, 0)).getUTCDate(); }
   function periods() {
     var t = madridDay(0), y = Number(t.slice(0, 4)), m = Number(t.slice(5, 7));
@@ -577,11 +646,11 @@
       return '<button type="button" data-q="' + i + '" class="' + (on ? 'on' : '') + '">' + p[0] + '</button>';
     }).join('');
     qsa('[data-q]', $('acc-quick')).forEach(function (b) {
-      b.addEventListener('click', function () { var p = periods()[Number(b.getAttribute('data-q'))]; $('acc-from').value = p[1]; $('acc-to').value = p[2]; loadAccounts(); });
+      b.addEventListener('click', function () { var p = periods()[Number(b.getAttribute('data-q'))]; $('acc-from').value = p[1]; $('acc-to').value = p[2]; renderQuick(); reloadSub(); });
     });
   }
-  $('acc-from').addEventListener('change', loadAccounts);
-  $('acc-to').addEventListener('change', loadAccounts);
+  $('acc-from').addEventListener('change', function () { renderQuick(); reloadSub(); });
+  $('acc-to').addEventListener('change', function () { renderQuick(); reloadSub(); });
   async function loadAccounts() {
     renderQuick();
     var from = $('acc-from').value, to = $('acc-to').value;
@@ -594,7 +663,7 @@
       renderAccounts();
     } catch (e) { $('acc-list').innerHTML = '<p class="empty">No se han podido cargar las cuentas: ' + esc(e.message) + '</p>'; }
   }
-  var SRC = { factura: 'Factura', rectificativa: 'Rectificativa', conductor: 'Reserva', manual: 'A mano' };
+  var SRC = { factura: 'Factura', rectificativa: 'Rectificativa', conductor: 'Reserva', manual: 'A mano', nomina: 'Nómina' };
   function renderAccounts() {
     var t = acc.totals;
     $('acc-totals').innerHTML =
@@ -619,16 +688,19 @@
     $('acc-cats').innerHTML = '<b>Gastos por categoría</b>' + (cats.length ? '<div class="kv2">' + cats.map(function (c) {
       var x = acc.byCategory[c];
       return '<span>' + esc(c) + ' (' + x.n + ') · IVA ' + euro(x.vat) + '</span><span>' + euro(x.total) + '</span>';
-    }).join('') + '</div>' : '<p class="msg">Sin gastos en este periodo.</p>');
+    }).join('') + '</div>' : '<p class="msg">Sin gastos en este periodo.</p>') +
+      (t.nominas ? '<div class="warn" style="background:#f3ece0;color:var(--ink)">👥 Nóminas: coste ' + euro(t.nominas) + ' · IRPF retenido ' + euro(t.irpfRetenido) + ' (modelo 111) · Seguridad Social ' + euro(t.seguridadSocial) + '</div>' : '');
     $('acc-list').innerHTML = acc.movements.length ? acc.movements.map(function (m, i) {
       var sign = m.kind === 'ingreso' ? '+' : '−';
       return '<div class="mv" data-mv="' + i + '"><div class="l1"><span>' + esc(dmy(m.date) + ' · ' + m.concept) + '</span><span class="' + (m.kind === 'ingreso' ? 'pos' : 'neg') + '">' + sign + ' ' + euro(m.total) + '</span></div>' +
-        '<div class="l3"><span class="src">' + SRC[m.source] + '</span> ' + esc([m.category, m.party].filter(Boolean).join(' · ')) + ' · IVA ' + esc(String(m.vatRate).replace('.', ',')) + ' %: ' + euro(m.vat) + (m.receipt ? ' · 📎' : '') + '</div></div>';
+        '<div class="l3"><span class="src">' + SRC[m.source] + '</span> ' + esc([m.category, m.party].filter(Boolean).join(' · ')) + (m.payroll ? ' · neto ' + euro(m.payroll.net) + ' · IRPF ' + euro(m.payroll.irpf) + ' · SS ' + euro(r2(m.payroll.ssEmp + m.payroll.ssCo)) : ' · IVA ' + esc(String(m.vatRate).replace('.', ',')) + ' %: ' + euro(m.vat)) + (m.receipt ? ' · 📎' : '') +
+        '<br>' + (m.paid ? '<span class="pos">✓ ' + (m.kind === 'ingreso' ? 'cobrado' : 'pagado') + ' ' + esc(dmy(m.paid.date)) + ' (' + esc(m.paid.via) + ')</span>' : '<span class="neg">' + (m.kind === 'ingreso' ? 'pendiente de cobro' : 'pendiente de pago') + '</span>') + '</div></div>';
     }).join('') : '<p class="empty">No hay movimientos en este periodo.</p>';
     qsa('[data-mv]', $('acc-list')).forEach(function (el) {
       el.addEventListener('click', function () {
         var m = acc.movements[Number(el.getAttribute('data-mv'))];
         if (m.source === 'manual') return openForm(m.kind, m.id);
+        if (m.source === 'nomina') return openForm('nomina', m.id);
         open[m.ref] = true; current = 'all'; setTab('trips'); renderTrips();
         var c = $('bk-' + m.ref); if (c) c.scrollIntoView({ block: 'start' });
       });
@@ -636,16 +708,31 @@
   }
 
   // Formulario de gasto o ingreso
-  async function openForm(type, id) {
-    form = { type: type, id: id || null, entry: null, file: null };
-    $('af-title').textContent = (id ? 'Editar ' : 'Apuntar ') + (type === 'gasto' ? 'un gasto' : 'un ingreso');
-    $('af-party-l').textContent = type === 'gasto' ? 'Proveedor' : 'Cliente';
-    $('af-taxid-l').textContent = type === 'gasto' ? 'NIF del proveedor' : 'NIF del cliente';
+  async function openForm(type, id, opts) {
+    opts = opts || {};
+    form = { type: type, id: id || null, entry: null, file: null, inboxId: opts.inboxId || null, bankLine: opts.bankLine || null };
+    var nom = type === 'nomina';
+    $('af-title').textContent = (id ? 'Editar ' : 'Apuntar ') + (type === 'gasto' ? 'un gasto' : nom ? 'una nómina' : 'un ingreso');
+    $('af-party-l').textContent = type === 'gasto' ? 'Proveedor' : nom ? 'Trabajador' : 'Cliente';
+    $('af-taxid-l').textContent = type === 'gasto' ? 'NIF del proveedor' : nom ? 'NIF del trabajador' : 'NIF del cliente';
     $('af-number').value = ''; $('af-taxid').value = '';
-    $('af-cat').innerHTML = accCats[type].map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('');
+    $('af-cat').innerHTML = nom ? '' : accCats[type].map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('');
+    $('af-cat-box').hidden = nom; $('af-num-box').hidden = nom; $('af-total-row').hidden = nom; $('af-preview').hidden = nom; $('af-payroll').hidden = !nom;
+    ['af-gross', 'af-irpf', 'af-ssemp', 'af-ssco'].forEach(function (k) { $(k).value = ''; });
     $('af-date').value = madridDay(0); $('af-concept').value = ''; $('af-party').value = ''; $('af-total').value = ''; $('af-notes').value = '';
+    if (nom && !id) $('af-concept').value = 'Nómina de ' + new Date().toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
     $('af-vat').innerHTML = vatOptions(type === 'gasto' ? 21 : 10);
     $('af-file').value = ''; $('af-receipt').innerHTML = ''; $('af-msg').textContent = ''; $('af-del').hidden = !id;
+    $('af-paidvia-l').textContent = type === 'ingreso' ? '¿Cómo se cobró?' : '¿Cómo se pagó?';
+    $('af-paidvia').value = ''; $('af-paiddate').value = ''; $('af-paid-box').hidden = false; $('af-paid-line').textContent = '';
+    if (opts.inboxId) $('af-receipt').innerHTML = '📎 Ticket de la bandeja: <a target="_blank" rel="noopener" href="/api/bravo/admin/inbox/file?id=' + encodeURIComponent(opts.inboxId) + '">' + esc(opts.inboxName || 'ver') + '</a>';
+    if (opts.bankLine) {
+      var bl = opts.bankLine;
+      $('af-date').value = bl.date; if (!nom) $('af-concept').value = bl.concept || ''; $('af-total').value = Math.abs(bl.amount);
+      if (nom) $('af-gross').value = Math.abs(bl.amount);
+      $('af-paid-box').hidden = true;
+      $('af-paid-line').textContent = '🏦 Queda ' + (type === 'ingreso' ? 'cobrado' : 'pagado') + ' con el movimiento del banco del ' + dmy(bl.date) + ' (' + euro(bl.amount) + ')' + (nom ? ': el neto tiene que dar justo esa cantidad.' : '.');
+    }
     if (id) {
       try {
         var e = (await api('admin/ledger/entry?id=' + encodeURIComponent(id))).entry;
@@ -653,10 +740,13 @@
         $('af-date').value = e.date; $('af-cat').value = e.category; $('af-concept').value = e.concept; $('af-party').value = e.party || '';
         $('af-total').value = e.total; $('af-vat').innerHTML = vatOptions(e.vatRate); $('af-notes').value = e.notes || '';
         $('af-number').value = e.number || ''; $('af-taxid').value = e.taxId || '';
+        if (e.payroll) { $('af-gross').value = e.payroll.gross; $('af-irpf').value = e.payroll.irpf || ''; $('af-ssemp').value = e.payroll.ssEmp || ''; $('af-ssco').value = e.payroll.ssCo || ''; }
+        if (e.paid && e.paid.lineId) { $('af-paid-box').hidden = true; $('af-paid-line').textContent = '🏦 ' + (type === 'gasto' ? 'Pagado' : 'Cobrado') + ' con el movimiento del banco del ' + dmy(e.paid.date) + '. Para cambiarlo, deshazlo en Banco.'; }
+        else if (e.paid) { $('af-paidvia').value = e.paid.via; $('af-paiddate').value = e.paid.date; }
         if (e.receipt) $('af-receipt').innerHTML = '📎 <a target="_blank" rel="noopener" href="/api/bravo/admin/ledger/receipt?id=' + encodeURIComponent(e.id) + '">Ver el ticket</a> · <label class="check" style="display:inline-flex;margin:0"><input type="checkbox" id="af-rm"> quitarlo</label>';
       } catch (err) { $('af-msg').className = 'msg bad'; $('af-msg').textContent = err.message; }
     }
-    preview();
+    preview(); payrollSum();
     $('acc-form').hidden = false;
     $('acc-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -667,9 +757,16 @@
     $('af-preview').textContent = 'Base ' + euro(base) + ' + IVA ' + String(r).replace('.', ',') + ' % ' + euro(r2(tot - base)) + ' = ' + euro(tot);
   }
   $('af-total').addEventListener('input', preview);
+  function payrollSum() {
+    var n = function (k) { return Number($(k).value) || 0; };
+    var g = n('af-gross'), net = r2(g - n('af-irpf') - n('af-ssemp')), cost = r2(g + n('af-ssco'));
+    $('af-payroll-sum').textContent = g ? 'Neto que cobra (lo que se transfiere): ' + euro(net) + ' · Coste para la empresa: ' + euro(cost) : 'Pon el sueldo bruto.';
+  }
+  ['af-gross', 'af-irpf', 'af-ssemp', 'af-ssco'].forEach(function (k) { $(k).addEventListener('input', payrollSum); });
   $('af-vat').addEventListener('change', preview);
   $('acc-add-exp').addEventListener('click', function () { openForm('gasto'); });
   $('acc-add-inc').addEventListener('click', function () { openForm('ingreso'); });
+  $('acc-add-nom').addEventListener('click', function () { openForm('nomina'); });
   $('af-cancel').addEventListener('click', function () { $('acc-form').hidden = true; form = null; });
 
   // La foto del ticket se reduce en el móvil antes de subirla (más rápido y ocupa menos)
@@ -704,24 +801,167 @@
     try {
       var body = {
         id: form.id, type: form.type, date: $('af-date').value, category: $('af-cat').value, concept: $('af-concept').value,
-        party: $('af-party').value, number: $('af-number').value, taxId: $('af-taxid').value, total: $('af-total').value, vatRate: Number($('af-vat').value), notes: $('af-notes').value,
+        party: $('af-party').value, number: $('af-number').value, taxId: $('af-taxid').value, total: $('af-total').value,
+        gross: $('af-gross').value, irpf: $('af-irpf').value, ssEmp: $('af-ssemp').value, ssCo: $('af-ssco').value, vatRate: Number($('af-vat').value), notes: $('af-notes').value,
         removeReceipt: Boolean($('af-rm') && $('af-rm').checked)
       };
+      if (form.inboxId) body.inboxId = form.inboxId;
+      if (form.bankLine) body.bankLineId = form.bankLine.id;
+      else if (!$('af-paid-box').hidden) {
+        body.paidVia = $('af-paidvia').value;
+        body.paidDate = $('af-paiddate').value || $('af-date').value;
+      }
       var f = $('af-file').files[0];
       if (f) body.receipt = await readReceipt(f);
       await api('admin/ledger/save', body);
       $('acc-form').hidden = true; form = null;
-      await loadAccounts();
+      reloadSub();
     } catch (e) {
       msg.className = 'msg bad'; msg.textContent = 'No se ha guardado: ' + (AF_ERR[e.message] || e.message);
     }
     btn.disabled = false;
   });
-  var AF_ERR = { bad_concept: 'falta el concepto', bad_total: 'el total tiene que ser mayor que 0', bad_date: 'falta la fecha', bad_vat: 'IVA no válido', receipt_type: 'el ticket tiene que ser una foto o un PDF', receipt_too_big: 'el ticket pasa de 6 MB' };
+  var AF_ERR = { bad_worker: 'falta el nombre del trabajador', bad_gross: 'falta el sueldo bruto', bad_payroll: 'el IRPF y la Seguridad Social del trabajador no pueden pasar del bruto', net_differs: 'el neto de la nómina no coincide con el movimiento del banco', bad_line: 'ese movimiento del banco ya está conciliado', inbox_not_found: 'ese ticket ya no está en la bandeja', bad_concept: 'falta el concepto', bad_total: 'el total tiene que ser mayor que 0', bad_date: 'falta la fecha', bad_vat: 'IVA no válido', receipt_type: 'el ticket tiene que ser una foto o un PDF', receipt_too_big: 'el ticket pasa de 6 MB' };
   $('af-del').addEventListener('click', async function () {
     if (!form || !form.id || !confirm('¿Borrar este apunte? No se puede deshacer.')) return;
-    try { await api('admin/ledger/delete', { id: form.id }); $('acc-form').hidden = true; form = null; await loadAccounts(); }
+    try { await api('admin/ledger/delete', { id: form.id }); $('acc-form').hidden = true; form = null; reloadSub(); }
     catch (e) { alert(e.message); }
+  });
+
+  // ---------- BANCO ----------
+  var bankData = null, bankFilter = 'pending';
+  async function loadBank() {
+    renderQuick();
+    var from = $('acc-from').value, to = $('acc-to').value;
+    try { bankData = await api('admin/bank?from=' + from + '&to=' + to); renderBank(); }
+    catch (e) { $('bank-lines').innerHTML = '<p class="empty">No se ha podido cargar el banco: ' + esc(e.message) + '</p>'; }
+  }
+  var VIA = { invoice: 'Factura', ledger: 'Apunte', driver: 'Conductor' };
+  function renderBank() {
+    var d = bankData;
+    $('bank-weak').hidden = !d.weakKey;
+    $('bank-statements').innerHTML = d.statements.length ? '<h3>Extractos subidos</h3>' + d.statements.map(function (st) {
+      var status = st.status === 'pendiente' ? (st.kind === 'pdf' ? '📄 PDF: pendiente de que lo lea Claude' : '⚠️ No he entendido el formato: lo leerá Claude') : st.lines + (st.lines === 1 ? ' movimiento · ' : ' movimientos · ') + dmy(st.from) + ' a ' + dmy(st.to);
+      return '<div class="ib"><div class="thumb">' + (st.kind === 'pdf' ? '📄' : '📑') + '</div><div style="flex:1;min-width:0"><b>' + esc(st.name) + '</b><div class="l3">' + esc(status) + '</div>' +
+        '<div class="btns"><a class="b" target="_blank" rel="noopener" href="/api/bravo/admin/bank/file?id=' + esc(st.id) + '">Ver</a><button type="button" class="b red" data-st-del="' + esc(st.id) + '">Quitar</button></div></div></div>';
+    }).join('') : '';
+    var t = d.totals;
+    $('bank-totals').innerHTML = '<div><b>' + t.n + '</b><span>Movimientos</span></div><div><b class="' + (t.n - t.matched ? 'neg' : 'pos') + '">' + (t.n - t.matched) + '</b><span>Sin conciliar</span></div>' +
+      '<div><b class="pos">' + euro(t.in) + '</b><span>Entradas</span></div><div><b class="neg">' + euro(t.out) + '</b><span>Salidas</span></div>';
+    var F = [['pending', 'Sin conciliar'], ['done', 'Conciliados'], ['all', 'Todos']];
+    $('bank-filter').innerHTML = F.map(function (f) { return '<button type="button" data-bf="' + f[0] + '" class="' + (f[0] === bankFilter ? 'on' : '') + '">' + f[1] + '</button>'; }).join('');
+    qsa('[data-bf]').forEach(function (b) { b.addEventListener('click', function () { bankFilter = b.getAttribute('data-bf'); renderBank(); }); });
+    var shown = d.lines.filter(function (l) { return bankFilter === 'all' || (bankFilter === 'done' ? l.match : !l.match); });
+    $('bank-lines').innerHTML = shown.length ? shown.map(function (l, i) {
+      var h = '<div class="bl" data-bl="' + esc(l.id) + '"><div class="l1"><span>' + esc(dmy(l.date) + ' · ' + (l.concept || '(sin concepto)')) + '</span><span class="' + (l.amount > 0 ? 'pos' : 'neg') + '">' + (l.amount > 0 ? '+' : '−') + ' ' + euro(Math.abs(l.amount)) + '</span></div>';
+      if (l.match) {
+        var lbl = { socio: l.amount > 0 ? 'Dinero que has metido tú (socio)' : 'Dinero que has sacado tú (socio)', transfer: 'Traspaso u otro' + (l.match.note ? ': ' + l.match.note : ''), ignore: 'Ignorado',
+          ss: 'Pago a la Seguridad Social', tax: 'Pago a Hacienda (' + ({ iva: 'IVA', irpf: 'retenciones de IRPF', is: 'Impuesto de Sociedades' }[l.match.tax] || 'otros') + ')' }[l.match.type] || ((VIA[l.match.type] || '') + ' · ' + (l.match.label || ''));
+        h += '<div class="ok-line">✓ ' + esc(lbl) + (l.match.auto ? ' <span class="l3">(automático)</span>' : '') + '</div><div class="acts2"><button type="button" class="b" data-un>Deshacer</button></div>';
+      } else {
+        h += '<div class="acts2">' + l.candidates.map(function (c, k) {
+          return '<button type="button" class="b dark" data-cand="' + k + '">Es: ' + esc(c.label) + ' (' + esc(dmy(c.date)) + ')</button>';
+        }).join('') +
+          (l.amount < 0 ? '<button type="button" class="b" data-new="gasto">＋ Crear gasto</button><button type="button" class="b" data-new="nomina">＋ Crear nómina</button>' +
+            '<button type="button" class="b" data-kind="fee">Comisión del banco</button><button type="button" class="b" data-kind="tax">Pago a Hacienda</button><button type="button" class="b" data-kind="ss">Seguridad Social</button>'
+            : '<button type="button" class="b" data-new="ingreso">＋ Crear ingreso</button>') +
+          '<button type="button" class="b" data-kind="socio">' + (l.amount > 0 ? 'Lo he metido yo' : 'Lo he sacado yo') + '</button>' +
+          '<button type="button" class="b" data-kind="transfer">Traspaso u otro</button></div>';
+      }
+      return h + '</div>';
+    }).join('') : '<p class="empty">' + (d.lines.length ? 'Nada aquí.' : 'No hay movimientos del banco en este periodo.') + '</p>';
+    qsa('[data-bl]').forEach(function (el) {
+      var l = d.lines.filter(function (x) { return x.id === el.getAttribute('data-bl'); })[0];
+      var act = async function (route, body) { try { await api(route, Object.assign({ lineId: l.id }, body)); await loadBank(); } catch (e) { alert(BANK_ERR[e.message] || e.message); } };
+      qsa('[data-cand]', el).forEach(function (b) { b.addEventListener('click', function () { var c = l.candidates[Number(b.getAttribute('data-cand'))]; act('admin/bank/match', { type: c.type, key: c.key }); }); });
+      qsa('[data-kind]', el).forEach(function (b) {
+        b.addEventListener('click', function () {
+          var k = b.getAttribute('data-kind'), note = '', tax = '';
+          if (k === 'transfer') { note = prompt('¿Qué es? (por ejemplo: traspaso a otra cuenta, devolución…)', ''); if (note === null) return; }
+          if (k === 'tax') {
+            var ans = prompt('¿De qué es el pago a Hacienda?\n1 = IVA (modelo 303)\n2 = Retenciones de IRPF de nóminas (modelo 111)\n3 = Impuesto de Sociedades\n4 = Otro', '1');
+            if (ans === null) return;
+            tax = { 1: 'iva', 2: 'irpf', 3: 'is' }[String(ans).trim()] || 'otros';
+          }
+          act('admin/bank/classify', { kind: k, note: note, tax: tax });
+        });
+      });
+      qsa('[data-new]', el).forEach(function (b) { b.addEventListener('click', function () { openForm(b.getAttribute('data-new'), null, { bankLine: l }); }); });
+      qsa('[data-un]', el).forEach(function (b) { b.addEventListener('click', function () { act('admin/bank/unmatch', {}); }); });
+    });
+    qsa('[data-st-del]').forEach(function (b) {
+      b.addEventListener('click', async function () {
+        if (!confirm('¿Quitar este extracto y sus movimientos? Lo que estaba conciliado con ellos vuelve a quedar sin cobrar o sin pagar.')) return;
+        try { await api('admin/bank/statement-delete', { id: b.getAttribute('data-st-del') }); await loadBank(); } catch (e) { alert(e.message); }
+      });
+    });
+  }
+  var BANK_ERR = { already_matched: 'Ese movimiento ya está conciliado', already_paid: 'Eso ya está marcado como pagado', amount_differs: 'El importe no coincide', not_an_expense: 'Es una entrada, no un gasto' };
+  function fileToBase64(file) {
+    return new Promise(function (resolve, reject) {
+      var fr = new FileReader();
+      fr.onload = function () { resolve(String(fr.result).split(',')[1] || ''); };
+      fr.onerror = function () { reject(new Error('no se ha podido leer el archivo')); };
+      fr.readAsDataURL(file);
+    });
+  }
+  $('bank-file').addEventListener('change', async function () {
+    var f = this.files[0], msg = $('bank-msg');
+    if (!f) return;
+    if (f.size > 10 * 1024 * 1024) { msg.className = 'msg bad'; msg.textContent = 'El archivo pasa de 10 MB.'; return; }
+    msg.className = 'msg'; msg.textContent = 'Subiendo…';
+    try {
+      var r = await api('admin/bank/upload', { name: f.name, data: await fileToBase64(f) });
+      msg.className = 'msg ok';
+      msg.textContent = r.needsReading ? '✓ Guardado. Es un PDF (o un formato que no entiendo): dime «concilia el banco» y lo leo yo.'
+        : '✓ ' + r.added + ' movimientos nuevos; ' + r.matched + ' conciliados solos.';
+      this.value = '';
+      await loadBank();
+    } catch (e) { msg.className = 'msg bad'; msg.textContent = 'No se ha subido: ' + e.message; }
+  });
+  $('bank-auto').addEventListener('click', async function () {
+    try { var r = await api('admin/bank/automatch', {}); alert(r.matched ? r.matched + ' movimientos conciliados.' : 'No hay más coincidencias claras.'); await loadBank(); } catch (e) { alert(e.message); }
+  });
+
+  // ---------- BANDEJA DE TICKETS ----------
+  var inboxItems = [];
+  async function loadInbox() {
+    try { inboxItems = (await api('admin/inbox')).items || []; renderInbox(); } catch (e) { $('inbox-list').innerHTML = '<p class="empty">' + esc(e.message) + '</p>'; }
+  }
+  function renderInbox() {
+    $('inbox-n').textContent = inboxItems.length ? inboxItems.length : '';
+    $('inbox-list').innerHTML = inboxItems.length ? inboxItems.map(function (it) {
+      var url = '/api/bravo/admin/inbox/file?id=' + encodeURIComponent(it.id);
+      var isPdf = /\.pdf$/.test(it.file);
+      return '<div class="ib">' + (isPdf ? '<div class="thumb">📄</div>' : '<img class="thumb" alt="" src="' + esc(url) + '">') +
+        '<div style="flex:1;min-width:0"><b>' + esc(it.name) + '</b><div class="l3">Subido el ' + esc(dmy(it.uploadedAt.slice(0, 10))) + '</div>' +
+        '<div class="btns"><a class="b" target="_blank" rel="noopener" href="' + esc(url) + '">Ver</a><button type="button" class="b dark" data-ib-add="' + esc(it.id) + '">Apuntar como gasto</button>' +
+        '<button type="button" class="b red" data-ib-del="' + esc(it.id) + '">Quitar</button></div></div></div>';
+    }).join('') : '<p class="empty">La bandeja está vacía.</p>';
+    qsa('[data-ib-add]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var it = inboxItems.filter(function (x) { return x.id === b.getAttribute('data-ib-add'); })[0];
+        openForm('gasto', null, { inboxId: it.id, inboxName: it.name });
+      });
+    });
+    qsa('[data-ib-del]').forEach(function (b) {
+      b.addEventListener('click', async function () {
+        if (!confirm('¿Quitar este ticket de la bandeja?')) return;
+        try { await api('admin/inbox/delete', { id: b.getAttribute('data-ib-del') }); await loadInbox(); } catch (e) { alert(e.message); }
+      });
+    });
+  }
+  $('inbox-file').addEventListener('change', async function () {
+    var files = Array.prototype.slice.call(this.files), msg = $('inbox-msg'), ok = 0, bad = [];
+    for (var i = 0; i < files.length; i++) {
+      msg.className = 'msg'; msg.textContent = 'Subiendo ' + (i + 1) + ' de ' + files.length + '…';
+      try { var rc = await readReceipt(files[i]); await api('admin/inbox/upload', { name: rc.name, data: rc.data }); ok++; }
+      catch (e) { bad.push(files[i].name + ' (' + (AF_ERR[e.message] || e.message) + ')'); }
+    }
+    this.value = '';
+    msg.className = bad.length ? 'msg bad' : 'msg ok';
+    msg.textContent = '✓ ' + ok + ' subido' + (ok === 1 ? '' : 's') + (bad.length ? '. No se han podido subir: ' + bad.join(', ') : '');
+    await loadInbox();
   });
 
   // ---------- CONDUCTORES ----------
@@ -776,7 +1016,7 @@
       list = r[0].bookings || []; drivers = r[1].drivers || []; cfg = r[2];
       fillDatalist(); renderTrips();
       if (tab === 'billing') renderBilling();
-      if (tab === 'accounts') loadAccounts();
+      if (tab === 'accounts') reloadSub();
       if (tab === 'drivers') renderDrivers();
       if (tab === 'settings') renderSettings();
     } catch (e) { $('list').innerHTML = '<p class="empty">No se han podido cargar los datos. Prueba con ↻.</p>'; }

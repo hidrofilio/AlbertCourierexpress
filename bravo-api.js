@@ -161,6 +161,8 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
     'Oficina y material': ['629', 'Otros servicios'],
     'Impuestos y tasas': ['631', 'Otros tributos'],
     'Otros gastos': ['629', 'Otros servicios'],
+    'Comisiones bancarias': ['626', 'Servicios bancarios y similares'],
+    'Nóminas': ['640', 'Sueldos y salarios'],
     'Facturas de la web': ['705', 'Prestaciones de servicios'],
     'Servicio fuera de la web': ['705', 'Prestaciones de servicios'],
     'Otros ingresos': ['759', 'Ingresos por servicios diversos']
@@ -171,7 +173,7 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
   const RECEIPTS = path.join(DIR, 'receipts');
   fs.mkdirSync(RECEIPTS, { recursive: true });
   const EXPENSE_CATS = ['Conductores (sin reserva)', 'Combustible y peajes', 'Vehículos', 'Seguros', 'Publicidad', 'Web, software y comisiones',
-    'Gestoría y asesoría', 'Teléfono e internet', 'Oficina y material', 'Impuestos y tasas', 'Otros gastos'];
+    'Gestoría y asesoría', 'Teléfono e internet', 'Oficina y material', 'Impuestos y tasas', 'Comisiones bancarias', 'Otros gastos'];
   const INCOME_CATS = ['Servicio fuera de la web', 'Otros ingresos'];
   const RECEIPT_TYPES = { jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp', pdf: 'application/pdf' };
   function ledger() {
@@ -210,20 +212,25 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
         out.push({ date: inv.date, kind: 'ingreso', source: credit ? 'rectificativa' : 'factura',
           concept: (credit ? 'Rectificativa ' + inv.number + ' (de ' + inv.rectifies + ')' : 'Factura ' + inv.number), number: inv.number,
           party: (inv.customer && inv.customer.name) || b.name, taxId: (inv.customer && inv.customer.taxId) || '',
-          category: 'Facturas de la web', base: inv.base, vatRate: inv.vatRate, vat: inv.vat, total: inv.total, ref: b.ref });
+          category: 'Facturas de la web', base: inv.base, vatRate: inv.vatRate, vat: inv.vat, total: inv.total, ref: b.ref, paid: inv.paid || null });
       }
       if (b.status !== 'cancelada' && b.driverPay != null && b.driverPay > 0 && inRange(b.date)) {
         const rate = Number.isFinite(b.driverVat) ? b.driverVat : 0;
         const sv = splitVat(b.driverPay, rate);
         out.push({ date: b.date, kind: 'gasto', source: 'conductor', concept: 'Pago al conductor · ' + b.ref, party: b.driverName || '',
-          category: 'Conductores (reservas)', base: sv.base, vatRate: rate, vat: sv.vat, total: b.driverPay, ref: b.ref });
+          category: 'Conductores (reservas)', base: sv.base, vatRate: rate, vat: sv.vat, total: b.driverPay, ref: b.ref, paid: b.driverPaid || null });
       }
       if (b.status !== 'cancelada' && b.price > 0 && !activeInvoice(b) && inRange(b.date)) { unbilledN++; unbilledSum += b.price; }
     }
     for (const e of ledger()) {
       if (!inRange(e.date)) continue;
+      if (e.type === 'nomina') {
+        out.push({ date: e.date, kind: 'gasto', source: 'nomina', id: e.id, concept: e.concept || 'Nómina', party: e.party, category: 'Nóminas', number: '', taxId: e.taxId || '',
+          base: e.total, vatRate: 0, vat: 0, total: e.total, payroll: e.payroll, notes: e.notes, receipt: Boolean(e.receipt), paid: e.paid || null });
+        continue;
+      }
       out.push({ date: e.date, kind: e.type, source: 'manual', id: e.id, concept: e.concept, party: e.party, category: e.category, number: e.number || '', taxId: e.taxId || '',
-        base: e.base, vatRate: e.vatRate, vat: e.vat, total: e.total, notes: e.notes, receipt: Boolean(e.receipt) });
+        base: e.base, vatRate: e.vatRate, vat: e.vat, total: e.total, notes: e.notes, receipt: Boolean(e.receipt), paid: e.paid || null });
     }
     out.sort((a, c) => (c.date + (c.ref || c.id || '')).localeCompare(a.date + (a.ref || a.id || '')));
     const t = { ingresos: 0, ingresosBase: 0, ivaRepercutido: 0, gastos: 0, gastosBase: 0, ivaSoportado: 0 };
@@ -241,11 +248,15 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
     for (const c of Object.values(cats)) { c.total = r(c.total); c.base = r(c.base); c.vat = r(c.vat); }
     t.beneficio = r(t.ingresosBase - t.gastosBase);
     t.ivaResultado = r(t.ivaRepercutido - t.ivaSoportado);
+    const noms = out.filter((m) => m.source === 'nomina');
+    t.nominas = r(noms.reduce((a, m) => a + m.total, 0));
+    t.irpfRetenido = r(noms.reduce((a, m) => a + (m.payroll ? m.payroll.irpf : 0), 0));
+    t.seguridadSocial = r(noms.reduce((a, m) => a + (m.payroll ? m.payroll.ssEmp + m.payroll.ssCo : 0), 0));
     for (const mv of out) mv.account = (PGC[mv.category] || ['629', 'Otros servicios'])[0];
     // IVA por tipo
     const byRate = (kind) => {
       const g = {};
-      for (const mv of out.filter((x) => x.kind === kind)) {
+      for (const mv of out.filter((x) => x.kind === kind && x.source !== 'nomina')) {
         const k = String(mv.vatRate);
         const x = g[k] || (g[k] = { rate: mv.vatRate, base: 0, vat: 0 });
         x.base += mv.base; x.vat += mv.vat;
@@ -261,12 +272,18 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
     const r = (n) => Math.round(n * 100) / 100;
     const asc = acc.movements.slice().sort((a, c) => (a.date + (a.number || a.ref || a.id || '')).localeCompare(c.date + (c.number || c.ref || c.id || '')));
     const emitidas = asc.filter((m) => m.kind === 'ingreso');
-    const recibidas = asc.filter((m) => m.kind === 'gasto').map((m) => Object.assign({}, m, { party: m.party ? m.party + ' · ' + m.concept : m.concept }));
+    const recibidas = asc.filter((m) => m.kind === 'gasto' && m.source !== 'nomina').map((m) => Object.assign({}, m, { party: m.party ? m.party + ' · ' + m.concept : m.concept }));
+    const nominas = asc.filter((m) => m.source === 'nomina');
     const accts = {};
-    for (const m of recibidas) {
-      const [code, name] = PGC[m.category] || ['629', 'Otros servicios'];
+    const addAcct = (code, name, base, vat, total) => {
       const x = accts[code] || (accts[code] = { account: code, name, n: 0, base: 0, vat: 0, total: 0 });
-      x.n++; x.base += m.base; x.vat += m.vat; x.total += m.total;
+      x.n++; x.base += base; x.vat += vat; x.total += total;
+    };
+    for (const m of recibidas) { const [code, name] = PGC[m.category] || ['629', 'Otros servicios']; addAcct(code, name, m.base, m.vat, m.total); }
+    for (const m of nominas) {
+      const p = m.payroll;
+      addAcct('640', 'Sueldos y salarios', p.gross, 0, p.gross);
+      if (p.ssCo) addAcct('642', 'Seguridad Social a cargo de la empresa', p.ssCo, 0, p.ssCo);
     }
     const expenseAccounts = Object.values(accts).map((x) => Object.assign(x, { base: r(x.base), vat: r(x.vat), total: r(x.total) })).sort((a, c) => a.account.localeCompare(c.account));
     // Asientos: factura (o ingreso) → 430 al debe; 705/759 y 477 al haber. Gasto → 6xx y 472 al debe; 410 al haber.
@@ -277,6 +294,17 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
       const [code, name] = PGC[m.category] || ['629', 'Otros servicios'];
       const neg = m.total < 0, T = Math.abs(m.total), B = Math.abs(m.base), V = Math.abs(m.vat);
       let lines;
+      if (m.source === 'nomina') {
+        // Nómina: 640 bruto y 642 SS de la empresa al debe; 4751 IRPF, 476 SS y 465 neto al haber
+        const p = m.payroll;
+        lines = [{ account: '640', name: 'Sueldos y salarios', debe: p.gross }];
+        if (p.ssCo) lines.push({ account: '642', name: 'Seguridad Social a cargo de la empresa', debe: p.ssCo });
+        if (p.irpf) lines.push({ account: '4751', name: 'Hacienda Pública, acreedora por retenciones practicadas', haber: p.irpf });
+        if (p.ssEmp + p.ssCo) lines.push({ account: '476', name: 'Organismos de la Seguridad Social, acreedores', haber: Math.round((p.ssEmp + p.ssCo) * 100) / 100 });
+        lines.push({ account: '465', name: 'Remuneraciones pendientes de pago', haber: p.net });
+        diario.push({ date: m.date, concept: m.concept + (m.party ? ' · ' + m.party : ''), lines });
+        continue;
+      }
       if (m.kind === 'ingreso') {
         lines = [{ account: '430', name: 'Clientes', debe: T }, { account: code, name, haber: B }];
         if (V) lines.push({ account: '477', name: 'Hacienda Pública, IVA repercutido', haber: V });
@@ -286,9 +314,258 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
         lines.push({ account: '410', name: 'Acreedores por prestaciones de servicios', haber: T });
       }
       if (neg) lines = lines.map((l) => ({ account: l.account, name: l.name, debe: l.haber, haber: l.debe }));
-      diario.push({ n: ++n, date: m.date, concept: m.concept + (m.party ? ' · ' + m.party : ''), lines });
+      diario.push({ date: m.date, concept: m.concept + (m.party ? ' · ' + m.party : ''), lines });
     }
-    return { emitidas, recibidas, expenseAccounts, diario };
+    // Cobros y pagos del periodo (banco 572, caja 570) y lo que mete o saca el socio (551)
+    const cashAcc = (via) => (via === 'efectivo' ? ['570', 'Caja, euros'] : ['572', 'Bancos e instituciones de crédito c/c vista, euros']);
+    for (const it of payables()) {
+      if (!it.paid || !(it.paid.date >= acc.from && it.paid.date <= acc.to)) continue;
+      const [ca, cn] = cashAcc(it.paid.via);
+      const A = Math.abs(it.amount);
+      const other = it.amount > 0 || it.type === 'invoice' ? ['430', 'Clientes'] : it.nomina ? ['465', 'Remuneraciones pendientes de pago'] : ['410', 'Acreedores por prestaciones de servicios'];
+      const incoming = it.amount > 0;
+      diario.push({ date: it.paid.date, concept: (incoming ? 'Cobro · ' : 'Pago · ') + it.label,
+        lines: incoming ? [{ account: ca, name: cn, debe: A }, { account: other[0], name: other[1], haber: A }]
+          : [{ account: other[0], name: other[1], debe: A }, { account: ca, name: cn, haber: A }] });
+    }
+    const TAX = { iva: ['4750', 'Hacienda Pública, acreedora por IVA'], irpf: ['4751', 'Hacienda Pública, acreedora por retenciones practicadas'],
+      is: ['4752', 'Hacienda Pública, acreedora por impuesto sobre sociedades'], otros: ['4759', 'Hacienda Pública, acreedora por otros conceptos'] };
+    for (const l of bank().lines) {
+      if (!l.match || !['tax', 'ss'].includes(l.match.type) || !(l.date >= acc.from && l.date <= acc.to)) continue;
+      const [ta, tn] = l.match.type === 'ss' ? ['476', 'Organismos de la Seguridad Social, acreedores'] : (TAX[l.match.tax] || TAX.otros);
+      const A = Math.abs(l.amount), [ca, cn] = cashAcc('banco');
+      diario.push({ date: l.date, concept: (l.match.type === 'ss' ? 'Pago a la Seguridad Social · ' : 'Pago a Hacienda · ') + l.concept,
+        lines: l.amount < 0 ? [{ account: ta, name: tn, debe: A }, { account: ca, name: cn, haber: A }] : [{ account: ca, name: cn, debe: A }, { account: ta, name: tn, haber: A }] });
+    }
+    for (const l of bank().lines) {
+      if (!l.match || l.match.type !== 'socio' || !(l.date >= acc.from && l.date <= acc.to)) continue;
+      const A = Math.abs(l.amount), [ca, cn] = cashAcc('banco');
+      const so = ['551', 'Cuenta corriente con socios y administradores'];
+      diario.push({ date: l.date, concept: (l.amount > 0 ? 'Aportación del socio · ' : 'Retirada del socio · ') + l.concept,
+        lines: l.amount > 0 ? [{ account: ca, name: cn, debe: A }, { account: so[0], name: so[1], haber: A }]
+          : [{ account: so[0], name: so[1], debe: A }, { account: ca, name: cn, haber: A }] });
+    }
+    diario.sort((a, c) => a.date.localeCompare(c.date));
+    diario.forEach((a) => { a.n = ++n; });
+    // Lo pendiente de cobrar y de pagar a la fecha final
+    const pend = payables().filter((it) => it.date <= acc.to && (!it.paid || it.paid.date > acc.to));
+    const bankLines = bank().lines.filter((l) => l.date >= acc.from && l.date <= acc.to).sort((a, c) => a.date.localeCompare(c.date));
+    // Lo que se debe a Hacienda por retenciones y a la Seguridad Social, a la fecha final
+    let irpfDue = 0, ssDue = 0;
+    for (const e of ledger()) if (e.type === 'nomina' && e.date <= acc.to && e.payroll) { irpfDue += e.payroll.irpf; ssDue += e.payroll.ssEmp + e.payroll.ssCo; }
+    for (const l of bank().lines) {
+      if (!l.match || l.date > acc.to) continue;
+      if (l.match.type === 'tax' && l.match.tax === 'irpf') irpfDue += l.amount;
+      if (l.match.type === 'ss') ssDue += l.amount;
+    }
+    return { emitidas, recibidas, expenseAccounts, diario, nominas, pendingTaxes: { irpf: r(irpfDue), ss: r(ssDue) },
+      pendingIn: pend.filter((x) => x.amount > 0), pendingOut: pend.filter((x) => x.amount < 0),
+      bankLines: bankLines.map((l) => ({ date: l.date, concept: l.concept, amount: l.amount, status: lineStatus(l) })) };
+  }
+
+  // ---------- banco: extractos, movimientos y conciliación ----------
+  const BANK = path.join(DIR, 'bank.json');
+  const STATEMENTS = path.join(DIR, 'statements');
+  const INBOX = path.join(DIR, 'inbox');
+  const INBOX_LIST = path.join(DIR, 'inbox.json');
+  fs.mkdirSync(STATEMENTS, { recursive: true });
+  fs.mkdirSync(INBOX, { recursive: true });
+  function writeJson(file, obj) { fs.writeFileSync(file + '.tmp', JSON.stringify(obj, null, 1)); fs.renameSync(file + '.tmp', file); }
+  function bank() {
+    try { const b = JSON.parse(fs.readFileSync(BANK, 'utf8')); return { statements: b.statements || [], lines: b.lines || [] }; }
+    catch (e) { return { statements: [], lines: [] }; }
+  }
+  function saveBank(b) { writeJson(BANK, b); }
+  function inbox() { try { return JSON.parse(fs.readFileSync(INBOX_LIST, 'utf8')); } catch (e) { return []; } }
+  const cents = (n) => Math.round(Number(n) * 100);
+  function addDays(d, n) { const x = new Date(d + 'T12:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); }
+  function lineStatus(l) {
+    if (!l.match) return 'pendiente';
+    if (l.match.type === 'tax') return 'pago a Hacienda (' + ({ iva: 'IVA', irpf: 'retenciones', is: 'sociedades' }[l.match.tax] || 'otros') + ')';
+    return { socio: 'socio', transfer: 'traspaso', ignore: 'ignorado', ss: 'Seguridad Social' }[l.match.type] || ('conciliado: ' + (l.match.label || ''));
+  }
+
+  // Lo que se cobra o se paga: facturas, rectificativas, pagos a conductores y apuntes. Importe + entra, − sale.
+  function payables() {
+    const out = [];
+    for (const b of allBookings()) {
+      const invs = allInvoices(b);
+      for (const inv of invs) {
+        if (inv.status === 'anulada') continue;
+        // Una factura rectificada sin cobrar y su rectificativa se anulan entre sí: no quedan pendientes.
+        // Si la original estaba cobrada, la rectificativa queda como dinero a devolver.
+        if (inv.status === 'rectificada' && !inv.paid) continue;
+        if (inv.kind === 'rectificativa') { const orig = invs.find((x) => x.number === inv.rectifies); if (!orig || !orig.paid) continue; }
+        out.push({ type: 'invoice', key: inv.number, date: inv.date, amount: inv.total, paid: inv.paid || null,
+          label: (inv.kind === 'rectificativa' ? 'Rectificativa ' : 'Factura ') + inv.number + ' · ' + ((inv.customer && inv.customer.name) || b.name) });
+      }
+      if (b.status !== 'cancelada' && b.driverPay > 0) {
+        out.push({ type: 'driver', key: b.ref, date: b.date, amount: -b.driverPay, paid: b.driverPaid || null, label: 'Pago al conductor ' + (b.driverName || '') + ' · ' + b.ref });
+      }
+    }
+    for (const e of ledger()) {
+      if (e.type === 'nomina') {
+        out.push({ type: 'ledger', key: e.id, date: e.date, amount: -e.payroll.net, paid: e.paid || null, nomina: true, label: 'Nómina: ' + (e.party || '') + (e.concept ? ' · ' + e.concept : '') });
+        continue;
+      }
+      out.push({ type: 'ledger', key: e.id, date: e.date, amount: e.type === 'ingreso' ? e.total : -e.total, paid: e.paid || null,
+        label: (e.type === 'ingreso' ? 'Ingreso: ' : 'Gasto: ') + e.concept + (e.party ? ' · ' + e.party : '') });
+    }
+    return out;
+  }
+  function setPaid(t, paid) {
+    if (t.type === 'ledger') {
+      const list = ledger(), e = list.find((x) => x.id === t.key);
+      if (!e) return false;
+      e.paid = paid; saveLedger(list); return true;
+    }
+    for (const b of allBookings()) {
+      if (t.type === 'driver' && b.ref === t.key) { b.driverPaid = paid; saveBooking(b); return true; }
+      if (t.type === 'invoice') {
+        const inv = allInvoices(b).find((x) => x.number === t.key);
+        if (inv) { inv.paid = paid; saveBooking(b); return true; }
+      }
+    }
+    return false;
+  }
+  function candidates(l, items) {
+    return items.filter((it) => !it.paid && cents(it.amount) === cents(l.amount) && it.date >= addDays(l.date, -60) && it.date <= addDays(l.date, 15));
+  }
+  // Empareja solo lo que no tiene dudas: un movimiento con un único candidato, que no sirve para otro movimiento
+  function autoMatch(bk) {
+    const items = payables();
+    const pending = bk.lines.filter((l) => !l.match);
+    const cands = new Map(pending.map((l) => [l.id, candidates(l, items)]));
+    const uses = new Map();
+    for (const list of cands.values()) for (const it of list) uses.set(it.type + ':' + it.key, (uses.get(it.type + ':' + it.key) || 0) + 1);
+    let n = 0;
+    for (const l of pending) {
+      const list = cands.get(l.id);
+      if (list.length !== 1 || uses.get(list[0].type + ':' + list[0].key) !== 1) continue;
+      const it = list[0];
+      if (setPaid(it, { date: l.date, via: 'banco', lineId: l.id })) { l.match = { type: it.type, key: it.key, label: it.label, auto: true }; n++; }
+    }
+    return n;
+  }
+
+  // ---------- leer extractos: Norma 43 (bancos españoles) y CSV ----------
+  function parseAmount(s) {
+    s = String(s == null ? '' : s).replace(/[€$£\s]/g, '').replace(/EUR/i, '');
+    if (!s) return null;
+    let neg = false;
+    if (/^\(.*\)$/.test(s)) { neg = true; s = s.slice(1, -1); }
+    if (s.endsWith('-')) { neg = true; s = s.slice(0, -1); }
+    const lc = s.lastIndexOf(','), ld = s.lastIndexOf('.');
+    if (lc > -1 && ld > -1) s = lc > ld ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '');
+    else if (lc > -1) s = s.replace(',', '.');
+    else if (ld > -1 && s.length - ld - 1 === 3 && /^-?\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
+    const n = Number(s);
+    return Number.isFinite(n) ? (neg ? -Math.abs(n) : n) : null;
+  }
+  const MONTHS = { jan: 1, ene: 1, feb: 2, mar: 3, apr: 4, abr: 4, may: 5, jun: 6, jul: 7, aug: 8, ago: 8, sep: 9, oct: 10, nov: 11, dec: 12, dic: 12 };
+  function parseDay(s) {
+    s = String(s || '').trim();
+    let m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+    if (m) return m[1] + '-' + m[2] + '-' + m[3];
+    m = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})$/.exec(s);
+    if (m) { const y = m[3].length === 2 ? '20' + m[3] : m[3]; return y + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0'); }
+    m = /^(\d{1,2})[ -]([A-Za-z]{3})[A-Za-z]*[ -](\d{2,4})$/.exec(s);
+    if (m && MONTHS[m[2].toLowerCase()]) { const y = m[3].length === 2 ? '20' + m[3] : m[3]; return y + '-' + String(MONTHS[m[2].toLowerCase()]).padStart(2, '0') + '-' + m[1].padStart(2, '0'); }
+    return null;
+  }
+  function parseN43(text) {
+    const out = [];
+    let last = null;
+    for (const raw of text.split(/\r?\n/)) {
+      const l = raw.replace(/\s+$/, '');
+      if (l.startsWith('22') && l.length >= 42) {
+        const d = l.slice(10, 16);
+        const amount = (l[27] === '1' ? -1 : 1) * Number(l.slice(28, 42)) / 100;
+        last = { date: '20' + d.slice(0, 2) + '-' + d.slice(2, 4) + '-' + d.slice(4, 6), concept: (l.slice(52, 64) + ' ' + l.slice(64, 80)).replace(/\s+/g, ' ').trim(), amount, balance: null };
+        out.push(last);
+      } else if (l.startsWith('23') && last) {
+        const c = (l.slice(4, 42) + ' ' + l.slice(42, 80)).replace(/\s+/g, ' ').trim();
+        if (c) last.concept = last.concept ? c + ' · ' + last.concept : c;
+      }
+    }
+    return out;
+  }
+  function splitCsv(line, delim) {
+    const out = []; let cur = '', q = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (q) { if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; } else if (ch === '"') q = false; else cur += ch; }
+      else if (ch === '"') q = true;
+      else if (ch === delim) { out.push(cur.trim()); cur = ''; }
+      else cur += ch;
+    }
+    out.push(cur.trim());
+    return out;
+  }
+  function parseCsv(text) {
+    const rows = text.split(/\r?\n/).filter((l) => l.trim());
+    if (rows.length < 2) return [];
+    const delim = [';', '\t', ','].map((d) => [d, rows.slice(0, 10).reduce((a, r) => a + r.split(d).length, 0)]).sort((a, c) => c[1] - a[1])[0][0];
+    let hi = -1, col = {};
+    for (let i = 0; i < Math.min(rows.length, 20); i++) {
+      const h = splitCsv(rows[i], delim).map((x) => x.toLowerCase());
+      const find = (re, not) => h.findIndex((x) => re.test(x) && !(not && not.test(x)));
+      const date = find(/fecha|date|posted/, /valor|value/);
+      const date2 = find(/fecha|date/);
+      const amount = find(/^importe|amount|cantidad|^importe \(/, /saldo|balance/);
+      const debit = find(/cargo|debe|debit|salida|money out|paid out/);
+      const credit = find(/abono|haber|credit|entrada|money in|paid in/);
+      if ((date > -1 || date2 > -1) && (amount > -1 || debit > -1 || credit > -1)) {
+        hi = i;
+        col = { date: date > -1 ? date : date2, amount, debit, credit, concept: find(/concepto|descripci|description|details|detalle|narrative|movimiento|referencia/), balance: find(/saldo|balance/) };
+        break;
+      }
+    }
+    if (hi < 0) return [];
+    const out = [];
+    for (const r of rows.slice(hi + 1)) {
+      const c = splitCsv(r, delim);
+      const date = parseDay(c[col.date]);
+      let amount = col.amount > -1 ? parseAmount(c[col.amount]) : null;
+      if (amount == null && (col.debit > -1 || col.credit > -1)) {
+        const dv = col.debit > -1 ? parseAmount(c[col.debit]) : null, cv = col.credit > -1 ? parseAmount(c[col.credit]) : null;
+        if (dv != null || cv != null) amount = (cv || 0) - Math.abs(dv || 0);
+      }
+      if (!date || amount == null || amount === 0) continue;
+      out.push({ date, concept: col.concept > -1 ? c[col.concept] : '', amount, balance: col.balance > -1 ? parseAmount(c[col.balance]) : null });
+    }
+    return out;
+  }
+  function cleanLines(list) {
+    const out = [];
+    for (const x of Array.isArray(list) ? list.slice(0, 5000) : []) {
+      const date = isDay(x.date) ? x.date : parseDay(x.date);
+      const amount = typeof x.amount === 'number' ? x.amount : parseAmount(x.amount);
+      if (!date || amount == null || !Number.isFinite(amount) || amount === 0 || Math.abs(amount) > 10000000) continue;
+      const balance = x.balance == null || x.balance === '' ? null : (typeof x.balance === 'number' ? x.balance : parseAmount(x.balance));
+      out.push({ date, concept: clean(x.concept, 160), amount: Math.round(amount * 100) / 100, balance: Number.isFinite(balance) ? Math.round(balance * 100) / 100 : null });
+    }
+    return out;
+  }
+  function addLines(bk, st, parsed) {
+    const key = (l) => [l.date, cents(l.amount), l.concept, l.balance == null ? '' : cents(l.balance)].join('|');
+    const seen = new Set(bk.lines.map(key));
+    let added = 0;
+    for (const l of cleanLines(parsed)) {
+      if (seen.has(key(l))) continue;
+      seen.add(key(l));
+      bk.lines.push(Object.assign({ id: crypto.randomBytes(5).toString('hex'), statementId: st.id, match: null }, l));
+      added++;
+    }
+    const mine = bk.lines.filter((l) => l.statementId === st.id);
+    st.lines = mine.length;
+    if (mine.length) { st.from = mine.reduce((a, l) => (l.date < a ? l.date : a), mine[0].date); st.to = mine.reduce((a, l) => (l.date > a ? l.date : a), mine[0].date); }
+    if (mine.length) st.status = 'leído';
+    return added;
+  }
+  function unmatchLine(bk, l) {
+    if (l.match && ['invoice', 'ledger', 'driver'].includes(l.match.type)) setPaid({ type: l.match.type, key: l.match.key }, null);
+    l.match = null;
   }
 
   // ---------- la contraseña de la fase de pruebas ----------
@@ -603,7 +880,7 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
     if (route === 'admin/settings') {
       if (req.method === 'GET') {
         const s = settings();
-        return json(res, 200, { vehicles: s.vehicles, minHoursAhead: s.minHoursAhead, invoice: s.invoice });
+        return json(res, 200, { vehicles: s.vehicles, minHoursAhead: s.minHoursAhead, invoice: s.invoice, weakKey: !process.env.BRAVO_KEY || KEY.length < 10 });
       }
       if (req.method === 'POST') {
         let d;
@@ -699,6 +976,10 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       const r = await loadRef();
       if (r.error) return json(res, r.error === 'not_found' ? 404 : 400, r);
       if (allInvoices(r.b).length) return json(res, 409, { error: 'has_invoice' });
+      if (r.b.driverPaid && r.b.driverPaid.lineId) {
+        const bk = bank(), l = bk.lines.find((x) => x.id === r.b.driverPaid.lineId);
+        if (l) { l.match = null; saveBank(bk); }
+      }
       fs.unlinkSync(bookingFile(r.b.ref));
       return json(res, 200, { ok: true });
     }
@@ -817,23 +1098,61 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
     if (req.method === 'POST' && route === 'admin/ledger/save') {
       let d;
       try { d = JSON.parse(await readBody(req, 9000000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
-      const type = d.type === 'ingreso' ? 'ingreso' : d.type === 'gasto' ? 'gasto' : null;
+      const type = ['ingreso', 'gasto', 'nomina'].includes(d.type) ? d.type : null;
       if (!type) return json(res, 400, { error: 'bad_type' });
-      const cats = type === 'gasto' ? EXPENSE_CATS : INCOME_CATS;
-      if (!cats.includes(d.category)) return json(res, 400, { error: 'bad_category' });
       if (!isDay(d.date)) return json(res, 400, { error: 'bad_date' });
-      const concept = clean(d.concept, 120);
+      let total, vatRate, payroll = null, category;
+      if (type === 'nomina') {
+        // Nómina: bruto − IRPF − SS del trabajador = neto (lo que se transfiere). Coste = bruto + SS de la empresa.
+        if (!clean(d.party, 80)) return json(res, 400, { error: 'bad_worker' });
+        const gross = num(d.gross, 0.01, 1000000, 2);
+        const irpf = num(d.irpf === '' || d.irpf == null ? 0 : d.irpf, 0, 1000000, 2);
+        const ssEmp = num(d.ssEmp === '' || d.ssEmp == null ? 0 : d.ssEmp, 0, 1000000, 2);
+        const ssCo = num(d.ssCo === '' || d.ssCo == null ? 0 : d.ssCo, 0, 1000000, 2);
+        if (gross == null) return json(res, 400, { error: 'bad_gross' });
+        if (irpf == null || ssEmp == null || ssCo == null) return json(res, 400, { error: 'bad_payroll' });
+        const net = Math.round((gross - irpf - ssEmp) * 100) / 100;
+        if (net < 0) return json(res, 400, { error: 'bad_payroll' });
+        payroll = { gross, irpf, ssEmp, ssCo, net };
+        total = Math.round((gross + ssCo) * 100) / 100; vatRate = 0; category = 'Nóminas';
+      } else {
+        category = d.category;
+        if (!(type === 'gasto' ? EXPENSE_CATS : INCOME_CATS).includes(category)) return json(res, 400, { error: 'bad_category' });
+        total = num(d.total, 0.01, 1000000, 2);
+        if (total == null) return json(res, 400, { error: 'bad_total' });
+        vatRate = num(d.vatRate, 0, 30, 2);
+        if (vatRate == null) return json(res, 400, { error: 'bad_vat' });
+      }
+      const concept = clean(d.concept, 120) || (type === 'nomina' ? 'Nómina' : '');
       if (!concept) return json(res, 400, { error: 'bad_concept' });
-      const total = num(d.total, 0.01, 1000000, 2);
-      if (total == null) return json(res, 400, { error: 'bad_total' });
-      const vatRate = num(d.vatRate, 0, 30, 2);
-      if (vatRate == null) return json(res, 400, { error: 'bad_vat' });
       const list = ledger();
       let e = d.id ? list.find((x) => x.id === d.id) : null;
       if (d.id && !e) return json(res, 404, { error: 'not_found' });
       if (!e) { e = { id: crypto.randomBytes(5).toString('hex'), createdAt: new Date().toISOString(), receipt: null }; list.push(e); }
-      Object.assign(e, { type, date: d.date, concept, party: clean(d.party, 80), number: clean(d.number, 40), taxId: clean(d.taxId, 30), category: d.category, total, vatRate, notes: cleanLong(d.notes, 500), updatedAt: new Date().toISOString() }, splitVat(total, vatRate));
+      Object.assign(e, { type, date: d.date, concept, party: clean(d.party, 80), number: clean(d.number, 40), taxId: clean(d.taxId, 30), category, total, vatRate, payroll, notes: cleanLong(d.notes, 500), updatedAt: new Date().toISOString() }, splitVat(total, vatRate));
       if (d.removeReceipt) { removeReceipt(e); e.receipt = null; }
+      // Ticket que estaba en la bandeja: pasa a ser el de este apunte
+      if (d.inboxId) {
+        const items = inbox(), it = items.find((x) => x.id === d.inboxId);
+        if (!it) return json(res, 404, { error: 'inbox_not_found' });
+        removeReceipt(e);
+        const ext = it.file.split('.').pop(), file = e.id + '.' + ext;
+        fs.renameSync(path.join(INBOX, it.file), path.join(RECEIPTS, file));
+        e.receipt = { file, name: it.name, size: it.size };
+        writeJson(INBOX_LIST, items.filter((x) => x !== it));
+      }
+      // Pagado: por una línea del banco, o a mano (efectivo, tarjeta, banco)
+      let lineToMatch = null;
+      if (d.bankLineId) {
+        const bk0 = bank(), l = bk0.lines.find((x) => x.id === d.bankLineId);
+        if (!l || l.match) return json(res, 400, { error: 'bad_line' });
+        if (type === 'nomina' && cents(-payroll.net) !== cents(l.amount)) return json(res, 400, { error: 'net_differs' });
+        e.paid = { date: l.date, via: 'banco', lineId: l.id };
+        lineToMatch = l.id;
+      } else if (d.paidVia !== undefined && !(e.paid && e.paid.lineId)) {
+        if (['banco', 'tarjeta', 'efectivo'].includes(d.paidVia) && isDay(d.paidDate)) e.paid = { date: d.paidDate, via: d.paidVia };
+        else if (!d.paidVia) e.paid = null;
+      }
       if (d.receipt && typeof d.receipt.data === 'string') {
         const buf = Buffer.from(d.receipt.data, 'base64');
         if (buf.length > 6 * 1024 * 1024) return json(res, 400, { error: 'receipt_too_big' });
@@ -845,6 +1164,11 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
         e.receipt = { file, name: clean(d.receipt.name, 80) || file, size: buf.length };
       }
       saveLedger(list);
+      if (lineToMatch) {
+        const bk = bank(), l = bk.lines.find((x) => x.id === lineToMatch);
+        l.match = { type: 'ledger', key: e.id, label: (type === 'ingreso' ? 'Ingreso: ' : type === 'nomina' ? 'Nómina: ' + e.party + ' · ' : 'Gasto: ') + e.concept };
+        saveBank(bk);
+      }
       return json(res, 200, { ok: true, entry: e });
     }
 
@@ -856,6 +1180,10 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       if (!e) return json(res, 404, { error: 'not_found' });
       removeReceipt(e);
       saveLedger(list.filter((x) => x !== e));
+      if (e.paid && e.paid.lineId) {
+        const bk = bank(), l = bk.lines.find((x) => x.id === e.paid.lineId);
+        if (l) { l.match = null; saveBank(bk); }
+      }
       return json(res, 200, { ok: true });
     }
 
@@ -879,6 +1207,167 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
         'Cache-Control': 'no-store, private', 'X-Robots-Tag': 'noindex, nofollow', 'X-Content-Type-Options': 'nosniff'
       });
       return res.end(buf);
+    }
+
+    // ---------- banco ----------
+    if (req.method === 'GET' && route === 'admin/bank') {
+      const sp = new URL(url, 'http://x').searchParams;
+      const from = isDay(sp.get('from')) ? sp.get('from') : '0000-01-01', to = isDay(sp.get('to')) ? sp.get('to') : '9999-12-31';
+      const bk = bank(), items = payables();
+      const lines = bk.lines.filter((l) => l.date >= from && l.date <= to).sort((a, c) => c.date.localeCompare(a.date))
+        .map((l) => Object.assign({}, l, { candidates: l.match ? [] : candidates(l, items).map((it) => ({ type: it.type, key: it.key, label: it.label, date: it.date, amount: it.amount })) }));
+      const r2 = (n) => Math.round(n * 100) / 100;
+      const sums = { n: lines.length, matched: lines.filter((l) => l.match).length, in: r2(lines.filter((l) => l.amount > 0).reduce((a, l) => a + l.amount, 0)), out: r2(lines.filter((l) => l.amount < 0).reduce((a, l) => a + l.amount, 0)) };
+      const withBal = lines.filter((l) => l.balance != null);
+      sums.lastBalance = withBal.length ? withBal[0].balance : null;
+      return json(res, 200, { statements: bk.statements.slice().sort((a, c) => (c.uploadedAt || '').localeCompare(a.uploadedAt || '')), lines, totals: sums, weakKey: !process.env.BRAVO_KEY || KEY.length < 10 });
+    }
+    if (req.method === 'POST' && route === 'admin/bank/upload') {
+      let d;
+      try { d = JSON.parse(await readBody(req, 14000000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+      const buf = Buffer.from(String(d.data || ''), 'base64');
+      if (!buf.length || buf.length > 10 * 1024 * 1024) return json(res, 400, { error: 'file_size' });
+      const bk = bank();
+      const st = { id: crypto.randomBytes(5).toString('hex'), name: clean(d.name, 100) || 'extracto', uploadedAt: new Date().toISOString(), status: 'pendiente', lines: 0 };
+      let parsed = [];
+      if (sniff(buf) === 'pdf') { st.kind = 'pdf'; st.file = st.id + '.pdf'; }
+      else {
+        let text = buf.toString('utf8');
+        if (text.includes('\ufffd')) text = buf.toString('latin1');
+        if (/\u0000/.test(text)) return json(res, 400, { error: 'file_type' });
+        const first = text.split(/\r?\n/).find((l) => l.trim()) || '';
+        // Norma 43: cabecera «11» con el código de la cuenta y movimientos «22» de ancho fijo
+        if (/^11\d{8}/.test(first) && text.split(/\r?\n/).some((l) => /^22/.test(l) && l.length >= 42)) { st.kind = 'n43'; parsed = parseN43(text); }
+        else { st.kind = 'csv'; parsed = parseCsv(text); }
+        st.file = st.id + '.' + (st.kind === 'n43' ? 'txt' : 'csv');
+      }
+      fs.writeFileSync(path.join(STATEMENTS, st.file), buf);
+      bk.statements.push(st);
+      const added = parsed.length ? addLines(bk, st, parsed) : 0;
+      const matched = autoMatch(bk);
+      saveBank(bk);
+      return json(res, 200, { ok: true, statement: st, added, matched, needsReading: !added });
+    }
+    // Para Claude: los movimientos que ha leído de un extracto en PDF
+    if (req.method === 'POST' && route === 'admin/bank/lines') {
+      let d;
+      try { d = JSON.parse(await readBody(req, 3000000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+      const bk = bank(), st = bk.statements.find((x) => x.id === d.statementId);
+      if (!st) return json(res, 404, { error: 'not_found' });
+      const added = addLines(bk, st, d.lines);
+      const matched = autoMatch(bk);
+      saveBank(bk);
+      return json(res, 200, { ok: true, added, matched, statement: st });
+    }
+    if (req.method === 'POST' && route === 'admin/bank/automatch') {
+      const bk = bank(), matched = autoMatch(bk);
+      saveBank(bk);
+      return json(res, 200, { ok: true, matched });
+    }
+    if (req.method === 'GET' && route === 'admin/bank/file') {
+      const st = bank().statements.find((x) => x.id === new URL(url, 'http://x').searchParams.get('id'));
+      if (!st) return json(res, 404, { error: 'not_found' });
+      let buf;
+      try { buf = fs.readFileSync(path.join(STATEMENTS, st.file)); } catch (e) { return json(res, 404, { error: 'not_found' }); }
+      res.writeHead(200, {
+        'Content-Type': st.kind === 'pdf' ? 'application/pdf' : 'text/plain; charset=utf-8', 'Content-Length': buf.length,
+        'Content-Disposition': 'inline; filename="' + st.file + '"', 'Cache-Control': 'no-store, private', 'X-Robots-Tag': 'noindex, nofollow', 'X-Content-Type-Options': 'nosniff'
+      });
+      return res.end(buf);
+    }
+    if (req.method === 'POST' && ['admin/bank/match', 'admin/bank/classify', 'admin/bank/unmatch', 'admin/bank/statement-delete'].includes(route)) {
+      let d;
+      try { d = JSON.parse(await readBody(req, 4000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+      const bk = bank();
+      if (route === 'admin/bank/statement-delete') {
+        const st = bk.statements.find((x) => x.id === d.id);
+        if (!st) return json(res, 404, { error: 'not_found' });
+        for (const l of bk.lines.filter((x) => x.statementId === st.id)) unmatchLine(bk, l);
+        bk.lines = bk.lines.filter((x) => x.statementId !== st.id);
+        bk.statements = bk.statements.filter((x) => x !== st);
+        try { fs.unlinkSync(path.join(STATEMENTS, st.file)); } catch (e) { /* ya no estaba */ }
+        saveBank(bk);
+        return json(res, 200, { ok: true });
+      }
+      const l = bk.lines.find((x) => x.id === d.lineId);
+      if (!l) return json(res, 404, { error: 'not_found' });
+      if (route === 'admin/bank/unmatch') { unmatchLine(bk, l); saveBank(bk); return json(res, 200, { ok: true, line: l }); }
+      if (l.match) return json(res, 409, { error: 'already_matched' });
+      if (route === 'admin/bank/match') {
+        const it = payables().find((x) => x.type === d.type && x.key === d.key);
+        if (!it) return json(res, 404, { error: 'not_found' });
+        if (it.paid) return json(res, 409, { error: 'already_paid' });
+        if (cents(it.amount) !== cents(l.amount)) return json(res, 400, { error: 'amount_differs' });
+        setPaid(it, { date: l.date, via: 'banco', lineId: l.id });
+        l.match = { type: it.type, key: it.key, label: it.label };
+        saveBank(bk);
+        return json(res, 200, { ok: true, line: l });
+      }
+      // classify: comisión del banco (gasto 626), socio, traspaso u otro
+      if (d.kind === 'fee') {
+        if (l.amount >= 0) return json(res, 400, { error: 'not_an_expense' });
+        const list = ledger();
+        const e = Object.assign({ id: crypto.randomBytes(5).toString('hex'), createdAt: new Date().toISOString(), receipt: null, type: 'gasto', date: l.date,
+          concept: l.concept || 'Comisión del banco', party: 'Banco', number: '', taxId: '', category: 'Comisiones bancarias', total: Math.abs(l.amount), vatRate: 0,
+          notes: 'Creado desde el extracto del banco', paid: { date: l.date, via: 'banco', lineId: l.id } }, splitVat(Math.abs(l.amount), 0));
+        list.push(e); saveLedger(list);
+        l.match = { type: 'ledger', key: e.id, label: 'Gasto: ' + e.concept };
+      } else if (d.kind === 'tax') {
+        l.match = { type: 'tax', tax: ['iva', 'irpf', 'is'].includes(d.tax) ? d.tax : 'otros', note: clean(d.note, 120) };
+      } else if (['socio', 'transfer', 'ignore', 'ss'].includes(d.kind)) {
+        l.match = { type: d.kind, note: clean(d.note, 120) };
+      } else return json(res, 400, { error: 'bad_kind' });
+      saveBank(bk);
+      return json(res, 200, { ok: true, line: l });
+    }
+
+    // ---------- bandeja de tickets (sin apuntar todavía) ----------
+    if (req.method === 'GET' && route === 'admin/inbox') return json(res, 200, { items: inbox() });
+    if (req.method === 'POST' && route === 'admin/inbox/upload') {
+      let d;
+      try { d = JSON.parse(await readBody(req, 9000000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+      const buf = Buffer.from(String(d.data || ''), 'base64');
+      if (buf.length > 6 * 1024 * 1024) return json(res, 400, { error: 'receipt_too_big' });
+      const ext = sniff(buf);
+      if (!ext) return json(res, 400, { error: 'receipt_type' });
+      const items = inbox();
+      if (items.length >= 500) return json(res, 400, { error: 'inbox_full' });
+      const it = { id: crypto.randomBytes(5).toString('hex'), name: clean(d.name, 80) || 'ticket', size: buf.length, uploadedAt: new Date().toISOString() };
+      it.file = it.id + '.' + ext;
+      fs.writeFileSync(path.join(INBOX, it.file), buf);
+      items.push(it); writeJson(INBOX_LIST, items);
+      return json(res, 200, { ok: true, item: it });
+    }
+    if (req.method === 'GET' && route === 'admin/inbox/file') {
+      const it = inbox().find((x) => x.id === new URL(url, 'http://x').searchParams.get('id'));
+      if (!it) return json(res, 404, { error: 'not_found' });
+      let buf;
+      try { buf = fs.readFileSync(path.join(INBOX, it.file)); } catch (e) { return json(res, 404, { error: 'not_found' }); }
+      res.writeHead(200, {
+        'Content-Type': RECEIPT_TYPES[it.file.split('.').pop()] || 'application/octet-stream', 'Content-Length': buf.length,
+        'Content-Disposition': 'inline; filename="' + it.file + '"', 'Cache-Control': 'no-store, private', 'X-Robots-Tag': 'noindex, nofollow', 'X-Content-Type-Options': 'nosniff'
+      });
+      return res.end(buf);
+    }
+    if (req.method === 'POST' && route === 'admin/inbox/delete') {
+      let d;
+      try { d = JSON.parse(await readBody(req, 2000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+      const items = inbox(), it = items.find((x) => x.id === d.id);
+      if (!it) return json(res, 404, { error: 'not_found' });
+      try { fs.unlinkSync(path.join(INBOX, it.file)); } catch (e) { /* ya no estaba */ }
+      writeJson(INBOX_LIST, items.filter((x) => x !== it));
+      return json(res, 200, { ok: true });
+    }
+
+    // ---------- copia de seguridad de todos los datos (sin los archivos) ----------
+    if (req.method === 'GET' && route === 'admin/backup.json') {
+      let counters = {};
+      try { counters = JSON.parse(fs.readFileSync(path.join(DIR, 'invoice-counter.json'), 'utf8')); } catch (e) { /* ninguno */ }
+      res.writeHead(200, {
+        'Content-Type': 'application/json; charset=utf-8', 'Content-Disposition': 'attachment; filename="bravo-copia-' + today() + '.json"',
+        'Cache-Control': 'no-store, private', 'X-Robots-Tag': 'noindex, nofollow'
+      });
+      return res.end(JSON.stringify({ exportedAt: new Date().toISOString(), settings: settings(), drivers: drivers(), bookings: allBookings(), ledger: ledger(), bank: bank(), inbox: inbox(), invoiceCounters: counters }, null, 1));
     }
 
     return json(res, 404, { error: 'not_found' });
