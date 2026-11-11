@@ -24,6 +24,7 @@ const DEFAULTS = {
   hourly: { min: 2, max: 12 },
   autoInvoice: true, // factura automática al reservar (con el IVA por defecto)
   cancelHours: 24, // el cliente cancela solo hasta estas horas antes
+  payEmail: true, // al marcar un pago (conductor o proveedor), mandarle el justificante por correo
   // Provisional: solo salidas desde la provincia de Málaga (caja aproximada)
   originBox: { latMin: 36.28, latMax: 37.32, lonMin: -5.65, lonMax: -3.75 },
   // Datos de las facturas: PROVISIONALES, se cambian desde el panel (Ajustes).
@@ -92,6 +93,7 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
     if (s.invoice) Object.assign(out.invoice, s.invoice);
     if (typeof s.autoInvoice === 'boolean') out.autoInvoice = s.autoInvoice;
     if (Number.isFinite(s.cancelHours)) out.cancelHours = s.cancelHours;
+    if (typeof s.payEmail === 'boolean') out.payEmail = s.payEmail;
     return out;
   }
   function num(v, min, max, decimals) {
@@ -103,8 +105,9 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
   // Ajustes que manda el panel: se comprueba todo antes de guardar
   function readSettings(d) {
     const cur = settings();
-    const out = { vehicles: {}, minHoursAhead: cur.minHoursAhead, invoice: {}, autoInvoice: cur.autoInvoice, cancelHours: cur.cancelHours };
+    const out = { vehicles: {}, minHoursAhead: cur.minHoursAhead, invoice: {}, autoInvoice: cur.autoInvoice, cancelHours: cur.cancelHours, payEmail: cur.payEmail };
     if (d.autoInvoice !== undefined) out.autoInvoice = d.autoInvoice === true || d.autoInvoice === 'true';
+    if (d.payEmail !== undefined) out.payEmail = d.payEmail === true || d.payEmail === 'true';
     if (d.cancelHours !== undefined) {
       const ch = num(d.cancelHours, 0, 168, 0);
       if (ch == null) return { error: 'bad_cancel_hours' };
@@ -371,7 +374,7 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
         continue;
       }
       out.push({ date: e.date, kind: e.type, source: 'manual', id: e.id, concept: e.concept, party: e.party, category: e.category, number: e.number || '', taxId: e.taxId || '',
-        base: e.base, vatRate: e.vatRate, vat: e.vat, total: e.total, notes: e.notes, receipt: Boolean(e.receipt), paid: e.paid || null });
+        base: e.base, vatRate: e.vatRate, vat: e.vat, total: e.total, notes: e.notes, receipt: Boolean(e.receipt), paid: e.paid || null, email: e.email || '' });
     }
     out.sort((a, c) => (c.date + (c.ref || c.id || '')).localeCompare(a.date + (a.ref || a.id || '')));
     const t = { ingresos: 0, ingresosBase: 0, ivaRepercutido: 0, gastos: 0, gastosBase: 0, ivaSoportado: 0 };
@@ -554,7 +557,10 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
     }
     return out;
   }
+  // Un pago marcado a mano «por el banco» o Bizum se puede casar luego con su movimiento, sin perder si ya se mandó el justificante
+  const openToBank = (it) => !it.paid || (!it.paid.lineId && ['banco', 'bizum'].includes(it.paid.via));
   function setPaid(t, paid) {
+    if (paid && t.paid && t.paid.emailed) paid.emailed = t.paid.emailed;
     if (t.type === 'ledger') {
       const list = ledger(), e = list.find((x) => x.id === t.key);
       if (!e) return false;
@@ -569,8 +575,69 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
     }
     return false;
   }
+  const isEmail = (e) => /^[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+$/.test(String(e || '').trim());
+  const dmyApi = (d) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || ''); return m ? m[3] + '/' + m[2] + '/' + m[1] : (d || ''); };
+  // Un pago a un conductor (por su reserva) o a un proveedor (un gasto), con lo que va en su justificante
+  function payment(type, key) {
+    if (type === 'driver') {
+      const b = allBookings().find((x) => x.ref === key);
+      if (!b || !(b.driverPay > 0)) return null;
+      const dn = String(b.driverName || '').toLowerCase();
+      const drv = drivers().find((x) => x.name && x.name.toLowerCase() === dn) || {};
+      const rate = Number(b.driverVat) || 0, sv = splitVat(b.driverPay, rate);
+      const from = b.kind === 'group' ? b.fromText : (b.from && b.from.label) || '';
+      const to = b.kind === 'group' ? b.toText : b.kind === 'hourly' ? b.hours + ' h' : (b.to && b.to.label) || '';
+      return { type, key, id: b.ref, ref: b.ref, kind: 'driver', b,
+        payee: { name: b.driverName || drv.name || '', taxId: drv.taxId || '', email: b.driverEmail || drv.email || '' }, paid: b.driverPaid || null,
+        lines: [{ concept: 'Servicio ' + b.ref + ' · ' + dmyApi(b.date) + ' ' + b.time + ' · ' + from + (to ? ' → ' + to : ''), base: sv.base, vatRate: rate, vat: sv.vat, total: b.driverPay }],
+        total: b.driverPay, theirInvoice: b.driverInvoiceNo || '' };
+    }
+    if (type === 'ledger') {
+      const e = ledger().find((x) => x.id === key);
+      if (!e || e.type !== 'gasto') return null; // ni ingresos ni nóminas (la nómina ya la da la gestoría)
+      return { type, key, id: e.number || 'Gasto ' + dmyApi(e.date), ref: '', kind: 'supplier', e,
+        payee: { name: e.party || '', taxId: e.taxId || '', email: e.email || '' }, paid: e.paid || null,
+        lines: [{ concept: e.concept, base: e.base, vatRate: e.vatRate, vat: e.vat, total: e.total }], total: e.total, theirInvoice: e.number || '' };
+    }
+    return null;
+  }
+  function issuerFull() { const i = settings().invoice; return { name: i.issuerName, taxId: i.taxId, address: i.address, email: i.email, phone: i.phone }; }
+  async function sendPaymentEmail(type, key) {
+    const p = payment(type, key);
+    if (!p) return { ok: false, error: 'not_found' };
+    if (!p.paid) return { ok: false, error: 'not_paid' };
+    if (!isEmail(p.payee.email)) return { ok: false, error: 'no_email' };
+    if (!mail.configured()) return { ok: false, error: 'email_not_configured' };
+    const slug = String(p.id).replace(/[^A-Za-z0-9-]+/g, '-');
+    const atts = [{ name: 'justificante-pago-' + slug + '.pdf', buf: pdf.paymentPdf(p, issuerFull()) }];
+    if (p.kind === 'driver') atts.push({ name: 'hoja-' + p.b.ref + '.pdf', buf: pdf.driverSheetPdf(p.b, issuerOf(settings())) });
+    if (p.kind === 'supplier' && p.e.receipt) {
+      try {
+        atts.push({ name: 'factura-' + slug + '.' + p.e.receipt.file.split('.').pop(), buf: fs.readFileSync(path.join(RECEIPTS, p.e.receipt.file)) });
+        p.attachTheirs = true;
+      } catch (e) { /* sin su factura */ }
+    }
+    const m = TPL.paymentEmail(p, { base: BASE });
+    const r = await mail.send({ to: p.payee.email.trim(), toName: p.payee.name, subject: m.subject, html: m.html, text: m.text, attachments: atts });
+    const log = { at: new Date().toISOString(), ok: r.ok, error: r.error || '', to: p.payee.email.trim() };
+    if (type === 'driver') {
+      try { const b = JSON.parse(fs.readFileSync(bookingFile(key), 'utf8')); if (b.driverPaid) { b.driverPaid.emailed = log; saveBooking(b); } } catch (e) { /* ya no está */ }
+    } else {
+      const list = ledger(), e = list.find((x) => x.id === key);
+      if (e && e.paid) { e.paid.emailed = log; saveLedger(list); }
+    }
+    return r;
+  }
+  // Solo pagos recientes: subir un extracto antiguo no le manda nada a nadie (para esos, el botón del panel)
+  function autoPayEmail(type, key) {
+    if (type !== 'driver' && type !== 'ledger') return;
+    if (!settings().payEmail || !mail.configured()) return;
+    const p = payment(type, key);
+    if (!p || !p.paid || p.paid.emailed || !isEmail(p.payee.email) || p.paid.date < addDays(today(), -15)) return;
+    setImmediate(() => { sendPaymentEmail(type, key).catch(() => {}); });
+  }
   function candidates(l, items) {
-    return items.filter((it) => !it.paid && cents(it.amount) === cents(l.amount) && it.date >= addDays(l.date, -60) && it.date <= addDays(l.date, 15));
+    return items.filter((it) => openToBank(it) && cents(it.amount) === cents(l.amount) && it.date >= addDays(l.date, -60) && it.date <= addDays(l.date, 15));
   }
   // Empareja solo lo que no tiene dudas: un movimiento con un único candidato, que no sirve para otro movimiento
   function autoMatch(bk) {
@@ -584,7 +651,7 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
       const list = cands.get(l.id);
       if (list.length !== 1 || uses.get(list[0].type + ':' + list[0].key) !== 1) continue;
       const it = list[0];
-      if (setPaid(it, { date: l.date, via: 'banco', lineId: l.id })) { l.match = { type: it.type, key: it.key, label: it.label, auto: true }; n++; }
+      if (setPaid(it, { date: l.date, via: 'banco', lineId: l.id })) { l.match = { type: it.type, key: it.key, label: it.label, auto: true }; n++; autoPayEmail(it.type, it.key); }
     }
     return n;
   }
@@ -1180,6 +1247,21 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       }
       return json(res, 200, { ok: true, emailed });
     }
+    if (req.method === 'GET' && route === 'admin/payment.pdf') {
+      const sp = new URL(url, 'http://x').searchParams;
+      const p = payment(sp.get('type'), sp.get('key'));
+      if (!p || !p.paid) return json(res, 404, { error: 'not_found' });
+      const buf = pdf.paymentPdf(p, issuerFull());
+      res.writeHead(200, { 'Content-Type': 'application/pdf', 'Content-Length': buf.length, 'Content-Disposition': 'inline; filename="justificante-pago.pdf"',
+        'Cache-Control': 'no-store, private', 'X-Robots-Tag': 'noindex, nofollow', 'X-Content-Type-Options': 'nosniff' });
+      return res.end(buf);
+    }
+    if (req.method === 'POST' && route === 'admin/pay-email') {
+      let d;
+      try { d = JSON.parse(await readBody(req, 1000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+      const r = await sendPaymentEmail(String(d.type || ''), String(d.key || ''));
+      return json(res, r.ok ? 200 : (r.error === 'not_found' ? 404 : r.error && r.error.startsWith('HTTP') ? 502 : 400), r);
+    }
     if (req.method === 'POST' && route === 'admin/email-booking') {
       let d;
       try { d = JSON.parse(await readBody(req, 1000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
@@ -1198,7 +1280,7 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
     if (route === 'admin/settings') {
       if (req.method === 'GET') {
         const s = settings();
-        return json(res, 200, { vehicles: s.vehicles, minHoursAhead: s.minHoursAhead, invoice: s.invoice, autoInvoice: s.autoInvoice, cancelHours: s.cancelHours,
+        return json(res, 200, { vehicles: s.vehicles, minHoursAhead: s.minHoursAhead, invoice: s.invoice, autoInvoice: s.autoInvoice, cancelHours: s.cancelHours, payEmail: s.payEmail,
           email: { configured: mail.configured(), provider: mail.provider }, weakKey: !process.env.BRAVO_KEY || KEY.length < 10 });
       }
       if (req.method === 'POST') {
@@ -1210,7 +1292,7 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
         fs.writeFileSync(file + '.tmp', JSON.stringify(r.settings, null, 1));
         fs.renameSync(file + '.tmp', file);
         const s = settings();
-        return json(res, 200, { ok: true, vehicles: s.vehicles, minHoursAhead: s.minHoursAhead, invoice: s.invoice, autoInvoice: s.autoInvoice, cancelHours: s.cancelHours,
+        return json(res, 200, { ok: true, vehicles: s.vehicles, minHoursAhead: s.minHoursAhead, invoice: s.invoice, autoInvoice: s.autoInvoice, cancelHours: s.cancelHours, payEmail: s.payEmail,
           email: { configured: mail.configured(), provider: mail.provider }, weakKey: !process.env.BRAVO_KEY || KEY.length < 10 });
       }
     }
@@ -1224,6 +1306,7 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
         const list = d.drivers.map((x) => ({
           id: /^[a-f0-9]{8}$/.test(x.id || '') ? x.id : crypto.randomBytes(4).toString('hex'),
           name: clean(x.name, 80), phone: clean(x.phone, 25), licence: clean(x.licence, 40),
+          email: isEmail(x.email) ? clean(x.email, 120) : '', taxId: clean(x.taxId, 30),
           car: clean(x.car, 60), plate: clean(x.plate, 15), seats: int(x.seats, 1, 80) || null, notes: cleanLong(x.notes, 500)
         })).filter((x) => x.name);
         fs.writeFileSync(DRIVERS + '.tmp', JSON.stringify(list, null, 1));
@@ -1351,6 +1434,19 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
         b.driverVat = v;
       }
       if (d.driverCar !== undefined) b.driverCar = clean(d.driverCar, 80);
+      if (d.driverEmail !== undefined) {
+        if (d.driverEmail && !isEmail(d.driverEmail)) return json(res, 400, { error: 'bad_email' });
+        b.driverEmail = clean(d.driverEmail, 120);
+      }
+      if (d.driverInvoiceNo !== undefined) b.driverInvoiceNo = clean(d.driverInvoiceNo, 40);
+      let newlyPaid = false;
+      if (d.driverPaidVia !== undefined && !(b.driverPaid && b.driverPaid.lineId)) {
+        if (!d.driverPaidVia) b.driverPaid = null;
+        else {
+          if (!['banco', 'tarjeta', 'efectivo', 'bizum'].includes(d.driverPaidVia) || !isDay(d.driverPaidDate)) return json(res, 400, { error: 'bad_paid' });
+          if (!(b.driverPaid && b.driverPaid.date === d.driverPaidDate && b.driverPaid.via === d.driverPaidVia)) { b.driverPaid = { date: d.driverPaidDate, via: d.driverPaidVia }; newlyPaid = true; }
+        }
+      }
       if (d.price !== undefined) {
         const p = d.price === '' || d.price === null ? null : num(d.price, 0, 100000, 2);
         if (p === null && !(d.price === '' || d.price === null)) return json(res, 400, { error: 'bad_price' });
@@ -1361,6 +1457,7 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       }
       b.updatedAt = new Date().toISOString();
       saveBooking(b);
+      if (newlyPaid) autoPayEmail('driver', b.ref);
       return json(res, 200, { ok: true, booking: b });
     }
 
@@ -1441,6 +1538,8 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       let e = d.id ? list.find((x) => x.id === d.id) : null;
       if (d.id && !e) return json(res, 404, { error: 'not_found' });
       if (!e) { e = { id: crypto.randomBytes(5).toString('hex'), createdAt: new Date().toISOString(), receipt: null }; list.push(e); }
+      if (d.partyEmail !== undefined && d.partyEmail !== '' && !isEmail(d.partyEmail)) return json(res, 400, { error: 'bad_email' });
+      if (d.partyEmail !== undefined) e.email = clean(d.partyEmail, 120);
       Object.assign(e, { type, date: d.date, concept, party: clean(d.party, 80), number: clean(d.number, 40), taxId: clean(d.taxId, 30), category, total, vatRate, payroll, notes: cleanLong(d.notes, 500), updatedAt: new Date().toISOString() }, splitVat(total, vatRate));
       if (d.removeReceipt) { removeReceipt(e); e.receipt = null; }
       // Ticket que estaba en la bandeja: pasa a ser el de este apunte
@@ -1462,7 +1561,9 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
         e.paid = { date: l.date, via: 'banco', lineId: l.id };
         lineToMatch = l.id;
       } else if (d.paidVia !== undefined && !(e.paid && e.paid.lineId)) {
-        if (['banco', 'tarjeta', 'efectivo'].includes(d.paidVia) && isDay(d.paidDate)) e.paid = { date: d.paidDate, via: d.paidVia };
+        if (['banco', 'tarjeta', 'efectivo'].includes(d.paidVia) && isDay(d.paidDate)) {
+          if (!(e.paid && e.paid.date === d.paidDate && e.paid.via === d.paidVia)) e.paid = { date: d.paidDate, via: d.paidVia };
+        }
         else if (!d.paidVia) e.paid = null;
       }
       if (d.receipt && typeof d.receipt.data === 'string') {
@@ -1481,6 +1582,7 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
         l.match = { type: 'ledger', key: e.id, label: (type === 'ingreso' ? 'Ingreso: ' : type === 'nomina' ? 'Nómina: ' + e.party + ' · ' : 'Gasto: ') + e.concept };
         saveBank(bk);
       }
+      if (type === 'gasto' && e.paid) autoPayEmail('ledger', e.id);
       return json(res, 200, { ok: true, entry: e });
     }
 
@@ -1608,11 +1710,12 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       if (route === 'admin/bank/match') {
         const it = payables().find((x) => x.type === d.type && x.key === d.key);
         if (!it) return json(res, 404, { error: 'not_found' });
-        if (it.paid) return json(res, 409, { error: 'already_paid' });
+        if (!openToBank(it)) return json(res, 409, { error: 'already_paid' });
         if (cents(it.amount) !== cents(l.amount)) return json(res, 400, { error: 'amount_differs' });
         setPaid(it, { date: l.date, via: 'banco', lineId: l.id });
         l.match = { type: it.type, key: it.key, label: it.label };
         saveBank(bk);
+        autoPayEmail(it.type, it.key);
         return json(res, 200, { ok: true, line: l });
       }
       // classify: comisión del banco (gasto 626), socio, traspaso u otro

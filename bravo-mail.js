@@ -172,4 +172,22 @@ function ownerEmail(subject, lines, o) {
   return { subject: 'Bravo Transfers — ' + subject, html: shell('es', html, o.base), text: lines.join('\n') + '\n\n' + o.url };
 }
 
-module.exports.templates = { bookingEmail, loginEmail, messageEmail, ownerEmail };
+// Al conductor o al proveedor, cuando se le paga: el justificante de pago (y su hoja o su factura)
+const VIA = { banco: 'por transferencia', tarjeta: 'con tarjeta', efectivo: 'en efectivo', bizum: 'por Bizum' };
+function paymentEmail(p, o) {
+  const first = String(p.payee.name || '').split(' ')[0];
+  const rows = p.lines.map((l) => `<tr><td style="padding:6px 8px;border-bottom:1px solid #eee">${esc(l.concept)}</td><td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;white-space:nowrap">${money(l.total)}</td></tr>`).join('');
+  const extra = [p.kind === 'driver' ? 'la hoja de servicio' : '', p.attachTheirs ? 'tu factura' + (p.theirInvoice ? ' nº ' + p.theirInvoice : '') : ''].filter(Boolean);
+  const att = 'Te adjuntamos el justificante de pago en PDF' + (extra.length ? ' y ' + extra.join(' y ') : '') + '.';
+  const html = `<p style="font-size:16px;margin:0 0 6px">Hola${first ? ' ' + esc(first) : ''},</p>` +
+    `<p>Te hemos pagado <b>${money(p.total)}</b> el ${dmy(p.paid.date)} ${esc(VIA[p.paid.via] || '')}.</p>` +
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:14px;margin:8px 0">${rows}` +
+    `<tr><td style="padding:8px;font-weight:bold">Total pagado</td><td style="padding:8px;text-align:right;font-weight:bold;white-space:nowrap">${money(p.total)}</td></tr></table>` +
+    `<p>${esc(att)}</p>` + (p.kind === 'driver' ? '<p>Gracias por el servicio.</p>' : '<p>Gracias.</p>') +
+    `<p style="margin:10px 0">Un saludo,<br>Bravo Transfers</p>`;
+  const text = [`Hola${first ? ' ' + first : ''},`, '', `Te hemos pagado ${money(p.total)} el ${dmy(p.paid.date)} ${VIA[p.paid.via] || ''}.`, '']
+    .concat(p.lines.map((l) => '- ' + l.concept + ': ' + money(l.total)), ['', att, '', 'Un saludo,', 'Bravo Transfers']).join('\n');
+  return { subject: `Pago de ${money(p.total)} · Bravo Transfers` + (p.ref ? ' · ' + p.ref : ''), html: shell('es', html, o.base), text };
+}
+
+module.exports.templates = { bookingEmail, loginEmail, messageEmail, ownerEmail, paymentEmail };

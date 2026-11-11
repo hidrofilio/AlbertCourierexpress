@@ -63,6 +63,12 @@ Web de una empresa de transporte urgente dedicado (vehículo exclusivo punto a p
       - cancelar hasta `cancelHours` antes del viaje. Alberto hace después la rectificativa, si había factura.
       - escribir mensajes (en `messages.json`; se contestan en la pestaña Mensajes) y cambiar sus datos y su contraseña.
     - Hay un freno contra contraseñas malas, por IP y por correo. «He olvidado la contraseña» responde lo mismo exista o no la cuenta, y en la cuenta del cliente nunca salen `driverPay`, notas ni tokens.
+  - **Justificante de pago** (`paymentPdf` en `bravo-pdf.js`), para el conductor o el proveedor al que se paga:
+    - Sale por correo **solo cuando el pago queda marcado**: a mano en la reserva (banco, Bizum, efectivo, tarjeta), al casarlo con el banco, o en un gasto pagado. Va **solo para pagos de los últimos 15 días**, para que subir un extracto antiguo no le escriba a nadie, y se puede apagar en Ajustes (`payEmail`).
+    - Lleva adjuntos el justificante y la hoja de servicio (conductor) o su propia factura, el ticket subido (proveedor). No va para nóminas ni ingresos.
+    - El correo del conductor está en `drivers.json` y en la reserva (`driverEmail`); el del proveedor, en el gasto (`email`). Lo enviado queda en `paid.emailed`.
+    - Volver a guardar no lo reenvía; el botón del panel, sí (`POST /api/bravo/admin/pay-email`, vista previa en `admin/payment.pdf`).
+    - Un pago marcado a mano «por el banco» o Bizum se casa después con su movimiento del extracto, sin volver a mandar nada.
   - Las pruebas, con Playwright: un OSRM falso, un servicio de correo falso, Nominatim y Web3Forms simulados, y `pdftotext` para leer los PDF.
 - **`stats/`** y **`notas/`** — panel de analíticas y buzón de notas. **La clave no se escribe nunca aquí**: vive en la variable `STATS_KEY` de Railway, y apuntada en el repo privado (`NEGOCIO/empresa/acceso.md`)
 - **`data/events.jsonl`** — registro de visitas, en un volumen persistente de Railway montado en `/app/data`. **No está en git.**

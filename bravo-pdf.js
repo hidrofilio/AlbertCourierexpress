@@ -288,6 +288,69 @@ function confirmationPdf(b, issuer) {
   return assemble(c.ops, t.title + ' ' + b.ref);
 }
 
+// ---------- JUSTIFICANTE DE PAGO (para el conductor o el proveedor al que se paga) ----------
+// p = { id, kind: 'driver'|'supplier', payee: { name, taxId, email }, paid: { date, via }, lines: [{ concept, base, vatRate, vat, total }], total, theirInvoice }
+const VIA = { banco: 'Transferencia bancaria', tarjeta: 'Tarjeta', efectivo: 'Efectivo', bizum: 'Bizum' };
+function paymentPdf(p, issuer) {
+  const c = canvas();
+  header(c, 'JUSTIFICANTE DE PAGO', p.id);
+  c.text(40, 122, 'PAGADOR', { size: 8, bold: true, color: C.muted });
+  c.text(40, 138, issuer.name || 'Bravo Transfers', { size: 12, bold: true });
+  let y = 154;
+  for (const l of [issuer.taxId ? 'NIF/CIF: ' + issuer.taxId : ''].concat(c.wrap(issuer.address || '', 10, false, 230), [issuer.email, issuer.phone])) {
+    if (!l) continue;
+    c.text(40, y, l, { size: 10 }); y += 13;
+  }
+  const meta = [['Fecha del pago', day(p.paid.date)], ['Forma de pago', VIA[p.paid.via] || p.paid.via || '']];
+  if (p.theirInvoice) meta.push(['Su factura nº', p.theirInvoice]);
+  let my = 122;
+  for (const [k, v] of meta) {
+    c.text(330, my, k, { size: 8, bold: true, color: C.muted });
+    c.text(555, my, v, { size: 10, bold: true, align: 'right' });
+    my += 17;
+  }
+  y = Math.max(y, my) + 14;
+  c.text(40, y, p.kind === 'driver' ? 'CONDUCTOR (COBRA)' : 'PROVEEDOR (COBRA)', { size: 8, bold: true, color: C.muted }); y += 16;
+  c.text(40, y, p.payee.name || '', { size: 12, bold: true }); y += 15;
+  for (const l of [p.payee.taxId ? 'NIF/CIF: ' + p.payee.taxId : '', p.payee.email]) {
+    if (!l) continue;
+    c.text(40, y, l, { size: 10 }); y += 13;
+  }
+  y += 18;
+  c.rect(40, y, 515, 24, C.band);
+  c.text(50, y + 16, 'CONCEPTO', { size: 8.5, bold: true, color: C.muted });
+  c.text(420, y + 16, 'BASE', { size: 8.5, bold: true, color: C.muted, align: 'right' });
+  c.text(480, y + 16, 'IVA', { size: 8.5, bold: true, color: C.muted, align: 'right' });
+  c.text(545, y + 16, 'TOTAL', { size: 8.5, bold: true, color: C.muted, align: 'right' });
+  y += 42;
+  let base = 0, vat = 0;
+  for (const l of p.lines) {
+    const w = c.wrap(l.concept, 10, false, 300);
+    w.forEach((t, i) => c.text(50, y + i * 13, t, { size: 10 }));
+    c.text(420, y, money(l.base), { size: 10, align: 'right' });
+    c.text(480, y, String(l.vatRate).replace('.', ',') + ' %', { size: 10, align: 'right' });
+    c.text(545, y, money(l.total), { size: 10, align: 'right' });
+    base += l.base; vat += l.vat;
+    y += w.length * 13 + 10;
+  }
+  c.line(40, y, 555, y);
+  y += 22;
+  for (const [k, v] of [['Base', money(base)], ['IVA', money(vat)]]) {
+    c.text(400, y, k, { size: 10, color: C.muted, align: 'right' });
+    c.text(545, y, v, { size: 10.5, align: 'right' });
+    y += 17;
+  }
+  c.rect(300, y - 4, 255, 28, C.ink);
+  c.text(400, y + 14, 'PAGADO', { size: 11, bold: true, color: C.gold, align: 'right' });
+  c.text(545, y + 14, money(p.total), { size: 13, bold: true, color: C.white, align: 'right' });
+  y += 50;
+  for (const l of c.wrap('Este documento justifica el pago. No es una factura' + (p.theirInvoice ? ': la factura es la nº ' + p.theirInvoice + ', emitida por quien cobra.' : '.'), 9.5, false, 515)) {
+    c.text(40, y, l, { size: 9.5, color: C.muted }); y += 13;
+  }
+  footer(c, [(issuer.name || 'Bravo Transfers') + (issuer.email ? ' · ' + issuer.email : '') + (issuer.phone ? ' · ' + issuer.phone : '')]);
+  return assemble(c.ops, 'Justificante de pago ' + p.id);
+}
+
 // ---------- HOJA DE SERVICIO (para el conductor) ----------
 function driverSheetPdf(b, issuer) {
   const c = canvas();
@@ -471,4 +534,4 @@ function accountsPdf(rep, issuer) {
   return assemble(pages, title);
 }
 
-module.exports = { invoicePdf, confirmationPdf, driverSheetPdf, accountsPdf, concept, _test: { W, WB, winAnsi, textWidth } };
+module.exports = { invoicePdf, confirmationPdf, driverSheetPdf, paymentPdf, accountsPdf, concept, _test: { W, WB, winAnsi, textWidth } };

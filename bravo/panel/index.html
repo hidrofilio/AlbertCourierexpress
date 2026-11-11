@@ -199,6 +199,7 @@
         <div id="af-num-box"><label for="af-number">Nº de la factura</label><input id="af-number" placeholder="El que trae el ticket"></div>
         <div><label for="af-taxid" id="af-taxid-l">NIF del proveedor</label><input id="af-taxid"></div>
       </div>
+      <div id="af-email-box"><label for="af-email">Correo del proveedor (para mandarle el justificante de pago)</label><input type="email" id="af-email" inputmode="email"></div>
       <div class="row" id="af-total-row">
         <div><label for="af-total">Total pagado (€, con IVA)</label><input type="number" id="af-total" min="0" step="0.01" inputmode="decimal"></div>
         <div><label for="af-vat">IVA (%)</label><select id="af-vat"></select></div>
@@ -222,6 +223,7 @@
         <div><label for="af-paiddate">Fecha del pago</label><input type="date" id="af-paiddate"></div>
       </div>
       <div class="msg" id="af-paid-line"></div>
+      <div id="af-pay"></div>
       <label for="af-file">Foto del ticket o factura (PDF o imagen)</label>
       <input type="file" id="af-file" accept="image/*,application/pdf">
       <div class="msg" id="af-receipt"></div>
@@ -307,6 +309,7 @@
     <h3>Correos y cuenta del cliente</h3>
     <div class="card" id="mail-state"></div>
     <label class="check"><input type="checkbox" data-s="autoInvoice"> Hacer la factura sola al reservar (con el IVA por defecto) y mandarla en el correo</label>
+    <label class="check"><input type="checkbox" data-s="payEmail"> Al marcar un pago a un conductor o a un proveedor, mandarle el justificante de pago por correo (solo pagos de los últimos 15 días)</label>
     <label>El cliente puede cancelar él solo hasta (horas antes del viaje)</label>
     <input type="number" min="0" max="168" step="1" inputmode="numeric" data-s="cancelHours">
 
@@ -356,7 +359,8 @@
     already_invoiced: 'Esta reserva ya tiene factura', invoiced: 'Tiene factura: para cambiar el precio, anúlala antes',
     has_invoice: 'Tiene o tuvo factura: no se puede borrar', bad_price: 'Precio no válido', bad_pay: 'Pago no válido',
     bad_hours_ahead: 'Antelación no válida (0 a 168 horas)', bad_cancel_hours: 'Horas para cancelar no válidas (0 a 168)',
-    bad_date: 'Día u hora no válidos', email_not_configured: 'Los correos no están activados (falta EMAIL_KEY en Railway)', empty: 'Escribe la respuesta'
+    bad_date: 'Día u hora no válidos', bad_email: 'El correo no es válido', bad_paid: 'Pon el día del pago',
+    no_email: 'No tiene correo: ponlo y guarda antes', not_paid: 'Todavía no está pagado', email_not_configured: 'Los correos no están activados (falta EMAIL_KEY en Railway)', empty: 'Escribe la respuesta'
   };
 
   // ---------- fechas de Málaga ----------
@@ -503,8 +507,10 @@
       '<div><label>Le pagas (€)</label><input data-k="driverPay" type="number" inputmode="decimal" min="0" step="0.01" value="' + (b.driverPay == null ? '' : esc(b.driverPay)) + '"></div></div>' +
       '<div class="row"><div><label>IVA en ese pago (%)</label><select data-k="driverVat">' + vatOptions(b.driverVat || 0) + '</select></div>' +
       '<div><label>Coche y matrícula</label><input data-k="driverCar" value="' + esc(b.driverCar) + '" placeholder="Ej.: Toyota · 1234 ABC"></div></div>' +
+      '<div class="row"><div><label>Correo del conductor</label><input data-k="driverEmail" type="email" value="' + esc(b.driverEmail || '') + '" placeholder="Para el justificante de pago"></div>' +
+      '<div><label>Nº de su factura (si te la da)</label><input data-k="driverInvoiceNo" value="' + esc(b.driverInvoiceNo || '') + '"></div></div>' +
       '<label>Nota para el conductor (sale en su hoja)</label><input data-k="driverNote" value="' + esc(b.driverNote) + '">' +
-      '<div class="margin" data-margin></div>' +
+      '<div class="margin" data-margin></div>' + payBox(b) +
       '<label>Estado</label><select data-k="status">' + opts + '</select>' +
       '<label class="check"><input type="checkbox" data-k="ministry"' + (b.ministry ? ' checked' : '') + '> Comunicado al Ministerio</label>' +
       '<label>Notas internas (solo las ves tú)</label><textarea data-k="notes">' + esc(b.notes) + '</textarea>' +
@@ -519,6 +525,37 @@
       invoiceBox(b) +
       (allInv(b).length ? '' : '<div class="btns"><button type="button" class="b red" data-del>🗑 Borrar esta reserva</button></div>') +
       '</div></details>';
+  }
+
+  // El pago al conductor: marcarlo pagado (si no lo casó el banco) y su justificante por correo
+  var PAY_VIA = { banco: 'por el banco', bizum: 'por Bizum', efectivo: 'en efectivo', tarjeta: 'con tarjeta' };
+  function payStatus(paid) {
+    if (!paid || !paid.emailed) return '';
+    var m = paid.emailed;
+    return m.ok ? '✉️ Justificante enviado a ' + esc(m.to) + ' el ' + esc(new Date(m.at).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) + '.'
+      : '⚠️ El justificante no salió (' + esc(m.error === 'not_configured' ? 'los correos aún no están activados' : m.error) + ').';
+  }
+  function payButtons(type, key, paid) {
+    if (!paid) return '';
+    var on = cfg && cfg.email && cfg.email.configured;
+    return '<div class="mail-line">' + (payStatus(paid) || '✉️ Todavía no se le ha mandado el justificante de pago.') + '</div><div class="btns">' +
+      '<a class="b" target="_blank" rel="noopener" href="/api/bravo/admin/payment.pdf?type=' + type + '&key=' + encodeURIComponent(key) + '">📄 Justificante de pago</a>' +
+      '<button type="button" class="b dark" data-paymail="' + type + ':' + esc(key) + '"' + (on ? '' : ' aria-disabled="true"') + '>✉️ ' + (paid.emailed && paid.emailed.ok ? 'Mandarlo otra vez' : 'Mandar el justificante') + '</button></div>';
+  }
+  function payBox(b) {
+    if (!(b.driverPay > 0)) return '';
+    var p = b.driverPaid, h = '<div class="box"><b>Pago al conductor</b>';
+    if (p && p.lineId) h += '<div class="ok-line">🏦 Pagado por el banco el ' + esc(dmy(p.date)) + ' (casado con el extracto)</div>';
+    else {
+      h += '<div class="row"><div><label>¿Le has pagado?</label><select data-k="driverPaidVia">' +
+        [['', 'Sin pagar todavía'], ['banco', 'Sí, por el banco'], ['bizum', 'Sí, por Bizum'], ['efectivo', 'Sí, en efectivo'], ['tarjeta', 'Sí, con tarjeta']].map(function (o) {
+          return '<option value="' + o[0] + '"' + ((p ? p.via : '') === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
+        }).join('') + '</select></div><div><label>Día del pago</label><input data-k="driverPaidDate" type="date" value="' + esc(p ? p.date : '') + '"></div></div>';
+      if (p) h += '<div class="ok-line">✓ Pagado ' + esc(PAY_VIA[p.via] || p.via) + ' el ' + esc(dmy(p.date)) + '</div>';
+    }
+    h += payButtons('driver', b.ref, p);
+    if (!p) h += '<div class="msg">Al marcarlo pagado (y guardar)' + (cfg && cfg.payEmail ? ', se le manda solo el justificante de pago y su hoja de servicio, si tiene correo.' : ', podrás mandarle el justificante de pago.') + '</div>';
+    return h + '</div>';
   }
 
   // El correo automático de la reserva: si salió y el botón para mandarlo otra vez (con los datos de ahora)
@@ -585,12 +622,15 @@
       m.textContent = p == null ? 'Cobrado ' + euro(pr) + ' · pon lo que le pagas para ver lo que te queda' : 'Te queda: ' + euro(r2(pr - p)) + ' (cobrado ' + euro(pr) + ')';
     }
     pay.addEventListener('input', margin); price.addEventListener('input', margin); margin();
+    var pv = el.querySelector('[data-k=driverPaidVia]'), pd = el.querySelector('[data-k=driverPaidDate]');
+    if (pv) pv.addEventListener('change', function () { if (pv.value && !pd.value) pd.value = madridDay(0); if (!pv.value) pd.value = ''; });
     // Al elegir un conductor de la lista, se rellenan su teléfono y su coche
     var dn = el.querySelector('[data-k=driverName]');
     dn.addEventListener('change', function () {
       var d = drivers.filter(function (x) { return x.name === dn.value; })[0];
       if (!d) return;
       el.querySelector('[data-k=driverPhone]').value = d.phone || '';
+      if (d.email) el.querySelector('[data-k=driverEmail]').value = d.email;
       el.querySelector('[data-k=driverCar]').value = [d.car, d.plate].filter(Boolean).join(' · ');
     });
     el.querySelector('[data-save]').addEventListener('click', async function () {
@@ -601,8 +641,12 @@
       try {
         var data = await api('admin/update', body);
         var moved = data.booking.date !== b.date || data.booking.time !== b.time;
-        replace(data.booking); open[b.ref] = true; renderTrips();
-        flash(b.ref, '[data-msg]', '✓ Guardado' + (moved ? '. Has cambiado el día o la hora: avisa al cliente (botón «Enviar el correo de la reserva» o WhatsApp).' : ''));
+        var nb = data.booking, nowPaid = nb.driverPaid && !b.driverPaid;
+        var willMail = nowPaid && cfg && cfg.payEmail && cfg.email && cfg.email.configured && (nb.driverEmail || '').indexOf('@') > 0;
+        replace(nb); open[b.ref] = true; renderTrips();
+        flash(b.ref, '[data-msg]', '✓ Guardado.' + (moved ? ' Has cambiado el día o la hora: avisa al cliente (botón «Enviar el correo de la reserva» o WhatsApp).' : '') +
+          (willMail ? ' Le mandamos el justificante de pago a ' + nb.driverEmail + '.' : nowPaid && (nb.driverEmail || '').indexOf('@') < 0 ? ' No tiene correo: el justificante no se le manda.' : ''));
+        if (willMail) setTimeout(function () { api('admin/bookings').then(function (r) { list = r.bookings || list; renderTrips(); }).catch(function () {}); }, 2500);
       } catch (e) { msg.className = 'msg bad'; msg.textContent = 'No se ha guardado: ' + e.message; btn.disabled = false; }
     });
     var vatSel = el.querySelector('[data-inv=vat]');
@@ -645,6 +689,18 @@
       catch (e) { alert(e.message); }
     });
   }
+  document.addEventListener('click', async function (ev) {
+    var btn = ev.target.closest('[data-paymail]');
+    if (!btn || btn.getAttribute('aria-disabled') === 'true') return;
+    var parts = btn.getAttribute('data-paymail').split(':'), type = parts[0], key = parts.slice(1).join(':');
+    if (!confirm('¿Mandar el justificante de pago por correo?')) return;
+    btn.setAttribute('aria-disabled', 'true');
+    try {
+      await api('admin/pay-email', { type: type, key: key });
+      if (type === 'driver') { var d = await api('admin/bookings'); list = d.bookings || list; open[key] = true; renderTrips(); flash(key, '[data-msg]', '✓ Justificante de pago enviado'); }
+      else { $('af-pay').innerHTML = '<div class="ok-line">✓ Justificante de pago enviado</div>'; reloadSub(); }
+    } catch (e) { alert('No se ha enviado: ' + e.message); btn.removeAttribute('aria-disabled'); }
+  });
   function replace(nb) { for (var i = 0; i < list.length; i++) if (list[i].ref === nb.ref) list[i] = nb; }
   function flash(ref, sel, text) { var e = $('bk-' + ref); if (!e) return; var m = e.querySelector(sel); if (m) { m.className = 'msg ok'; m.textContent = text; } }
 
@@ -828,7 +884,8 @@
     $('af-title').textContent = (id ? 'Editar ' : 'Apuntar ') + (type === 'gasto' ? 'un gasto' : nom ? 'una nómina' : 'un ingreso');
     $('af-party-l').textContent = type === 'gasto' ? 'Proveedor' : nom ? 'Trabajador' : 'Cliente';
     $('af-taxid-l').textContent = type === 'gasto' ? 'NIF del proveedor' : nom ? 'NIF del trabajador' : 'NIF del cliente';
-    $('af-number').value = ''; $('af-taxid').value = '';
+    $('af-number').value = ''; $('af-taxid').value = ''; $('af-email').value = ''; $('af-pay').innerHTML = '';
+    $('af-email-box').hidden = type !== 'gasto';
     $('af-cat').innerHTML = nom ? '' : accCats[type].map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('');
     $('af-cat-box').hidden = nom; $('af-num-box').hidden = nom; $('af-total-row').hidden = nom; $('af-preview').hidden = nom; $('af-payroll').hidden = !nom;
     ['af-gross', 'af-irpf', 'af-ssemp', 'af-ssco'].forEach(function (k) { $(k).value = ''; });
@@ -852,7 +909,8 @@
         form.entry = e;
         $('af-date').value = e.date; $('af-cat').value = e.category; $('af-concept').value = e.concept; $('af-party').value = e.party || '';
         $('af-total').value = e.total; $('af-vat').innerHTML = vatOptions(e.vatRate); $('af-notes').value = e.notes || '';
-        $('af-number').value = e.number || ''; $('af-taxid').value = e.taxId || '';
+        $('af-number').value = e.number || ''; $('af-taxid').value = e.taxId || ''; $('af-email').value = e.email || '';
+        if (type === 'gasto' && e.paid) $('af-pay').innerHTML = '<div class="box"><b>Justificante de pago</b>' + payButtons('ledger', e.id, e.paid) + '</div>';
         if (e.payroll) { $('af-gross').value = e.payroll.gross; $('af-irpf').value = e.payroll.irpf || ''; $('af-ssemp').value = e.payroll.ssEmp || ''; $('af-ssco').value = e.payroll.ssCo || ''; }
         if (e.paid && e.paid.lineId) { $('af-paid-box').hidden = true; $('af-paid-line').textContent = '🏦 ' + (type === 'gasto' ? 'Pagado' : 'Cobrado') + ' con el movimiento del banco del ' + dmy(e.paid.date) + '. Para cambiarlo, deshazlo en Banco.'; }
         else if (e.paid) { $('af-paidvia').value = e.paid.via; $('af-paiddate').value = e.paid.date; }
@@ -915,6 +973,7 @@
       var body = {
         id: form.id, type: form.type, date: $('af-date').value, category: $('af-cat').value, concept: $('af-concept').value,
         party: $('af-party').value, number: $('af-number').value, taxId: $('af-taxid').value, total: $('af-total').value,
+        partyEmail: form.type === 'gasto' ? $('af-email').value.trim() : undefined,
         gross: $('af-gross').value, irpf: $('af-irpf').value, ssEmp: $('af-ssemp').value, ssCo: $('af-ssco').value, vatRate: Number($('af-vat').value), notes: $('af-notes').value,
         removeReceipt: Boolean($('af-rm') && $('af-rm').checked)
       };
@@ -934,7 +993,7 @@
     }
     btn.disabled = false;
   });
-  var AF_ERR = { bad_worker: 'falta el nombre del trabajador', bad_gross: 'falta el sueldo bruto', bad_payroll: 'el IRPF y la Seguridad Social del trabajador no pueden pasar del bruto', net_differs: 'el neto de la nómina no coincide con el movimiento del banco', bad_line: 'ese movimiento del banco ya está conciliado', inbox_not_found: 'ese ticket ya no está en la bandeja', bad_concept: 'falta el concepto', bad_total: 'el total tiene que ser mayor que 0', bad_date: 'falta la fecha', bad_vat: 'IVA no válido', receipt_type: 'el ticket tiene que ser una foto o un PDF', receipt_too_big: 'el ticket pasa de 6 MB' };
+  var AF_ERR = { bad_email: 'el correo del proveedor no es válido', bad_worker: 'falta el nombre del trabajador', bad_gross: 'falta el sueldo bruto', bad_payroll: 'el IRPF y la Seguridad Social del trabajador no pueden pasar del bruto', net_differs: 'el neto de la nómina no coincide con el movimiento del banco', bad_line: 'ese movimiento del banco ya está conciliado', inbox_not_found: 'ese ticket ya no está en la bandeja', bad_concept: 'falta el concepto', bad_total: 'el total tiene que ser mayor que 0', bad_date: 'falta la fecha', bad_vat: 'IVA no válido', receipt_type: 'el ticket tiene que ser una foto o un PDF', receipt_too_big: 'el ticket pasa de 6 MB' };
   $('af-del').addEventListener('click', async function () {
     if (!form || !form.id || !confirm('¿Borrar este apunte? No se puede deshacer.')) return;
     try { await api('admin/ledger/delete', { id: form.id }); $('acc-form').hidden = true; form = null; reloadSub(); }
@@ -1090,6 +1149,7 @@
         '<div class="row"><div><label>Nombre</label><input data-d="name" value="' + esc(d.name) + '"></div><div><label>Teléfono</label><input data-d="phone" type="tel" value="' + esc(d.phone) + '"></div></div>' +
         '<div class="row"><div><label>Licencia VTC</label><input data-d="licence" value="' + esc(d.licence) + '"></div><div><label>Plazas</label><input data-d="seats" type="number" min="1" max="80" value="' + esc(d.seats || '') + '"></div></div>' +
         '<div class="row"><div><label>Coche</label><input data-d="car" value="' + esc(d.car) + '"></div><div><label>Matrícula</label><input data-d="plate" value="' + esc(d.plate) + '"></div></div>' +
+        '<div class="row"><div><label>Correo (justificantes de pago)</label><input data-d="email" type="email" value="' + esc(d.email || '') + '"></div><div><label>NIF</label><input data-d="taxId" value="' + esc(d.taxId || '') + '"></div></div>' +
         '<label>Notas (lo que cobra, zona…)</label><textarea data-d="notes">' + esc(d.notes) + '</textarea>' +
         '<div class="btns"><button type="button" class="b red" data-drv-del="' + i + '">Quitar</button></div></div>';
     }).join('');
@@ -1101,7 +1161,7 @@
       qsa('[data-d]', c).forEach(function (i) { d[i.getAttribute('data-d')] = i.value; });
     });
   }
-  $('drv-add').addEventListener('click', function () { readDrivers(); drivers.push({ name: '', phone: '', licence: '', car: '', plate: '', seats: '', notes: '' }); renderDrivers(); });
+  $('drv-add').addEventListener('click', function () { readDrivers(); drivers.push({ name: '', phone: '', licence: '', car: '', plate: '', seats: '', email: '', taxId: '', notes: '' }); renderDrivers(); });
   $('drv-save').addEventListener('click', async function () {
     readDrivers();
     var msg = $('drv-msg'); msg.className = 'msg'; msg.textContent = 'Guardando…';
