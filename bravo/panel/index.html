@@ -154,6 +154,7 @@
     <div class="btns">
       <button type="button" class="b dark" id="acc-add-exp">＋ Apuntar un gasto</button>
       <button type="button" class="b" id="acc-add-inc">＋ Apuntar un ingreso</button>
+      <a class="b dark" id="acc-pdf" href="#" target="_blank" rel="noopener">⬇︎ PDF del periodo</a>
       <a class="b" id="acc-csv" href="#">⬇︎ Excel del periodo</a>
     </div>
 
@@ -165,6 +166,10 @@
       </div>
       <label for="af-concept">Concepto</label><input id="af-concept" placeholder="Ej.: gasoil, seguro, anuncio…">
       <label for="af-party" id="af-party-l">Proveedor</label><input id="af-party">
+      <div class="row">
+        <div><label for="af-number">Nº de la factura</label><input id="af-number" placeholder="El que trae el ticket"></div>
+        <div><label for="af-taxid" id="af-taxid-l">NIF del proveedor</label><input id="af-taxid"></div>
+      </div>
       <div class="row">
         <div><label for="af-total">Total pagado (€, con IVA)</label><input type="number" id="af-total" min="0" step="0.01" inputmode="decimal"></div>
         <div><label for="af-vat">IVA (%)</label><select id="af-vat"></select></div>
@@ -181,7 +186,7 @@
 
     <h3>Movimientos</h3>
     <div id="acc-list"></div>
-    <p class="note">Es un registro para llevar las cuentas al día y pasárselas a Lisa. Los ingresos salen de las facturas (y de lo que apuntes); los pagos a conductores, de las reservas. El IVA de aquí es orientativo hasta que Lisa confirme cuál toca.</p>
+    <p class="note">Contabilidad pensada para España: libros registro de facturas emitidas y recibidas, IVA por tipos y libro diario con las cuentas del Plan General Contable (en el PDF). Los ingresos salen de las facturas (y de lo que apuntes); los pagos a conductores, de las reservas. Una factura no se borra: se rectifica. Al principio, que la revise un profesional antes de presentar impuestos.</p>
   </section>
 
   <!-- CONDUCTORES -->
@@ -305,7 +310,9 @@
   function toOf(b) { return b.kind === 'group' ? b.toText : (b.to && b.to.label) || ''; }
   function route(b) { return b.kind === 'hourly' ? fromOf(b) : fromOf(b) + ' → ' + toOf(b); }
   function vehName(v) { return v === 'van' ? 'Monovolumen' : (v === 'car' ? 'Coche' : ''); }
-  function activeInv(b) { return b.invoice && b.invoice.status !== 'anulada'; }
+  function activeInv(b) { return Boolean(b.invoice && b.invoice.status === 'emitida'); }
+  function allInv(b) { return [b.invoice].concat(b.previousInvoices || [], b.creditNotes || []).filter(Boolean); }
+  function invUrl(b, number) { return location.origin + '/api/bravo/doc/' + b.clientToken + '/f/' + number + '.pdf'; }
   function sums(arr) {
     var n = 0, cobrado = 0, pagado = 0;
     arr.forEach(function (b) {
@@ -413,7 +420,7 @@
       '<a class="b" href="' + esc(mail(b.email, (b.lang === 'en' ? 'Your booking ' : 'Tu reserva ') + b.ref + ' – Bravo Transfers', clientMsg(b))) + '">✉️ Correo al cliente</a>' +
       '</div><div class="msg">Los botones mandan lo que hay guardado: guarda antes los cambios.</div></div>' +
       invoiceBox(b) +
-      (b.invoice || b.previousInvoices ? '' : '<div class="btns"><button type="button" class="b red" data-del>🗑 Borrar esta reserva</button></div>') +
+      (allInv(b).length ? '' : '<div class="btns"><button type="button" class="b red" data-del>🗑 Borrar esta reserva</button></div>') +
       '</div></details>';
   }
 
@@ -431,9 +438,13 @@
         '<div class="btns"><a class="b dark" target="_blank" rel="noopener" href="' + esc(docUrl(b, 'factura')) + '">🧾 Ver la factura (PDF)</a>' +
         '<a class="b" href="' + esc(mail(b.email, (b.lang === 'en' ? 'Invoice ' : 'Factura ') + i.number + ' – Bravo Transfers', invoiceMsg(b))) + '">✉️ Mandarla por correo</a>' +
         '<a class="b wa" target="_blank" rel="noopener" href="' + esc(wa(b.phone, invoiceMsg(b))) + '">Mandarla por WhatsApp</a>' +
-        '<button type="button" class="b red" data-void>Anular</button></div>';
+        '<button type="button" class="b red" data-void>Rectificar (anular)</button></div>';
     } else {
-      if (b.invoice) h += '<p class="inv-void">' + esc(b.invoice.number) + ' anulada · <a target="_blank" rel="noopener" href="' + esc(docUrl(b, 'factura')) + '">ver PDF</a></p>';
+      // Historial: facturas rectificadas y sus rectificativas
+      allInv(b).sort(function (a, c) { return a.number.localeCompare(c.number); }).forEach(function (i) {
+        var lbl = i.kind === 'rectificativa' ? 'rectificativa de ' + i.rectifies : (i.status === 'rectificada' ? 'rectificada por ' + i.rectifiedBy : i.status);
+        h += '<p class="inv-void">' + esc(i.number) + ' · ' + esc(lbl) + ' · ' + euro(i.total) + ' · <a target="_blank" rel="noopener" href="' + esc(invUrl(b, i.number)) + '">ver PDF</a></p>';
+      });
       if (b.price == null || !(b.price > 0)) {
         h += '<p class="msg">Para hacer la factura, pon antes el precio y guarda.</p>';
       } else {
@@ -503,8 +514,9 @@
     }
     var vd = el.querySelector('[data-void]');
     if (vd) vd.addEventListener('click', async function () {
-      if (!confirm('¿Anular la factura ' + b.invoice.number + '? Se queda guardada como anulada y su número no se vuelve a usar.')) return;
-      try { var data = await api('admin/invoice-void', { ref: b.ref }); replace(data.booking); open[b.ref] = true; renderTrips(); flash(b.ref, '[data-inv-msg]', 'Factura anulada'); }
+      var reason = prompt('Se hará una factura rectificativa (en negativo) que anula la ' + b.invoice.number + '. Después podrás hacer otra nueva.\n\n¿Motivo?', 'Error en los datos de la factura');
+      if (reason === null) return;
+      try { var data = await api('admin/invoice-rectify', { ref: b.ref, reason: reason }); replace(data.booking); open[b.ref] = true; renderTrips(); flash(b.ref, '[data-inv-msg]', 'Hecha la rectificativa ' + data.creditNote); }
       catch (e) { alert(e.message); }
     });
     var del = el.querySelector('[data-del]');
@@ -524,7 +536,7 @@
     var m = $('month').value || madridDay(0).slice(0, 7);
     $('m-totals').innerHTML = sums(list.filter(function (b) { return b.date.slice(0, 7) === m; }));
     var invs = [];
-    list.forEach(function (b) { [b.invoice].concat(b.previousInvoices || []).forEach(function (i) { if (i && i.date.slice(0, 7) === m) invs.push({ b: b, i: i }); }); });
+    list.forEach(function (b) { allInv(b).forEach(function (i) { if (i.date.slice(0, 7) === m) invs.push({ b: b, i: i }); }); });
     invs.sort(function (a, c) { return a.i.number.localeCompare(c.i.number); });
     if (!invs.length) { $('m-invoices').innerHTML = '<p class="empty">No hay facturas en este mes.</p>'; }
     else {
@@ -532,11 +544,12 @@
       var rows = invs.map(function (x) {
         var i = x.i, v = i.status === 'anulada';
         if (!v) { tb += i.base; tv += i.vat; tt += i.total; }
-        var num = i === x.b.invoice ? '<a target="_blank" rel="noopener" href="' + esc(docUrl(x.b, 'factura')) + '">' + esc(i.number) + '</a>' : esc(i.number);
-        return '<div class="inv-row' + (v ? ' void' : '') + '"><div class="l1"><span>' + num + (v ? ' · anulada' : '') + '</span><span>' + euro(i.total) + '</span></div>' +
+        var num = '<a target="_blank" rel="noopener" href="' + esc(invUrl(x.b, i.number)) + '">' + esc(i.number) + '</a>';
+        var tag = v ? ' · anulada' : i.kind === 'rectificativa' ? ' · rectifica ' + esc(i.rectifies) : i.status === 'rectificada' ? ' · rectificada' : '';
+        return '<div class="inv-row' + (v ? ' void' : '') + '"><div class="l1"><span>' + num + tag + '</span><span class="' + (i.total < 0 ? 'neg' : '') + '">' + euro(i.total) + '</span></div>' +
           '<div class="l3">' + esc(dmy(i.date) + ' · ' + ((i.customer && i.customer.name) || '') + ' · ' + x.b.ref) + '<br>Base ' + euro(i.base) + ' · IVA ' + esc(String(i.vatRate).replace('.', ',')) + ' %: ' + euro(i.vat) + '</div></div>';
       }).join('');
-      $('m-invoices').innerHTML = rows + '<div class="inv-row inv-total"><div class="l1"><span>Total (sin anuladas)</span><span>' + euro(r2(tt)) + '</span></div>' +
+      $('m-invoices').innerHTML = rows + '<div class="inv-row inv-total"><div class="l1"><span>Total del mes</span><span>' + euro(r2(tt)) + '</span></div>' +
         '<div class="l3">Base ' + euro(r2(tb)) + ' · IVA ' + euro(r2(tv)) + '</div></div>';
     }
     $('csv').href = '/api/bravo/admin/export.csv?month=' + encodeURIComponent(m);
@@ -573,6 +586,7 @@
     renderQuick();
     var from = $('acc-from').value, to = $('acc-to').value;
     $('acc-csv').href = '/api/bravo/admin/accounts.csv?from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to);
+    $('acc-pdf').href = '/api/bravo/admin/accounts.pdf?from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to);
     if (!from || !to || from > to) { $('acc-list').innerHTML = '<p class="empty">Elige un periodo válido.</p>'; return; }
     try {
       acc = await api('admin/accounts?from=' + from + '&to=' + to);
@@ -580,7 +594,7 @@
       renderAccounts();
     } catch (e) { $('acc-list').innerHTML = '<p class="empty">No se han podido cargar las cuentas: ' + esc(e.message) + '</p>'; }
   }
-  var SRC = { factura: 'Factura', conductor: 'Reserva', manual: 'A mano' };
+  var SRC = { factura: 'Factura', rectificativa: 'Rectificativa', conductor: 'Reserva', manual: 'A mano' };
   function renderAccounts() {
     var t = acc.totals;
     $('acc-totals').innerHTML =
@@ -591,8 +605,10 @@
     $('acc-vat').innerHTML = '<b>IVA del periodo</b><div class="kv2">' +
       '<span>IVA cobrado en tus facturas e ingresos (repercutido)</span><span>' + euro(t.ivaRepercutido) + '</span>' +
       '<span>IVA pagado en gastos y conductores (soportado)</span><span>' + euro(t.ivaSoportado) + '</span>' +
-      '<span><b>' + (t.ivaResultado >= 0 ? 'Diferencia: a pagar' : 'Diferencia: a devolver') + '</b></span><span>' + euro(Math.abs(t.ivaResultado)) + '</span></div>';
-    var fact = acc.movements.filter(function (m) { return m.source === 'factura'; });
+      '<span><b>' + (t.ivaResultado >= 0 ? 'Diferencia: a pagar' : 'Diferencia: a devolver') + '</b></span><span>' + euro(Math.abs(t.ivaResultado)) + '</span></div>' +
+      '<div class="kv2" style="margin-top:10px">' + acc.vatByRate.repercutido.map(function (x) { return '<span>Cobrado al ' + esc(String(x.rate).replace('.', ',')) + ' % · base ' + euro(x.base) + '</span><span>' + euro(x.vat) + '</span>'; }).join('') +
+      acc.vatByRate.soportado.map(function (x) { return '<span>Pagado al ' + esc(String(x.rate).replace('.', ',')) + ' % · base ' + euro(x.base) + '</span><span>' + euro(x.vat) + '</span>'; }).join('') + '</div>';
+    var fact = acc.movements.filter(function (m) { return m.source === 'factura' || m.source === 'rectificativa'; });
     var other = acc.movements.filter(function (m) { return m.kind === 'ingreso' && m.source === 'manual'; });
     var sum = function (arr, k) { return r2(arr.reduce(function (a, m) { return a + m[k]; }, 0)); };
     $('acc-income').innerHTML = '<b>Ingresos</b><div class="kv2">' +
@@ -624,6 +640,8 @@
     form = { type: type, id: id || null, entry: null, file: null };
     $('af-title').textContent = (id ? 'Editar ' : 'Apuntar ') + (type === 'gasto' ? 'un gasto' : 'un ingreso');
     $('af-party-l').textContent = type === 'gasto' ? 'Proveedor' : 'Cliente';
+    $('af-taxid-l').textContent = type === 'gasto' ? 'NIF del proveedor' : 'NIF del cliente';
+    $('af-number').value = ''; $('af-taxid').value = '';
     $('af-cat').innerHTML = accCats[type].map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('');
     $('af-date').value = madridDay(0); $('af-concept').value = ''; $('af-party').value = ''; $('af-total').value = ''; $('af-notes').value = '';
     $('af-vat').innerHTML = vatOptions(type === 'gasto' ? 21 : 10);
@@ -634,6 +652,7 @@
         form.entry = e;
         $('af-date').value = e.date; $('af-cat').value = e.category; $('af-concept').value = e.concept; $('af-party').value = e.party || '';
         $('af-total').value = e.total; $('af-vat').innerHTML = vatOptions(e.vatRate); $('af-notes').value = e.notes || '';
+        $('af-number').value = e.number || ''; $('af-taxid').value = e.taxId || '';
         if (e.receipt) $('af-receipt').innerHTML = '📎 <a target="_blank" rel="noopener" href="/api/bravo/admin/ledger/receipt?id=' + encodeURIComponent(e.id) + '">Ver el ticket</a> · <label class="check" style="display:inline-flex;margin:0"><input type="checkbox" id="af-rm"> quitarlo</label>';
       } catch (err) { $('af-msg').className = 'msg bad'; $('af-msg').textContent = err.message; }
     }
@@ -685,7 +704,7 @@
     try {
       var body = {
         id: form.id, type: form.type, date: $('af-date').value, category: $('af-cat').value, concept: $('af-concept').value,
-        party: $('af-party').value, total: $('af-total').value, vatRate: Number($('af-vat').value), notes: $('af-notes').value,
+        party: $('af-party').value, number: $('af-number').value, taxId: $('af-taxid').value, total: $('af-total').value, vatRate: Number($('af-vat').value), notes: $('af-notes').value,
         removeReceipt: Boolean($('af-rm') && $('af-rm').checked)
       };
       var f = $('af-file').files[0];

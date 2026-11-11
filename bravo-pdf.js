@@ -6,7 +6,7 @@
 // Anchos de Helvetica y Helvetica-Bold (caracteres 32 a 126), en milésimas del tamaño.
 const W = [278, 278, 355, 556, 556, 889, 667, 191, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 278, 278, 584, 584, 584, 556, 1015, 667, 667, 722, 722, 667, 611, 778, 722, 278, 500, 667, 556, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 278, 278, 278, 469, 556, 333, 556, 556, 500, 556, 556, 278, 556, 556, 222, 222, 500, 222, 833, 556, 556, 556, 556, 333, 500, 278, 556, 500, 722, 500, 500, 500, 334, 260, 334, 584];
 const WB = [278, 333, 474, 556, 556, 889, 722, 238, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 333, 333, 584, 584, 584, 611, 975, 722, 722, 722, 722, 667, 611, 778, 722, 278, 556, 722, 611, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 333, 278, 333, 584, 556, 333, 556, 611, 556, 611, 556, 333, 611, 611, 278, 278, 556, 278, 889, 611, 611, 611, 611, 389, 556, 333, 611, 556, 778, 556, 556, 500, 389, 280, 389, 584];
-const SPECIAL = { '€': 0x80, '…': 0x85, '‘': 0x91, '’': 0x92, '“': 0x93, '”': 0x94, '•': 0x95, '–': 0x96, '—': 0x97, '→': 0xBB };
+const SPECIAL = { '−': 0x2d, '€': 0x80, '…': 0x85, '‘': 0x91, '’': 0x92, '“': 0x93, '”': 0x94, '•': 0x95, '–': 0x96, '—': 0x97, '→': 0xBB };
 
 // Texto JS → bytes WinAnsi (como cadena "latin1": un carácter = un byte)
 function winAnsi(s) {
@@ -79,23 +79,29 @@ function canvas() {
   return api;
 }
 
-function assemble(ops, title) {
-  const content = ops.join('\n');
+// Une una o varias páginas (cada una, su lista de órdenes de dibujo) en un PDF
+function assemble(opsOrPages, title) {
+  const pages = Array.isArray(opsOrPages[0]) ? opsOrPages : [opsOrPages];
+  const n = pages.length;
+  // Objetos: 1 catálogo, 2 páginas, 3 y 4 fuentes, 5 info, y luego página + contenido por cada hoja
   const objs = [
     '<< /Type /Catalog /Pages 2 0 R >>',
-    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE_W} ${PAGE_H}] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>`,
+    `<< /Type /Pages /Kids [${pages.map((_, k) => (6 + k * 2) + ' 0 R').join(' ')}] /Count ${n} >>`,
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>',
-    `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
     `<< /Title ${pdfString(title)} /Producer (Bravo Transfers) >>`
   ];
+  pages.forEach((ops, k) => {
+    const content = ops.join('\n');
+    objs.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE_W} ${PAGE_H}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${7 + k * 2} 0 R >>`);
+    objs.push(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
+  });
   let out = '%PDF-1.4\n%\xe2\xe3\xcf\xd3\n';
   const offsets = [];
-  objs.forEach((o, i) => { offsets.push(out.length); out += `${i + 1} 0 obj\n${o}\nendobj\n`; });
+  objs.forEach((o, i2) => { offsets.push(out.length); out += `${i2 + 1} 0 obj\n${o}\nendobj\n`; });
   const xref = out.length;
-  out += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n` + offsets.map((n) => String(n).padStart(10, '0') + ' 00000 n \n').join('');
-  out += `trailer\n<< /Size ${objs.length + 1} /Root 1 0 R /Info 7 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  out += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n` + offsets.map((x) => String(x).padStart(10, '0') + ' 00000 n \n').join('');
+  out += `trailer\n<< /Size ${objs.length + 1} /Root 1 0 R /Info 5 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
   return Buffer.from(out, 'latin1');
 }
 
@@ -151,11 +157,13 @@ function concept(b) {
 }
 
 // ---------- FACTURA ----------
-function invoicePdf(b) {
-  const inv = b.invoice, iss = inv.issuer || {}, cus = inv.customer || {};
+function invoicePdf(b, which) {
+  const inv = which || b.invoice, iss = inv.issuer || {}, cus = inv.customer || {};
   const c = canvas();
-  header(c, 'FACTURA / INVOICE', inv.number);
+  const credit = inv.kind === 'rectificativa';
+  header(c, credit ? 'FACTURA RECTIFICATIVA' : 'FACTURA / INVOICE', inv.number);
   if (inv.status === 'anulada') c.text(555, 112, 'ANULADA / VOID', { size: 16, bold: true, color: C.red, align: 'right' });
+  if (inv.status === 'rectificada') c.text(40, 104, 'Rectificada por / Corrected by ' + inv.rectifiedBy, { size: 9.5, bold: true, color: C.red });
 
   c.text(40, 122, 'EMISOR / FROM', { size: 8, bold: true, color: C.muted });
   c.text(40, 138, iss.name || 'Bravo Transfers', { size: 12, bold: true });
@@ -165,6 +173,7 @@ function invoicePdf(b) {
     c.text(40, y, l, { size: 10 }); y += 13;
   }
   const meta = [['Nº factura / Invoice no.', inv.number], ['Fecha / Date', day(inv.date)], ['Reserva / Booking', b.ref], ['Servicio / Service', day(b.date) + ' ' + b.time]];
+  if (credit) meta.push(['Rectifica / Corrects', inv.rectifies + ' (' + day(inv.rectifiesDate) + ')']);
   let my = 122;
   for (const [k, v] of meta) {
     c.text(330, my, k, { size: 8, bold: true, color: C.muted });
@@ -202,7 +211,10 @@ function invoicePdf(b) {
   c.text(400, y + 14, 'TOTAL', { size: 11, bold: true, color: C.gold, align: 'right' });
   c.text(545, y + 14, money(inv.total), { size: 13, bold: true, color: C.white, align: 'right' });
   y += 46;
-  if (b.payment) c.text(40, y, 'Pago / Payment: ' + b.payment, { size: 9.5, color: C.muted });
+  if (credit) {
+    c.text(40, y, 'Credit note: cancels invoice ' + inv.rectifies + '.', { size: 9.5, color: C.muted }); y += 14;
+    if (inv.reason) c.wrap('Motivo / Reason: ' + inv.reason, 9.5, false, 515).forEach((l) => { c.text(40, y, l, { size: 9.5, color: C.muted }); y += 13; });
+  } else if (b.payment) c.text(40, y, 'Pago / Payment: ' + b.payment, { size: 9.5, color: C.muted });
 
   footer(c, [iss.footer, (iss.name || 'Bravo Transfers') + (iss.email ? ' · ' + iss.email : '') + (iss.phone ? ' · ' + iss.phone : '')]);
   return assemble(c.ops, 'Factura ' + inv.number);
@@ -275,4 +287,118 @@ function driverSheetPdf(b, issuer) {
   return assemble(c.ops, 'Hoja de servicio ' + b.ref);
 }
 
-module.exports = { invoicePdf, confirmationPdf, driverSheetPdf, concept, _test: { W, WB, winAnsi, textWidth } };
+// ---------- INFORME CONTABLE DEL PERIODO (varias páginas) ----------
+function accountsPdf(rep, issuer) {
+  const pages = [];
+  let c = null, y = 0;
+  const TOP = 70, BOTTOM = 800;
+  const title = 'Informe contable · ' + day(rep.from) + ' – ' + day(rep.to);
+  function newPage() {
+    c = canvas(); pages.push(c.ops);
+    c.rect(0, 0, PAGE_W, 46, C.ink);
+    c.halfSun(52, 32, 13, C.gold);
+    c.text(74, 28, 'BRAVO TRANSFERS', { size: 12, bold: true, color: C.white });
+    c.text(555, 28, title, { size: 9.5, color: C.gold, align: 'right' });
+    y = TOP;
+  }
+  function need(h) { if (y + h > BOTTOM) newPage(); }
+  function fit(t, w, size, bold) {
+    t = String(t == null ? '' : t);
+    if (textWidth(t, size, bold) <= w) return t;
+    while (t.length > 1 && textWidth(t + '…', size, bold) > w) t = t.slice(0, -1);
+    return t + '…';
+  }
+  function h1(t) { need(40); y += 10; c.text(40, y, t, { size: 13, bold: true }); y += 8; c.line(40, y, 555, y, C.gold, 1.2); y += 16; }
+  function para(t, o) { for (const l of c.wrap(t, 8.5, false, 515)) { need(12); c.text(40, y, l, Object.assign({ size: 8.5, color: C.muted }, o || {})); y += 11; } }
+  // Tabla: cols = [{t: título, w: ancho, r: derecha}], filas de textos; se parte entre páginas repitiendo la cabecera
+  function table(cols, rows, o) {
+    o = o || {};
+    const size = 8;
+    const headRow = () => {
+      need(34);
+      c.rect(40, y, 515, 16, C.band);
+      let x = 40;
+      for (const col of cols) { c.text(col.r ? x + col.w - 4 : x + 4, y + 11, col.t, { size: 7, bold: true, color: C.muted, align: col.r ? 'right' : undefined }); x += col.w; }
+      y += 16;
+    };
+    headRow();
+    rows.forEach((row) => {
+      if (y + 13 > BOTTOM) { newPage(); headRow(); }
+      let x = 40;
+      const isObj = !Array.isArray(row);
+      const bold = isObj && row.bold;
+      if (isObj && row.fill) c.rect(40, y, 515, 13, row.fill);
+      cols.forEach((col, k) => {
+        const v = isObj ? row.cells[k] : row[k];
+        c.text(col.r ? x + col.w - 4 : x + 4, y + 9.5, fit(v, col.w - 8, size, bold), { size, bold, align: col.r ? 'right' : undefined, color: (isObj && row.color) || C.ink });
+        x += col.w;
+      });
+      y += 13;
+      c.line(40, y, 555, y, C.line, 0.4);
+    });
+    y += 10;
+  }
+  const m = money;
+  const t = rep.totals;
+  newPage();
+  c.text(40, y + 4, issuer.name || 'Bravo Transfers', { size: 16, bold: true }); y += 20;
+  c.text(40, y, 'Periodo: ' + day(rep.from) + ' a ' + day(rep.to) + (issuer.taxId ? ' · NIF/CIF: ' + issuer.taxId : ''), { size: 9.5, color: C.muted }); y += 12;
+  c.text(40, y, 'Generado el ' + day(rep.generated) + ' con el panel de Bravo Transfers', { size: 9.5, color: C.muted }); y += 10;
+
+  h1('1. Resumen');
+  table([{ t: '', w: 235 }, { t: 'BASE', w: 95, r: 1 }, { t: 'IVA', w: 90, r: 1 }, { t: 'TOTAL', w: 95, r: 1 }], [
+    ['Ingresos', m(t.ingresosBase), m(t.ivaRepercutido), m(t.ingresos)],
+    ['Gastos', m(t.gastosBase), m(t.ivaSoportado), m(t.gastos)],
+    { cells: ['Beneficio antes de impuestos (ingresos − gastos, sin IVA)', m(t.beneficio), '', ''], bold: true },
+    { cells: [t.ivaResultado >= 0 ? 'IVA a pagar (repercutido − soportado)' : 'IVA a devolver (repercutido − soportado)', '', m(Math.abs(t.ivaResultado)), ''], bold: true }
+  ]);
+  if (rep.unbilled && rep.unbilled.n) para('Aviso: ' + rep.unbilled.n + ' viaje(s) del periodo con precio y sin factura (' + m(rep.unbilled.total) + '): no cuentan como ingreso.', { color: C.orange });
+
+  h1('2. IVA por tipo (para la declaración trimestral)');
+  const vr = (list) => list.length ? list.map((x) => [String(x.rate).replace('.', ',') + ' %', m(x.base), m(x.vat)]) : [['—', '', '']];
+  c.text(40, y, 'IVA devengado (repercutido en facturas emitidas e ingresos)', { size: 9, bold: true }); y += 6;
+  table([{ t: 'TIPO', w: 175 }, { t: 'BASE IMPONIBLE', w: 170, r: 1 }, { t: 'CUOTA', w: 170, r: 1 }], vr(rep.vatByRate.repercutido).concat([{ cells: ['Total devengado', m(t.ingresosBase), m(t.ivaRepercutido)], bold: true }]));
+  c.text(40, y, 'IVA deducible (soportado en gastos y pagos a conductores)', { size: 9, bold: true }); y += 6;
+  table([{ t: 'TIPO', w: 175 }, { t: 'BASE IMPONIBLE', w: 170, r: 1 }, { t: 'CUOTA', w: 170, r: 1 }], vr(rep.vatByRate.soportado).concat([{ cells: ['Total deducible', m(t.gastosBase), m(t.ivaSoportado)], bold: true }]));
+  table([{ t: 'RESULTADO', w: 345 }, { t: 'IMPORTE', w: 170, r: 1 }], [{ cells: [t.ivaResultado >= 0 ? 'A ingresar' : 'A compensar o devolver', m(Math.abs(t.ivaResultado))], bold: true }]);
+
+  h1('3. Gastos por cuenta');
+  table([{ t: 'CUENTA', w: 235 }, { t: 'APUNTES', w: 50, r: 1 }, { t: 'BASE', w: 75, r: 1 }, { t: 'IVA', w: 70, r: 1 }, { t: 'TOTAL', w: 85, r: 1 }],
+    rep.expenseAccounts.length ? rep.expenseAccounts.map((x) => [x.account + ' ' + x.name, String(x.n), m(x.base), m(x.vat), m(x.total)]) : [['Sin gastos en el periodo', '', '', '', '']]);
+
+  const regCols = [{ t: 'FECHA', w: 52 }, { t: 'Nº FACTURA', w: 68 }, { t: '', w: 128 }, { t: 'NIF', w: 62 }, { t: 'BASE', w: 58, r: 1 }, { t: 'TIPO', w: 36, r: 1 }, { t: 'CUOTA', w: 52, r: 1 }, { t: 'TOTAL', w: 59, r: 1 }];
+  const regRows = (list) => list.map((x) => ({ cells: [day(x.date), x.number || '—', x.party, x.taxId || '', m(x.base), String(x.vatRate).replace('.', ',') + '%', m(x.vat), m(x.total)], color: x.total < 0 ? C.red : undefined }));
+  const sumRow = (list) => ({ cells: ['', '', 'Total', '', m(list.reduce((a, x) => a + x.base, 0)), '', m(list.reduce((a, x) => a + x.vat, 0)), m(list.reduce((a, x) => a + x.total, 0))], bold: true });
+  h1('4. Libro registro de facturas emitidas');
+  regCols[2].t = 'CLIENTE';
+  table(regCols, rep.emitidas.length ? regRows(rep.emitidas).concat([sumRow(rep.emitidas)]) : [['', '', 'Sin facturas en el periodo', '', '', '', '', '']]);
+  h1('5. Libro registro de facturas recibidas (gastos)');
+  regCols[2].t = 'PROVEEDOR / CONCEPTO';
+  table(regCols, rep.recibidas.length ? regRows(rep.recibidas).concat([sumRow(rep.recibidas)]) : [['', '', 'Sin gastos en el periodo', '', '', '', '', '']]);
+
+  h1('6. Libro diario (cuentas del Plan General Contable)');
+  const diaryRows = [];
+  let tD = 0, tH = 0;
+  for (const a of rep.diario) {
+    diaryRows.push({ cells: ['Asiento ' + a.n + ' · ' + day(a.date) + ' · ' + a.concept, '', ''], bold: true, fill: C.band });
+    for (const l of a.lines) {
+      diaryRows.push(['   ' + l.account + ' ' + l.name, l.debe ? m(l.debe) : '', l.haber ? m(l.haber) : '']);
+      tD += l.debe || 0; tH += l.haber || 0;
+    }
+  }
+  diaryRows.push({ cells: ['Sumas del periodo', m(tD), m(tH)], bold: true });
+  table([{ t: 'CUENTA', w: 335 }, { t: 'DEBE', w: 90, r: 1 }, { t: 'HABER', w: 90, r: 1 }], rep.diario.length ? diaryRows : [['Sin asientos en el periodo', '', '']]);
+
+  h1('Notas');
+  para('· Los precios de los viajes llevan el IVA incluido; la base y la cuota se calculan con el tipo de cada factura o gasto.');
+  para('· Las facturas no se borran: se corrigen con una factura rectificativa (serie R), que aparece en negativo.');
+  para('· El libro diario no incluye todavía los cobros y pagos por banco (cuentas 430, 410 y 572), las amortizaciones ni las nóminas: cuando se lleven, se completan aquí.');
+  para('· Informe generado por el panel. Antes de presentar impuestos, conviene que lo revise un profesional.');
+
+  pages.forEach((ops, k) => {
+    ops.push(`BT /F1 7.5 Tf ${C.muted.map((v) => v.toFixed(3)).join(' ')} rg ${(PAGE_W / 2 - 20).toFixed(2)} 22 Td ${pdfString('Página ' + (k + 1) + ' de ' + pages.length)} Tj ET`);
+  });
+  return assemble(pages, title);
+}
+
+module.exports = { invoicePdf, confirmationPdf, driverSheetPdf, accountsPdf, concept, _test: { W, WB, winAnsi, textWidth } };

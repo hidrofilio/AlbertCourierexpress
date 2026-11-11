@@ -133,15 +133,38 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
   function today() {
     return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
   }
-  function nextInvoiceNumber(year) {
+  // Series: F (facturas) y R (rectificativas), cada una seguida por año
+  function nextInvoiceNumber(year, series) {
+    series = series || 'F';
     const file = path.join(DIR, 'invoice-counter.json');
     let c = {};
     try { c = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (e) { /* primera */ }
-    c[year] = (c[year] || 0) + 1;
+    const key = series === 'F' ? year : series + year;
+    c[key] = (c[key] || 0) + 1;
     fs.writeFileSync(file, JSON.stringify(c));
-    return 'F-' + year + '-' + String(c[year]).padStart(4, '0');
+    return series + '-' + year + '-' + String(c[key]).padStart(4, '0');
   }
-  function activeInvoice(b) { return b.invoice && b.invoice.status !== 'anulada'; }
+  function activeInvoice(b) { return Boolean(b.invoice && b.invoice.status === 'emitida'); }
+  function allInvoices(b) { return [b.invoice].concat(b.previousInvoices || [], b.creditNotes || []).filter(Boolean); }
+
+  // Cuentas del Plan General Contable (PGC) para cada categoría
+  const PGC = {
+    'Conductores (reservas)': ['607', 'Trabajos realizados por otras empresas'],
+    'Conductores (sin reserva)': ['607', 'Trabajos realizados por otras empresas'],
+    'Combustible y peajes': ['628', 'Suministros'],
+    'Vehículos': ['622', 'Reparaciones y conservación'],
+    'Seguros': ['625', 'Primas de seguros'],
+    'Publicidad': ['627', 'Publicidad, propaganda y relaciones públicas'],
+    'Web, software y comisiones': ['629', 'Otros servicios'],
+    'Gestoría y asesoría': ['623', 'Servicios de profesionales independientes'],
+    'Teléfono e internet': ['628', 'Suministros'],
+    'Oficina y material': ['629', 'Otros servicios'],
+    'Impuestos y tasas': ['631', 'Otros tributos'],
+    'Otros gastos': ['629', 'Otros servicios'],
+    'Facturas de la web': ['705', 'Prestaciones de servicios'],
+    'Servicio fuera de la web': ['705', 'Prestaciones de servicios'],
+    'Otros ingresos': ['759', 'Ingresos por servicios diversos']
+  };
 
   // ---------- contabilidad: gastos e ingresos apuntados a mano ----------
   const LEDGER = path.join(DIR, 'ledger.json');
@@ -181,9 +204,12 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
     const out = [];
     let unbilledN = 0, unbilledSum = 0;
     for (const b of allBookings()) {
-      for (const inv of [b.invoice].concat(b.previousInvoices || [])) {
-        if (!inv || inv.status === 'anulada' || !inRange(inv.date)) continue;
-        out.push({ date: inv.date, kind: 'ingreso', source: 'factura', concept: 'Factura ' + inv.number, party: (inv.customer && inv.customer.name) || b.name,
+      for (const inv of allInvoices(b)) {
+        if (inv.status === 'anulada' || !inRange(inv.date)) continue;
+        const credit = inv.kind === 'rectificativa';
+        out.push({ date: inv.date, kind: 'ingreso', source: credit ? 'rectificativa' : 'factura',
+          concept: (credit ? 'Rectificativa ' + inv.number + ' (de ' + inv.rectifies + ')' : 'Factura ' + inv.number), number: inv.number,
+          party: (inv.customer && inv.customer.name) || b.name, taxId: (inv.customer && inv.customer.taxId) || '',
           category: 'Facturas de la web', base: inv.base, vatRate: inv.vatRate, vat: inv.vat, total: inv.total, ref: b.ref });
       }
       if (b.status !== 'cancelada' && b.driverPay != null && b.driverPay > 0 && inRange(b.date)) {
@@ -196,7 +222,7 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
     }
     for (const e of ledger()) {
       if (!inRange(e.date)) continue;
-      out.push({ date: e.date, kind: e.type, source: 'manual', id: e.id, concept: e.concept, party: e.party, category: e.category,
+      out.push({ date: e.date, kind: e.type, source: 'manual', id: e.id, concept: e.concept, party: e.party, category: e.category, number: e.number || '', taxId: e.taxId || '',
         base: e.base, vatRate: e.vatRate, vat: e.vat, total: e.total, notes: e.notes, receipt: Boolean(e.receipt) });
     }
     out.sort((a, c) => (c.date + (c.ref || c.id || '')).localeCompare(a.date + (a.ref || a.id || '')));
@@ -215,7 +241,54 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
     for (const c of Object.values(cats)) { c.total = r(c.total); c.base = r(c.base); c.vat = r(c.vat); }
     t.beneficio = r(t.ingresosBase - t.gastosBase);
     t.ivaResultado = r(t.ivaRepercutido - t.ivaSoportado);
-    return { from, to, movements: out, totals: t, byCategory: cats, unbilled: { n: unbilledN, total: r(unbilledSum) } };
+    for (const mv of out) mv.account = (PGC[mv.category] || ['629', 'Otros servicios'])[0];
+    // IVA por tipo
+    const byRate = (kind) => {
+      const g = {};
+      for (const mv of out.filter((x) => x.kind === kind)) {
+        const k = String(mv.vatRate);
+        const x = g[k] || (g[k] = { rate: mv.vatRate, base: 0, vat: 0 });
+        x.base += mv.base; x.vat += mv.vat;
+      }
+      return Object.values(g).map((x) => ({ rate: x.rate, base: r(x.base), vat: r(x.vat) })).sort((a, c) => a.rate - c.rate);
+    };
+    return { from, to, movements: out, totals: t, byCategory: cats, unbilled: { n: unbilledN, total: r(unbilledSum) },
+      vatByRate: { repercutido: byRate('ingreso'), soportado: byRate('gasto') } };
+  }
+
+  // Libros para el informe: registros de facturas, gastos por cuenta y libro diario
+  function books(acc) {
+    const r = (n) => Math.round(n * 100) / 100;
+    const asc = acc.movements.slice().sort((a, c) => (a.date + (a.number || a.ref || a.id || '')).localeCompare(c.date + (c.number || c.ref || c.id || '')));
+    const emitidas = asc.filter((m) => m.kind === 'ingreso');
+    const recibidas = asc.filter((m) => m.kind === 'gasto').map((m) => Object.assign({}, m, { party: m.party ? m.party + ' · ' + m.concept : m.concept }));
+    const accts = {};
+    for (const m of recibidas) {
+      const [code, name] = PGC[m.category] || ['629', 'Otros servicios'];
+      const x = accts[code] || (accts[code] = { account: code, name, n: 0, base: 0, vat: 0, total: 0 });
+      x.n++; x.base += m.base; x.vat += m.vat; x.total += m.total;
+    }
+    const expenseAccounts = Object.values(accts).map((x) => Object.assign(x, { base: r(x.base), vat: r(x.vat), total: r(x.total) })).sort((a, c) => a.account.localeCompare(c.account));
+    // Asientos: factura (o ingreso) → 430 al debe; 705/759 y 477 al haber. Gasto → 6xx y 472 al debe; 410 al haber.
+    // Las rectificativas (importes negativos) van al revés.
+    const diario = [];
+    let n = 0;
+    for (const m of asc) {
+      const [code, name] = PGC[m.category] || ['629', 'Otros servicios'];
+      const neg = m.total < 0, T = Math.abs(m.total), B = Math.abs(m.base), V = Math.abs(m.vat);
+      let lines;
+      if (m.kind === 'ingreso') {
+        lines = [{ account: '430', name: 'Clientes', debe: T }, { account: code, name, haber: B }];
+        if (V) lines.push({ account: '477', name: 'Hacienda Pública, IVA repercutido', haber: V });
+      } else {
+        lines = [{ account: code, name, debe: B }];
+        if (V) lines.push({ account: '472', name: 'Hacienda Pública, IVA soportado', debe: V });
+        lines.push({ account: '410', name: 'Acreedores por prestaciones de servicios', haber: T });
+      }
+      if (neg) lines = lines.map((l) => ({ account: l.account, name: l.name, debe: l.haber, haber: l.debe }));
+      diario.push({ n: ++n, date: m.date, concept: m.concept + (m.party ? ' · ' + m.party : ''), lines });
+    }
+    return { emitidas, recibidas, expenseAccounts, diario };
   }
 
   // ---------- la contraseña de la fase de pruebas ----------
@@ -414,6 +487,19 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
 
     // PDFs por enlace privado: el cliente y el conductor no tienen contraseña.
     // El enlace del cliente abre su justificante y su factura; el del conductor, solo su hoja.
+    const anyInv = /^doc\/([a-f0-9]{32})\/f\/([FR]-\d{4}-\d{4,6})\.pdf$/.exec(route);
+    if (req.method === 'GET' && anyInv) {
+      if (over('doc:' + ip, 200, 3600000, true)) return json(res, 429, { error: 'too_many' });
+      const b = allBookings().find((x) => x.clientToken === anyInv[1]);
+      const inv = b && allInvoices(b).find((x) => x.number === anyInv[2]);
+      if (!inv) return json(res, 404, { error: 'not_found' });
+      const buf = pdf.invoicePdf(b, inv);
+      res.writeHead(200, {
+        'Content-Type': 'application/pdf', 'Content-Length': buf.length, 'Content-Disposition': 'inline; filename="' + inv.number + '.pdf"',
+        'Cache-Control': 'no-store, private', 'X-Robots-Tag': 'noindex, nofollow', 'X-Content-Type-Options': 'nosniff'
+      });
+      return res.end(buf);
+    }
     const docm = /^doc\/([a-f0-9]{32})\/(justificante|factura|hoja)\.pdf$/.exec(route);
     if (req.method === 'GET' && docm) {
       if (over('doc:' + ip, 200, 3600000, true)) return json(res, 429, { error: 'too_many' });
@@ -586,21 +672,33 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       return json(res, 200, { ok: true, booking: b });
     }
 
-    if (req.method === 'POST' && route === 'admin/invoice-void') {
+    // En España una factura no se borra ni se anula: se corrige con una factura rectificativa
+    if (req.method === 'POST' && route === 'admin/invoice-rectify') {
       const r = await loadRef();
       if (r.error) return json(res, r.error === 'not_found' ? 404 : 400, r);
-      const { b } = r;
+      const { d, b } = r;
       if (!activeInvoice(b)) return json(res, 400, { error: 'no_invoice' });
-      b.invoice.status = 'anulada';
-      b.invoice.voidedAt = new Date().toISOString();
+      const orig = b.invoice, date = today();
+      const cn = {
+        kind: 'rectificativa', number: nextInvoiceNumber(date.slice(0, 4), 'R'), date, status: 'emitida',
+        rectifies: orig.number, rectifiesDate: orig.date, reason: clean(d.reason, 200) || 'Anulación de la factura',
+        vatRate: orig.vatRate, base: -orig.base, vat: -orig.vat, total: -orig.total, issuer: orig.issuer, customer: orig.customer,
+        concept: 'Rectificación de la factura ' + orig.number + ' / Correction of invoice ' + orig.number + ': ' + (orig.concept || ''),
+        createdAt: new Date().toISOString()
+      };
+      orig.status = 'rectificada';
+      orig.rectifiedBy = cn.number;
+      b.creditNotes = (b.creditNotes || []).concat([cn]);
+      b.previousInvoices = [orig].concat(b.previousInvoices || []);
+      b.invoice = null;
       saveBooking(b);
-      return json(res, 200, { ok: true, booking: b });
+      return json(res, 200, { ok: true, booking: b, creditNote: cn.number });
     }
 
     if (req.method === 'POST' && route === 'admin/delete') {
       const r = await loadRef();
       if (r.error) return json(res, r.error === 'not_found' ? 404 : 400, r);
-      if (r.b.invoice || r.b.previousInvoices) return json(res, 409, { error: 'has_invoice' });
+      if (allInvoices(r.b).length) return json(res, 409, { error: 'has_invoice' });
       fs.unlinkSync(bookingFile(r.b.ref));
       return json(res, 200, { ok: true });
     }
@@ -674,6 +772,21 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
     }
 
     // ---------- contabilidad ----------
+    if (req.method === 'GET' && route === 'admin/accounts.pdf') {
+      const sp = new URL(url, 'http://x').searchParams;
+      const from = sp.get('from'), to = sp.get('to');
+      if (!isDay(from) || !isDay(to) || from > to) return json(res, 400, { error: 'bad_range' });
+      const acc = movements(from, to);
+      const s0 = settings().invoice;
+      const buf = pdf.accountsPdf(Object.assign({ generated: today() }, acc, books(acc)), { name: s0.issuerName, taxId: s0.taxId });
+      res.writeHead(200, {
+        'Content-Type': 'application/pdf', 'Content-Length': buf.length,
+        'Content-Disposition': 'inline; filename="bravo-contabilidad-' + from + '-a-' + to + '.pdf"',
+        'Cache-Control': 'no-store, private', 'X-Robots-Tag': 'noindex, nofollow'
+      });
+      return res.end(buf);
+    }
+
     if (req.method === 'GET' && (route === 'admin/accounts' || route === 'admin/accounts.csv')) {
       const sp = new URL(url, 'http://x').searchParams;
       const from = sp.get('from'), to = sp.get('to');
@@ -682,10 +795,10 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       if (route === 'admin/accounts') return json(res, 200, Object.assign({ expenseCats: EXPENSE_CATS, incomeCats: INCOME_CATS }, acc));
       const n2 = (v) => (v == null || v === '' ? '' : String(Math.round(Number(v) * 100) / 100).replace('.', ','));
       const q = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-      const ORIGIN = { factura: 'Factura de la web', conductor: 'Reserva (pago al conductor)', manual: 'Apuntado a mano' };
-      const lines = [['Fecha', 'Tipo', 'Concepto', 'Proveedor / cliente', 'Categoría', 'Base', 'IVA %', 'IVA', 'Total', 'Origen', 'Reserva', 'Notas'].map(q).join(';')];
+      const ORIGIN = { factura: 'Factura de la web', rectificativa: 'Factura rectificativa', conductor: 'Reserva (pago al conductor)', manual: 'Apuntado a mano' };
+      const lines = [['Fecha', 'Tipo', 'Nº factura', 'Concepto', 'Proveedor / cliente', 'NIF', 'Categoría', 'Cuenta PGC', 'Base', 'IVA %', 'IVA', 'Total', 'Origen', 'Reserva', 'Notas'].map(q).join(';')];
       for (const m of acc.movements.slice().reverse()) {
-        lines.push([m.date, m.kind === 'ingreso' ? 'Ingreso' : 'Gasto', m.concept, m.party, m.category, n2(m.base), n2(m.vatRate), n2(m.vat), n2(m.total),
+        lines.push([m.date, m.kind === 'ingreso' ? 'Ingreso' : 'Gasto', m.number || '', m.concept, m.party, m.taxId || '', m.category, m.account, n2(m.base), n2(m.vatRate), n2(m.vat), n2(m.total),
           ORIGIN[m.source], m.ref || '', m.notes || ''].map(q).join(';'));
       }
       const t = acc.totals;
@@ -719,7 +832,7 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       let e = d.id ? list.find((x) => x.id === d.id) : null;
       if (d.id && !e) return json(res, 404, { error: 'not_found' });
       if (!e) { e = { id: crypto.randomBytes(5).toString('hex'), createdAt: new Date().toISOString(), receipt: null }; list.push(e); }
-      Object.assign(e, { type, date: d.date, concept, party: clean(d.party, 80), category: d.category, total, vatRate, notes: cleanLong(d.notes, 500), updatedAt: new Date().toISOString() }, splitVat(total, vatRate));
+      Object.assign(e, { type, date: d.date, concept, party: clean(d.party, 80), number: clean(d.number, 40), taxId: clean(d.taxId, 30), category: d.category, total, vatRate, notes: cleanLong(d.notes, 500), updatedAt: new Date().toISOString() }, splitVat(total, vatRate));
       if (d.removeReceipt) { removeReceipt(e); e.receipt = null; }
       if (d.receipt && typeof d.receipt.data === 'string') {
         const buf = Buffer.from(d.receipt.data, 'base64');

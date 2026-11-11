@@ -31,11 +31,14 @@ Web de una empresa de transporte urgente dedicado (vehículo exclusivo punto a p
   - **Cuentas (la contabilidad):** muestra los movimientos de cualquier periodo, con sus totales y el IVA (cobrado, pagado y la diferencia), y se descarga en CSV.
     - Los ingresos salen de las facturas no anuladas, por su fecha. Los pagos a conductores salen de las reservas no canceladas, por el día del servicio, con el IVA que se ponga en la reserva (`driverVat`).
     - Lo apuntado a mano va en `ledger.json`, y los tickets en `receipts/`. Al subir un ticket se comprueba por sus primeros bytes: JPG, PNG, WEBP o PDF, de 6 MB como mucho. La foto se reduce en el móvil antes de subirla.
-    - **Los apuntes sí se pueden borrar. Las facturas no:** se anulan.
+    - **Pensada para una empresa en España:** cada categoría tiene su cuenta del Plan General Contable (`PGC` en `bravo-api.js`: 607, 62x, 631, 705, 759…). `books()` saca los libros registro de facturas emitidas y recibidas, el IVA por tipos y el libro diario (430/705/477 en las facturas, 6xx/472/410 en los gastos; las rectificativas, al revés).
+    - Todo eso sale en el **PDF del periodo** (`/api/bravo/admin/accounts.pdf?from=&to=`, de varias páginas), además del CSV. Falta todavía: cobros y pagos por banco, amortizaciones y nóminas.
+    - Los apuntes llevan nº de factura y NIF del proveedor (o del cliente). **Los apuntes sí se pueden borrar. Las facturas no.**
   - **Facturas y PDFs:** `bravo-pdf.js` hace tres PDF sin dependencias (Helvetica en WinAnsi): la factura, el justificante del cliente y la hoja de servicio del conductor.
     - Se abren por un **enlace privado** `/api/bravo/doc/<clave>/…pdf`, sin contraseña. El enlace del cliente nunca abre la hoja del conductor.
     - Las facturas van numeradas `F-AAAA-0001`, seguidas por año. El IVA (0–30 %) se elige al crearlas, y los precios llevan el IVA incluido.
-    - Cada factura guarda una copia de los datos del emisor. **No se borra: se anula**, y el número no se reutiliza.
+    - Cada factura guarda una copia de los datos del emisor. **No se borra ni se anula: se rectifica**, como en España. Se hace una **factura rectificativa** `R-AAAA-0001`, en negativo y con el motivo; la original queda «rectificada» y se puede hacer otra nueva.
+    - Cualquier factura o rectificativa de una reserva se abre con `/api/bravo/doc/<clave del cliente>/f/<número>.pdf`.
   - Los botones de WhatsApp y de correo solo abren el mensaje ya escrito: lo envía Alberto.
   - Las pruebas, con Playwright: un OSRM falso, Nominatim y Web3Forms simulados, y `pdftotext` para leer los PDF.
 - **`stats/`** y **`notas/`** — panel de analíticas y buzón de notas. **La clave no se escribe nunca aquí**: vive en la variable `STATS_KEY` de Railway, y apuntada en el repo privado (`NEGOCIO/empresa/acceso.md`)
