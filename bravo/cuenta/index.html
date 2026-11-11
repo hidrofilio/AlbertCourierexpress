@@ -76,6 +76,9 @@
   .route small { display: block; color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; }
   .facts { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .88rem; color: var(--muted); margin: 6px 0; }
   .facts b { color: var(--ink); }
+  .drv-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .drv-btns .btn { font-size: .9rem; padding: 10px 8px; font-weight: 700; }
+  .btn.wa { background: #1f9e4f; color: #fff; }
   .driver { background: #f7f1e6; border-radius: 10px; padding: 10px 12px; margin: 10px 0; font-size: .92rem; }
   .total { display: flex; justify-content: space-between; align-items: baseline; border-top: 1px dashed var(--line); padding-top: 8px; margin-top: 8px; }
   .total b { font-size: 1.2rem; }
@@ -211,7 +214,7 @@
       st_pendiente: 'Confirmada · buscando conductor', st_asignada: 'Conductor asignado', st_hecha: 'Hecha', st_cancelada: 'Cancelada', st_quote: 'Presupuesto pendiente',
       from: 'Recogida', to: 'Destino', ret: 'Vuelta', pax: 'Pasajeros', veh_car: 'Coche', veh_van: 'Monovolumen', flight: 'Vuelo', bags: 'Maletas', seats: 'Sillas de niño',
       hours: '{h} horas con conductor', group: 'Grupo', total: 'Total', ivaInc: 'IVA incluido', quotePending: 'Te mandaremos el presupuesto',
-      driver: 'Tu conductor', car: 'Coche', call: 'Llamar',
+      driver: 'Tu conductor', car: 'Coche', call: 'Llamar', waDriver: 'Hola, soy el cliente de la reserva {ref} de Bravo Transfers. ',
       docConf: '📄 Justificante', docInv: '🧾 Factura', docRect: '🧾 Rectificativa', docVoid: '(anulada)', ics: '📅 A mi calendario',
       change: '✏️ Pedir un cambio', cancel: '✖ Cancelar', cancelAsk: '¿Seguro que quieres cancelar la reserva {ref} del {when}?',
       cancelInv: 'Como ya tiene factura, te haremos la factura de anulación y, si la pagaste, te devolveremos el dinero.',
@@ -247,7 +250,7 @@
       st_pendiente: 'Confirmed · assigning driver', st_asignada: 'Driver assigned', st_hecha: 'Completed', st_cancelada: 'Cancelled', st_quote: 'Quote pending',
       from: 'Pick-up', to: 'Drop-off', ret: 'Return', pax: 'Passengers', veh_car: 'Car', veh_van: 'People carrier', flight: 'Flight', bags: 'Suitcases', seats: 'Child seats',
       hours: '{h} hours with driver', group: 'Group', total: 'Total', ivaInc: 'VAT included', quotePending: 'We will send you a quote',
-      driver: 'Your driver', car: 'Car', call: 'Call',
+      driver: 'Your driver', car: 'Car', call: 'Call', waDriver: 'Hello, I am the customer of Bravo Transfers booking {ref}. ',
       docConf: '📄 Confirmation', docInv: '🧾 Invoice', docRect: '🧾 Credit note', docVoid: '(cancelled)', ics: '📅 Add to calendar',
       change: '✏️ Request a change', cancel: '✖ Cancel', cancelAsk: 'Are you sure you want to cancel booking {ref} on {when}?',
       cancelInv: 'As it has already been invoiced, we will issue a credit note and refund you if you paid.',
@@ -283,6 +286,13 @@
   } catch (e) { if ((navigator.language || '').slice(0, 2) !== 'es') lang = 'en'; }
   function t(k) { return (T[lang] && T[lang][k]) || T.es[k] || k; }
 
+  // Número para WhatsApp: solo cifras, con el prefijo del país (un móvil español de 9 cifras lleva el 34)
+  function waNum(p) {
+    var d = String(p || '').replace(/[^0-9]/g, '');
+    if (d.indexOf('00') === 0) d = d.slice(2);
+    if (d.length === 9 && /^[6789]/.test(d)) d = '34' + d;
+    return d;
+  }
   function money(n) {
     try { return new Intl.NumberFormat(lang === 'es' ? 'es-ES' : 'en-IE', { style: 'currency', currency: 'EUR' }).format(n); }
     catch (e) { return '€' + n; }
@@ -397,7 +407,8 @@
     h += '<div class="facts">' + f.map(function (x) { return '<span>' + x + '</span>'; }).join('') + '</div>';
     if (b.driver) {
       h += '<div class="driver">🚗 ' + esc(t('driver')) + ': <b>' + esc(b.driver.name) + '</b>' + (b.driver.car ? '<br>' + esc(t('car')) + ': ' + esc(b.driver.car) : '') +
-        (b.driver.phone ? '<br><a href="tel:' + esc(b.driver.phone.replace(/[^0-9+]/g, '')) + '">' + esc(t('call')) + ' ' + esc(b.driver.phone) + '</a>' : '') + '</div>';
+        (b.driver.phone ? '<br>' + esc(b.driver.phone) + '<div class="drv-btns"><a class="btn ghost" href="tel:' + esc(b.driver.phone.replace(/[^0-9+]/g, '')) + '">📞 ' + esc(t('call')) + '</a>' +
+          '<a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/' + esc(waNum(b.driver.phone)) + '?text=' + encodeURIComponent(t('waDriver').replace('{ref}', b.ref)) + '">WhatsApp</a></div>' : '') + '</div>';
     }
     h += '<div class="total"><span>' + esc(t('total')) + (b.price != null ? ' <small style="color:var(--muted)">(' + esc(t('ivaInc')) + ')</small>' : '') + '</span><b>' +
       esc(b.price != null ? money(b.price) : t('quotePending')) + '</b></div>';

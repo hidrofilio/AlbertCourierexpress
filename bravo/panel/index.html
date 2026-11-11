@@ -75,6 +75,13 @@
   .btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
   .b { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: 8px; padding: 8px 10px; font-size: .85rem; font-weight: 700; text-decoration: none; cursor: pointer; }
   .b.wa { background: #1f9e4f; color: #fff; border-color: #1f9e4f; }
+  .b.tel { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .ct { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line); }
+  .ct:first-of-type { border-top: 0; padding-top: 0; }
+  .ct-who { font-size: .85rem; color: var(--muted); overflow-wrap: anywhere; }
+  .ct-who b { color: var(--ink); }
+  .bk-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
+  .bk-chips .b { font-size: .78rem; padding: 6px 8px; }
   .b.dark { background: var(--ink); color: #fff; border-color: var(--ink); }
   .b.red { color: var(--err); border-color: #e9c3bf; }
   .b[aria-disabled=true] { opacity: .45; pointer-events: none; }
@@ -133,7 +140,7 @@
   </div>
   <nav>
     <button type="button" data-tab="trips"><i>🚗</i>Viajes</button>
-    <button type="button" data-tab="messages"><i>💬</i>Mensajes<span class="nb" id="nav-unread" hidden></span></button>
+    <button type="button" data-tab="messages"><i>👥</i>Clientes<span class="nb" id="nav-unread" hidden></span></button>
     <button type="button" data-tab="billing"><i>🧾</i>Facturas</button>
     <button type="button" data-tab="accounts"><i>📒</i>Cuentas</button>
     <button type="button" data-tab="drivers"><i>🚐</i>Empresas</button>
@@ -150,9 +157,10 @@
     <p class="note">Fase de pruebas: no se cobra nada y los precios son ficticios.</p>
   </section>
 
-  <!-- MENSAJES DE LOS CLIENTES -->
+  <!-- CLIENTES: su ficha, sus reservas, llamarles o escribirles, y sus mensajes -->
   <section id="tab-messages" hidden>
-    <h2>Mensajes de los clientes</h2>
+    <h2>Clientes</h2>
+    <input type="search" id="cl-search" placeholder="Buscar: nombre, correo, teléfono o reserva" style="margin-bottom:8px">
     <p class="msg" id="msgs-mail"></p>
     <div id="threads"></div>
     <p class="note">Cada cliente tiene su cuenta en <b>/bravo/cuenta/</b> (se crea sola al reservar). Desde allí ve sus reservas y facturas, pide cambios, cancela y te escribe. Lo que contestes aquí le sale en su cuenta y, con los correos activados, también por correo.</p>
@@ -446,6 +454,22 @@
     return d;
   }
   function wa(phone, text) { return 'https://wa.me/' + waNumber(phone) + '?text=' + encodeURIComponent(text); }
+  function telHref(p) { return 'tel:' + String(p || '').replace(/[^+0-9]/g, ''); }
+  // Una fila de contacto: quién es, y sus botones de WhatsApp (con el mensaje ya escrito), llamar y correo
+  function contactRow(who, name, phone, waText, email, subject) {
+    var h = '<div class="ct"><div class="ct-who">' + esc(who) + (name ? ': <b>' + esc(name) + '</b>' : '') + (phone ? ' · ' + esc(phone) : '') + '</div><div class="btns">';
+    if (phone) h += '<a class="b wa" target="_blank" rel="noopener" href="' + esc(wa(phone, waText)) + '">WhatsApp</a><a class="b tel" href="' + esc(telHref(phone)) + '">📞 Llamar</a>';
+    if (email) h += '<a class="b" href="' + esc(mail(email, subject || '', waText)) + '">✉️ Correo</a>';
+    if (!phone && !email) h += '<span class="msg">Sin teléfono ni correo</span>';
+    return h + '</div></div>';
+  }
+  // Al conductor que va (si la empresa manda a uno de sus conductores): los datos del viaje, sin lo que se paga
+  function chauffeurMsg(b) {
+    var dest = b.kind === 'hourly' ? 'Horas: ' + b.hours : 'Destino: ' + toOf(b);
+    return 'Hola ' + (b.chauffeur || '') + ', servicio ' + b.ref + ' de Bravo Transfers: ' + dmy(b.date) + ' a las ' + b.time +
+      '. Recogida: ' + fromOf(b) + '. ' + dest + '. ' + b.passengers + ' pers.' + (b.flight ? ' Vuelo ' + b.flight + '.' : '') +
+      (b.driverNote ? ' Nota: ' + b.driverNote + '.' : '') + ' Cliente: ' + b.name + ' ' + b.phone + '.';
+  }
   function mail(to, subject, body) { return 'mailto:' + encodeURIComponent(to) + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body); }
   function clientMsg(b) {
     var en = b.lang === 'en';
@@ -520,13 +544,14 @@
       '<label class="check"><input type="checkbox" data-k="ministry"' + (b.ministry ? ' checked' : '') + '> Comunicado al Ministerio</label>' +
       '<label>Notas internas (solo las ves tú)</label><textarea data-k="notes">' + esc(b.notes) + '</textarea>' +
       '<button type="button" class="save" data-save>Guardar</button><div class="msg" data-msg></div>' +
-      '<div class="box"><b>Documentos y mensajes</b><div class="btns">' +
+      '<div class="box"><b>Documentos</b><div class="btns">' +
       '<a class="b" target="_blank" rel="noopener" href="' + esc(docUrl(b, 'justificante')) + '">📄 Justificante</a>' +
-      '<a class="b" target="_blank" rel="noopener" href="' + esc(docUrl(b, 'hoja')) + '">🚐 Hoja de servicio</a>' +
-      '<a class="b wa" target="_blank" rel="noopener" href="' + esc(wa(b.phone, clientMsg(b))) + '">WhatsApp al cliente</a>' +
-      '<a class="b wa" target="_blank" rel="noopener" href="' + esc(wa(b.driverPhone, driverMsg(b))) + '"' + (b.driverPhone ? '' : ' aria-disabled="true"') + '>WhatsApp a la empresa</a>' +
-      '<a class="b" href="' + esc(mail(b.email, (b.lang === 'en' ? 'Your booking ' : 'Tu reserva ') + b.ref + ' – Bravo Transfers', clientMsg(b))) + '">✉️ Correo al cliente</a>' +
-      '</div><div class="msg">Los botones mandan lo que hay guardado: guarda antes los cambios.</div>' + mailBox(b) + '</div>' +
+      '<a class="b" target="_blank" rel="noopener" href="' + esc(docUrl(b, 'hoja')) + '">🚐 Hoja de servicio</a></div>' + mailBox(b) + '</div>' +
+      '<div class="box" data-contact><b>Llamar o escribir</b>' +
+      contactRow('Cliente', b.name, b.phone, clientMsg(b), b.email, (b.lang === 'en' ? 'Your booking ' : 'Tu reserva ') + b.ref + ' – Bravo Transfers') +
+      (b.driverName || b.driverPhone ? contactRow('Empresa', b.driverName, b.driverPhone, driverMsg(b), b.driverEmail, 'Servicio ' + b.ref + ' – Bravo Transfers') : '') +
+      (b.chauffeur || b.chauffeurPhone ? contactRow('Conductor que va', b.chauffeur, b.chauffeurPhone, chauffeurMsg(b)) : '') +
+      '<div class="msg">El WhatsApp se abre con el mensaje ya escrito (con los datos guardados): tú solo le das a enviar.</div></div>' +
       invoiceBox(b) +
       (allInv(b).length ? '' : '<div class="btns"><button type="button" class="b red" data-del>🗑 Borrar esta reserva</button></div>') +
       '</div></details>';
@@ -718,11 +743,10 @@
   }
   function renderMessages(emailOn) {
     $('msgs-mail').innerHTML = emailOn ? 'Tus respuestas le llegan al cliente a su cuenta y por correo.' : 'Los correos no están activados: el cliente verá tu respuesta al entrar en su cuenta. Si es urgente, usa WhatsApp.';
-    var withMsgs = threads.filter(function (t) { return t.messages.length; });
-    var quiet = threads.length - withMsgs.length;
-    if (!withMsgs.length) { $('threads').innerHTML = '<p class="empty">Ningún cliente ha escrito todavía.' + (quiet ? ' Hay ' + quiet + ' cuenta' + (quiet === 1 ? '' : 's') + ' de cliente.' : '') + '</p>'; return; }
-    $('threads').innerHTML = withMsgs.map(function (t) {
+    if (!threads.length) { $('threads').innerHTML = '<p class="empty">Todavía no hay clientes. La ficha se crea sola con su primera reserva.</p>'; return; }
+    $('threads').innerHTML = threads.map(function (t) {
       var c = t.customer, last = t.messages[t.messages.length - 1];
+      var nb = t.bookings.length, preview = last ? String(last.text).slice(0, 90) : nb + ' reserva' + (nb === 1 ? '' : 's') + ' · sin mensajes';
       var bubbles = t.messages.map(function (m) {
         var cls = m.from === 'cliente' ? 'cu' : m.from === 'bravo' ? 'me' : 'sy';
         return '<div class="bub ' + cls + '">' + (m.kind === 'cambio' ? '<span class="tag">Cambio</span>' : '') + esc(m.text) +
@@ -733,14 +757,24 @@
         '<div class="l1"><span>' + esc(c.name) + (t.unread ? ' <span class="badge st-pendiente">' + t.unread + ' nuevo' + (t.unread === 1 ? '' : 's') + '</span>' : '') + '</span>' +
         '<span class="l3">' + esc(new Date(t.last).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })) + '</span></div>' +
         '<div class="l3">' + esc(c.email + (c.phone ? ' · ' + c.phone : '')) + '</div>' +
-        '<div class="l2">' + esc(String(last.text).slice(0, 90)) + '</div></summary>' +
-        '<div class="chat">' + bubbles + '</div>' +
+        '<div class="l2">' + esc(preview) + '</div></summary>' +
+        '<div class="body">' + contactRow('Contactar', '', c.phone, (c.lang === 'en' ? 'Hello ' : 'Hola ') + c.name + ', ', c.email, 'Bravo Transfers') +
+        (nb ? '<div class="bk-chips">' + t.bookings.map(function (b) {
+          return '<button type="button" class="b" data-goto="' + esc(b.ref) + '">' + esc(b.ref + ' · ' + dmy(b.date) + ' · ' + b.status) + '</button>';
+        }).join('') + '</div>' : '') + '</div>' +
+        (t.messages.length ? '<div class="chat">' + bubbles + '</div>' : '') +
         '<div class="body"><label>Sobre la reserva</label><select data-r="ref"><option value="">—</option>' + refs + '</select>' +
-        '<label>Tu respuesta</label><textarea data-r="text" maxlength="2000"></textarea>' +
-        '<button type="button" class="save" data-r="send">Responder</button><div class="msg" data-r="msg"></div>' +
-        '<div class="btns">' + (c.phone ? '<a class="b wa" target="_blank" rel="noopener" href="' + esc(wa(c.phone, 'Hola ' + c.name + ', ')) + '">WhatsApp</a>' : '') +
-        '<a class="b" href="mailto:' + esc(c.email) + '">✉️ Correo normal</a></div></div></details>';
+        '<label>' + (t.messages.length ? 'Tu respuesta' : 'Escribirle (lo verá en su cuenta)') + '</label><textarea data-r="text" maxlength="2000"></textarea>' +
+        '<button type="button" class="save" data-r="send">' + (t.messages.length ? 'Responder' : 'Enviar') + '</button><div class="msg" data-r="msg"></div></div></details>';
     }).join('');
+    filterClients();
+    qsa('[data-goto]', $('threads')).forEach(function (bt) {
+      bt.addEventListener('click', function () {
+        var ref = bt.getAttribute('data-goto');
+        setTab('trips'); current = 'all'; open[ref] = true; renderTrips();
+        var el = $('bk-' + ref); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
     qsa('[data-th]', $('threads')).forEach(function (el) {
       var id = el.getAttribute('data-th'), t = threads.filter(function (x) { return x.customer.id === id; })[0];
       el.addEventListener('toggle', function () {
@@ -762,6 +796,17 @@
       });
     });
   }
+
+  // Buscar un cliente por nombre, correo, teléfono o reserva
+  function filterClients() {
+    var q = $('cl-search').value.trim().toLowerCase();
+    qsa('[data-th]', $('threads')).forEach(function (el) {
+      var t = threads.filter(function (x) { return x.customer.id === el.getAttribute('data-th'); })[0];
+      var hay = [t.customer.name, t.customer.email, t.customer.phone].concat(t.bookings.map(function (b) { return b.ref; })).join(' ').toLowerCase();
+      el.hidden = Boolean(q) && hay.indexOf(q) < 0 && hay.replace(/[^0-9a-z@.]/g, '').indexOf(q.replace(/[^0-9a-z@.]/g, '')) < 0;
+    });
+  }
+  $('cl-search').addEventListener('input', filterClients);
 
   // ---------- FACTURACIÓN ----------
   $('month').value = madridDay(0).slice(0, 7);
@@ -1156,6 +1201,7 @@
         '<div class="row"><div><label>Coche</label><input data-d="car" value="' + esc(d.car) + '"></div><div><label>Matrícula</label><input data-d="plate" value="' + esc(d.plate) + '"></div></div>' +
         '<div class="row"><div><label>Correo</label><input data-d="email" type="email" value="' + esc(d.email || '') + '"></div><div><label>NIF / CIF</label><input data-d="taxId" value="' + esc(d.taxId || '') + '"></div></div>' +
         '<label>Notas (lo que cobra, zona, sus conductores…)</label><textarea data-d="notes">' + esc(d.notes) + '</textarea>' +
+        (d.phone || d.email ? contactRow('Contactar', '', d.phone, 'Hola ' + (d.name || '') + ', ', d.email, 'Bravo Transfers') : '') +
         '<div class="btns"><button type="button" class="b red" data-drv-del="' + i + '">Quitar</button></div></div>';
     }).join('');
     qsa('[data-drv-del]').forEach(function (b) { b.addEventListener('click', function () { readDrivers(); drivers.splice(Number(b.getAttribute('data-drv-del')), 1); renderDrivers(); }); });

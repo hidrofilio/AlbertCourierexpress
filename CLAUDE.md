@@ -27,7 +27,8 @@ Web de una empresa de transporte urgente dedicado (vehículo exclusivo punto a p
   - El panel de Alberto está en `/bravo/panel/`. Las reservas (`bookings/BT-0001.json`…) y los precios (`settings.json`) se guardan en `DATA_DIR/bravo/`, nunca en git. Los precios de `DEFAULTS` en el código son **ficticios**. La regla 7 (no publicar precios) es de la mensajería; Bravo enseña precios por naturaleza.
   - **El servidor recalcula los km y el precio** antes de guardar: no te fíes de lo que mande la página. Los km salen de OSRM; `BRAVO_OSRM_URL` permite apuntar a uno falso en las pruebas.
   - El JS va dentro del HTML, porque `isPublicPath()` solo deja servir `.js` de `cpc/`. El aviso a Alberto se manda con Web3Forms, como la mensajería (solo funciona desde el dominio propio).
-  - **Panel** con seis pestañas: Viajes, Mensajes, Facturas, Cuentas, Empresas y Ajustes. En Ajustes se cambian los precios, los datos de las facturas, la factura automática (`autoInvoice`) y las horas para que el cliente cancele (`cancelHours`), en `settings.json`.
+  - **Panel** con seis pestañas: Viajes, Clientes, Facturas, Cuentas, Empresas y Ajustes. «Clientes» (antes «Mensajes», `tab-messages` en el código) es la ficha de cada cliente: buscador, sus reservas (un toque las abre en Viajes) y sus mensajes.
+  - **Llamar o escribir:** en cada viaje (cliente, empresa y conductor que va), en cada empresa y en cada cliente hay botones de WhatsApp (`wa.me`, con el mensaje ya escrito), 📞 Llamar (`tel:`) y correo. Al conductor que va se le manda el viaje sin lo que se paga. El cliente, en «Mi cuenta», tiene Llamar y WhatsApp a su conductor. En Ajustes se cambian los precios, los datos de las facturas, la factura automática (`autoInvoice`) y las horas para que el cliente cancele (`cancelHours`), en `settings.json`.
   - **Empresas de transporte, no «conductores»** (lo pidió Alberto el 11/11): quienes hacen los viajes y cobran son empresas o autónomos con licencia VTC o de autobús.
     - En el panel, en los PDF y en la contabilidad se dice «empresa de transporte». En el código siguen llamándose `driver*` (`drivers.json`, `driverName`, `driverPay`…).
     - «Conductor» solo se usa para la persona que va al volante. En la reserva va en `chauffeur` y `chauffeurPhone`; si está vacío, el cliente ve la empresa.
@@ -65,7 +66,7 @@ Web de una empresa de transporte urgente dedicado (vehículo exclusivo punto a p
       - añadir el viaje al calendario;
       - pedir un cambio;
       - cancelar hasta `cancelHours` antes del viaje. Alberto hace después la rectificativa, si había factura.
-      - escribir mensajes (en `messages.json`; se contestan en la pestaña Mensajes) y cambiar sus datos y su contraseña.
+      - escribir mensajes (en `messages.json`; se contestan en la pestaña Clientes) y cambiar sus datos y su contraseña.
     - Hay un freno contra contraseñas malas, por IP y por correo. «He olvidado la contraseña» responde lo mismo exista o no la cuenta, y en la cuenta del cliente nunca salen `driverPay`, notas ni tokens.
   - **Justificante de pago** (`paymentPdf` en `bravo-pdf.js`), para el conductor o el proveedor al que se paga:
     - Sale por correo **solo cuando el pago queda marcado**: a mano en la reserva (banco, Bizum, efectivo, tarjeta), al casarlo con el banco, o en un gasto pagado. Va **solo para pagos de los últimos 15 días**, para que subir un extracto antiguo no le escriba a nadie, y se puede apagar en Ajustes (`payEmail`).
