@@ -155,13 +155,16 @@
   .due { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 2px 10px; padding: 7px 0; border-top: 1px dashed var(--line); font-size: .86rem; }
   .due b { white-space: nowrap; }
   .due .who { font-size: .7rem; font-weight: 800; text-transform: uppercase; color: var(--muted); }
+  body.op [data-admin] { display: none !important; }
+  body.op nav { grid-template-columns: repeat(3, 1fr); }
+  .hist { font-size: .8rem; color: var(--muted); border-top: 1px dashed var(--line); padding: 4px 0; }
   .warn { background: #fff1d6; color: #8a5a00; border-radius: 9px; padding: 8px 10px; margin-top: 8px; font-size: .85rem; }
 </style>
 </head>
 <body>
 <div class="top">
   <div class="bar">
-    <div class="brand"><span class="lg"><img src="/api/bravo/logo.png" alt=""></span><div><b>BRAVO</b> <small>PANEL · PRUEBAS</small></div></div>
+    <div class="brand"><span class="lg"><img src="/api/bravo/logo.png" alt=""></span><div><b>BRAVO</b> <small id="who">PANEL · PRUEBAS</small></div></div>
     <div class="acts">
       <a href="/bravo/" target="_blank" rel="noopener">Web</a>
       <button type="button" id="reload">↻</button>
@@ -171,10 +174,10 @@
   <nav>
     <button type="button" data-tab="trips"><i>🚗</i>Viajes</button>
     <button type="button" data-tab="messages"><i>👥</i>Clientes<span class="nb" id="nav-unread" hidden></span></button>
-    <button type="button" data-tab="billing"><i>🧾</i>Facturas</button>
-    <button type="button" data-tab="accounts"><i>📒</i>Cuentas</button>
+    <button type="button" data-tab="billing" data-admin><i>🧾</i>Facturas</button>
+    <button type="button" data-tab="accounts" data-admin><i>📒</i>Cuentas</button>
     <button type="button" data-tab="drivers"><i>🚐</i>Empresas</button>
-    <button type="button" data-tab="settings"><i>⚙️</i>Ajustes</button>
+    <button type="button" data-tab="settings" data-admin><i>⚙️</i>Ajustes</button>
   </nav>
 </div>
 
@@ -206,11 +209,11 @@
         <div><label for="nb-pax">Personas</label><input id="nb-pax" type="number" min="1" max="500" step="1" inputmode="numeric" value="2"></div>
         <div><label for="nb-veh">Vehículo</label><select id="nb-veh"><option value="car">Coche (hasta 4)</option><option value="van">Monovolumen (hasta 7)</option><option value="">Otro / autobús</option></select></div>
       </div>
-      <div class="row">
+      <div class="row" data-admin>
         <div><label for="nb-km">Km (si los sabes)</label><input id="nb-km" type="number" min="0" step="0.1" inputmode="decimal"></div>
         <div><label for="nb-price">Precio (€, IVA incluido)</label><input id="nb-price" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Vacío: por presupuestar"></div>
       </div>
-      <div class="btns"><button type="button" class="b" id="nb-calc">🧮 Calcular km y precio</button></div>
+      <div class="btns" data-admin><button type="button" class="b" id="nb-calc">🧮 Calcular km y precio</button></div>
       <div class="msg" id="nb-calc-msg"></div>
       <h3>Cliente</h3>
       <label for="nb-name">Nombre</label><input id="nb-name" autocomplete="off">
@@ -232,7 +235,7 @@
       <div class="msg" id="nb-msg"></div>
     </div>
     <div class="filters" id="filters"></div>
-    <div class="totals" id="totals"></div>
+    <div class="totals" id="totals" data-admin></div>
     <div id="list"></div>
     <p class="note">Fase de pruebas: no se cobra nada y los precios son ficticios.</p>
   </section>
@@ -240,7 +243,7 @@
   <!-- CLIENTES: su ficha, sus reservas, llamarles o escribirles, y sus mensajes -->
   <section id="tab-messages" hidden>
     <h2>Clientes</h2>
-    <details class="card" id="partners-box">
+    <details class="card" id="partners-box" data-admin>
       <summary style="cursor: pointer"><b>🏨 Hoteles y agencias</b> <span class="l3" id="partners-count"></span></summary>
       <p class="msg">Cada uno tiene su enlace a la web: las reservas que llegan por él quedan a su nombre, con el descuento que le pongas a sus clientes y la comisión que se le paga. A fin de mes, su liquidación en PDF.</p>
       <div id="partners"></div>
@@ -380,8 +383,8 @@
     <h2>Empresas de transporte</h2>
     <p class="msg">Las empresas o autónomos con licencia (VTC o de autobús) que hacen los viajes y a los que les pagas.</p>
     <div id="drv-list"></div>
-    <div class="btns"><button type="button" class="b" id="drv-add">＋ Añadir empresa</button></div>
-    <button type="button" class="save" id="drv-save">Guardar empresas</button>
+    <div class="btns" data-admin><button type="button" class="b" id="drv-add">＋ Añadir empresa</button></div>
+    <button type="button" class="save" id="drv-save" data-admin>Guardar empresas</button>
     <div class="msg" id="drv-msg"></div>
   </section>
 
@@ -448,6 +451,15 @@
       <div><label for="cd-note">Nota</label><input id="cd-note" placeholder="Para quién es"></div>
     </div>
     <div class="btns"><button type="button" class="b dark" id="cd-add">＋ Añadir código</button></div><div class="msg" id="cd-msg"></div>
+    <h3>Usuarios del panel</h3>
+    <p class="msg">Para tu sobrino u otra persona de confianza. Entra en el panel con «Entrar con usuario». <b>Ve</b> los viajes, los clientes, las empresas y sus papeles; <b>puede</b> asignar empresa y conductor, cambiar el estado, apuntar incidencias, crear reservas (sin precio) y contestar a los clientes. <b>No ve</b> precios, pagos, facturas, cuentas, hoteles ni ajustes.</p>
+    <div id="users"></div>
+    <div class="row"><div><label for="us-name">Nombre</label><input id="us-name"></div><div><label for="us-user">Usuario</label><input id="us-user" autocapitalize="none" autocomplete="off"></div></div>
+    <label for="us-pw">Contraseña (10 letras o más)</label><input id="us-pw" type="password" autocomplete="new-password">
+    <div class="btns"><button type="button" class="b dark" id="us-add">＋ Añadir usuario</button></div><div class="msg" id="us-msg"></div>
+    <h3>Registro de cambios</h3>
+    <p class="msg">Quién entró y qué cambió (lo último, arriba).</p>
+    <div id="audit"></div>
     <h3>Documentos de tu empresa</h3>
     <p class="msg">Licencias, escrituras, contratos… con su fecha de caducidad: «Hoy» te avisa 30 días antes. Quedan en el panel (privado), no en GitHub.</p>
     <div id="company-docs"></div>
@@ -488,6 +500,7 @@
     bad_hours_ahead: 'Antelación no válida (0 a 168 horas)', bad_cancel_hours: 'Horas para cancelar no válidas (0 a 168)', bad_review_url: 'El enlace de Google tiene que empezar por https://',
     bad_date: 'Día u hora no válidos', bad_email: 'El correo no es válido', bad_paid: 'Pon el día del pago',
     no_email: 'No tiene correo: ponlo y guarda antes', not_paid: 'Todavía no está pagado',
+    bad_user: 'Usuario no válido (3 a 30 letras o números, sin espacios)', user_taken: 'Ese usuario ya existe', short_password: 'La contraseña tiene que tener 10 letras o más', forbidden: 'Eso solo lo puede hacer Alberto',
     bad_code: 'Código no válido (letras, números y guiones)', code_taken: 'Ese código ya lo tiene otro', bad_percent: 'Porcentaje no válido (0 a 50)', no_quote: 'No hay presupuesto',
     bad_name: 'Falta el nombre', bad_phone: 'Revisa el teléfono', need_contact: 'Pon el teléfono o el correo del cliente',
     bad_places: 'Falta desde dónde o hasta dónde', bad_passengers: 'Número de personas no válido', bad_hours: 'Horas no válidas', bad_return: 'La vuelta tiene que ser después de la ida', email_not_configured: 'Los correos no están activados (falta EMAIL_KEY en Railway)', empty: 'Escribe la respuesta'
@@ -514,8 +527,11 @@
     if (t === 'accounts') setSub(accSub);
     if (t === 'drivers') renderDrivers();
     // Los papeles, al día: solo se redibujan sus recuadros (si no, se perdería lo que se esté escribiendo)
-    if (t === 'settings' || t === 'drivers') api('admin/docs').then(function (d) { docs = d.docs || docs; refreshDocBoxes(); }).catch(function () {});
-    if (t === 'settings') { renderSettings(); loadCodes(); }
+    if (t === 'settings' || t === 'drivers') api('admin/docs').then(function (d) {
+      if (!d.docs || JSON.stringify(d.docs) === JSON.stringify(docs)) return;
+      docs = d.docs; refreshDocBoxes();
+    }).catch(function () {});
+    if (t === 'settings') { renderSettings(); loadCodes(); loadUsers(); }
     window.scrollTo(0, 0);
   }
   qsa('nav [data-tab]').forEach(function (b) { b.addEventListener('click', function () { setTab(b.getAttribute('data-tab')); }); });
@@ -559,7 +575,7 @@
   }
 
   function renderTrips() {
-    $('filters').innerHTML = FILTERS.map(function (f) {
+    $('filters').innerHTML = FILTERS.filter(function (f) { return !isOp() || (f[0] !== 'collect' && f[0] !== 'pay'); }).map(function (f) {
       var n = list.filter(function (b) { return matches(b, f[0]); }).length;
       return '<button type="button" data-f="' + f[0] + '" class="' + (f[0] === current ? 'on' : '') + '">' + f[1] + '<span class="n">' + n + '</span></button>';
     }).join('');
@@ -598,8 +614,8 @@
       tile('tomorrow', man.length, 'mañana' + (man.filter(function (b) { return !b.driverName; }).length ? ' · ' + man.filter(function (b) { return !b.driverName; }).length + ' sin asignar' : '')) +
       tile('nodriver', sin.length, 'sin asignar (7 días)', sin.length > 0) +
       tile('msgs', unreadMsgs, 'mensaje' + (unreadMsgs === 1 ? '' : 's') + ' sin leer', unreadMsgs > 0) +
-      tile('collect', euro(sum(cob, function (b) { return b.invoice.total; })), 'por cobrar · ' + cob.length + ' factura' + (cob.length === 1 ? '' : 's')) +
-      tile('pay', euro(sum(pag, function (b) { return b.driverPay; })), 'por pagar a empresas · ' + pag.length) +
+      (isOp() ? '' : tile('collect', euro(sum(cob, function (b) { return b.invoice.total; })), 'por cobrar · ' + cob.length + ' factura' + (cob.length === 1 ? '' : 's')) +
+      tile('pay', euro(sum(pag, function (b) { return b.driverPay; })), 'por pagar a empresas · ' + pag.length)) +
       tile('incid', inc, 'incidencia' + (inc === 1 ? '' : 's') + ' abierta' + (inc === 1 ? '' : 's'), inc > 0) +
       tile('docs', docs.length, 'papeles que caducan pronto', docs.length > 0) + '</div>';
     hoy.concat(man.filter(function (b) { return !b.driverName; })).forEach(function (b) {
@@ -825,6 +841,44 @@
     } catch (e) { alert(e.message); }
   });
 
+  // ---------- USUARIOS Y REGISTRO DE CAMBIOS ----------
+  var role = 'admin';
+  function isOp() { return role !== 'admin'; }
+  async function loadUsers() {
+    try {
+      var d = await api('admin/users');
+      $('users').innerHTML = (d.users || []).map(function (u) {
+        return '<div class="doc"><b>' + esc(u.name) + '</b> · ' + esc(u.user) + (u.active ? '' : ' <span class="exp bad">pausado</span>') +
+          '<div class="l3">' + esc(u.lastLogin ? 'Entró el ' + new Date(u.lastLogin).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Todavía no ha entrado') + '</div>' +
+          '<div class="btns"><button type="button" class="b" data-us-tog="' + esc(u.id) + '">' + (u.active ? 'Pausar' : 'Activar') + '</button>' +
+          '<button type="button" class="b" data-us-pw="' + esc(u.id) + '">Cambiar contraseña</button><button type="button" class="b red" data-us-del="' + esc(u.id) + '">Borrar</button></div></div>';
+      }).join('') || '<p class="msg">Todavía no hay usuarios.</p>';
+      usersList = d.users || [];
+      var a = await api('admin/audit');
+      $('audit').innerHTML = (a.entries || []).slice(0, 50).map(function (x) {
+        return '<div class="hist">' + esc(new Date(x.at).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + ' · ' + x.who + ' · ' +
+          x.what.replace(/^admin\//, '') + (x.ref ? ' ' + x.ref : '') + (x.fields ? ' (' + x.fields.map(fieldName).join(', ') + ')' : '')) + '</div>';
+      }).join('') || '<p class="msg">Todavía no hay nada.</p>';
+    } catch (e) { $('users').innerHTML = '<p class="msg bad">' + esc(e.message) + '</p>'; }
+  }
+  var usersList = [];
+  $('us-add').addEventListener('click', async function () {
+    var m = $('us-msg'); m.className = 'msg'; m.textContent = 'Guardando…';
+    try { await api('admin/users/save', { name: $('us-name').value, user: $('us-user').value, password: $('us-pw').value }); ['us-name', 'us-user', 'us-pw'].forEach(function (k) { $(k).value = ''; }); m.className = 'msg ok'; m.textContent = '✓ Usuario creado. Dale su usuario y su contraseña en persona o por WhatsApp.'; loadUsers(); }
+    catch (e) { m.className = 'msg bad'; m.textContent = 'No se ha guardado: ' + e.message; }
+  });
+  $('users').addEventListener('click', async function (ev) {
+    var t = ev.target.closest('[data-us-tog],[data-us-pw],[data-us-del]'); if (!t) return;
+    var id = t.getAttribute('data-us-tog') || t.getAttribute('data-us-pw') || t.getAttribute('data-us-del');
+    var u = usersList.filter(function (x) { return x.id === id; })[0];
+    try {
+      if (t.hasAttribute('data-us-tog')) await api('admin/users/save', { id: id, name: u.name, user: u.user, active: !u.active });
+      if (t.hasAttribute('data-us-pw')) { var pw = prompt('Contraseña nueva para ' + u.name + ' (10 letras o más):'); if (!pw) return; await api('admin/users/save', { id: id, name: u.name, user: u.user, active: u.active, password: pw }); alert('Contraseña cambiada. Se ha cerrado su sesión en todos sus aparatos.'); }
+      if (t.hasAttribute('data-us-del')) { if (!confirm('¿Borrar el usuario ' + u.name + '?')) return; await api('admin/users/delete', { id: id }); }
+      loadUsers();
+    } catch (e) { alert(e.message); }
+  });
+
   // ---------- PAPELES (empresas de transporte y la tuya) ----------
   function daysTo(d) { return Math.round((new Date(d + 'T12:00:00') - new Date(madridDay(0) + 'T12:00:00')) / 86400000); }
   function ownerName(o) { if (o === 'company') return 'Tu empresa'; var d = drivers.filter(function (x) { return x.id === o; })[0]; return d ? d.name : 'Empresa'; }
@@ -844,22 +898,26 @@
       h += '<div class="doc"><b>' + esc(x.kind) + '</b>' + (x.title ? ' · ' + esc(x.title) : '') + tag +
         '<div class="l3">' + esc([x.number ? 'Nº ' + x.number : '', x.expires ? 'Caduca el ' + dmy(x.expires) : 'Sin caducidad'].filter(Boolean).join(' · ')) + '</div>' +
         '<div class="btns">' + (x.file ? '<a class="b" target="_blank" rel="noopener" href="/api/bravo/admin/docs/file?id=' + encodeURIComponent(x.id) + '">📄 Ver</a>' : '') +
-        '<button type="button" class="b red" data-doc-del="' + esc(x.id) + '">Borrar</button></div></div>';
+        '<button type="button" class="b red" data-doc-del="' + esc(x.id) + '" data-admin>Borrar</button></div></div>';
     });
-    return h + '<div class="row"><div><label>Qué papel</label><select data-doc="kind">' + docKinds.map(function (k) { return '<option>' + esc(k) + '</option>'; }).join('') + '</select></div>' +
+    return h + '<div data-admin><div class="row"><div><label>Qué papel</label><select data-doc="kind">' + docKinds.map(function (k) { return '<option>' + esc(k) + '</option>'; }).join('') + '</select></div>' +
       '<div><label>Caduca el</label><input data-doc="expires" type="date"></div></div>' +
       '<div class="row"><div><label>Número</label><input data-doc="number"></div><div><label>Nota</label><input data-doc="title" placeholder="Ej.: furgoneta 1234 ABC"></div></div>' +
       '<label>Foto o PDF (opcional)</label><input data-doc="file" type="file" accept="image/*,application/pdf">' +
-      '<div class="btns"><button type="button" class="b dark" data-doc-add>＋ Añadir papel</button></div><div class="msg" data-doc-msg></div></div>';
+      '<div class="btns"><button type="button" class="b dark" data-doc-add>＋ Añadir papel</button></div><div class="msg" data-doc-msg></div></div></div>';
   }
   function refreshDocBoxes() {
     qsa('[data-docs]').forEach(function (box) {
-      if (box.contains(document.activeElement)) return;
+      // No se toca un recuadro que se está rellenando
+      if (box.contains(document.activeElement) || box.getAttribute('data-dirty')) return;
       var tmp = document.createElement('div'); tmp.innerHTML = docsBox(box.getAttribute('data-docs'));
       box.parentNode.replaceChild(tmp.firstChild, box);
     });
     renderToday();
   }
+  ['input', 'change'].forEach(function (evn) {
+    document.addEventListener(evn, function (ev) { var bx = ev.target.closest && ev.target.closest('[data-docs]'); if (bx && ev.target.hasAttribute('data-doc')) bx.setAttribute('data-dirty', '1'); });
+  });
   function afterDocs(newDocs) {
     docs = newDocs;
     if (tab === 'drivers') { readDrivers(); renderDrivers(); }
@@ -1011,7 +1069,7 @@
   function card(b) {
     var veh = vehName(b.vehicle);
     var inv = b.invoice;
-    var l3 = [b.passengers + ' pers.', veh, b.price != null ? euro(b.price) : 'sin precio', b.driverName ? '🚐 ' + b.driverName : 'sin asignar', inv ? '🧾 ' + inv.number + (inv.status === 'anulada' ? ' (anulada)' : '') : '',
+    var l3 = [b.passengers + ' pers.', veh, isOp() ? '' : b.price != null ? euro(b.price) : 'sin precio', b.driverName ? '🚐 ' + b.driverName : 'sin asignar', inv ? '🧾 ' + inv.number + (inv.status === 'anulada' ? ' (anulada)' : '') : '',
       b.cancelledBy === 'cliente' ? '✖ la canceló el cliente' : '']
       .filter(Boolean).join(' · ');
     var kv = [
@@ -1033,10 +1091,10 @@
       b.flight ? ['Vuelo', esc(b.flight)] : null,
       b.kind !== 'group' ? ['Maletas', esc(b.bags + ' · sillas de niño: ' + b.childSeats)] : null,
       b.comments ? ['Comentarios', esc(b.comments)] : null,
-      ['Pago', esc(b.payment || '')],
+      isOp() ? null : ['Pago', esc(b.payment || '')],
       b.source && b.source !== 'web' ? ['Llegó por', esc(b.source + (b.manual ? ' (apuntada a mano)' : ''))] : null,
       b.partner ? ['Hotel / agencia', esc(partnerName(b.partner))] : null,
-      b.discount ? ['Descuento', esc(b.discount.pct + ' %' + (b.discount.code ? ' (código ' + b.discount.code + ')' : ' (del hotel o agencia)') + ' · −' + euro(b.discount.amount))] : null
+      b.discount && !isOp() ? ['Descuento', esc(b.discount.pct + ' %' + (b.discount.code ? ' (código ' + b.discount.code + ')' : ' (del hotel o agencia)') + ' · −' + euro(b.discount.amount))] : null
     ].filter(Boolean).map(function (r) { return '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>'; }).join('');
     var opts = ['pendiente', 'asignada', 'hecha', 'cancelada'].map(function (s) {
       return '<option value="' + s + '"' + (b.status === s ? ' selected' : '') + '>' + s.charAt(0).toUpperCase() + s.slice(1) + '</option>';
@@ -1047,15 +1105,15 @@
       '<span class="badge st-' + esc(b.status) + '">' + esc(b.status) + '</span></div>' +
       '<div class="l2">' + (b.kind === 'group' ? '<span class="badge grp">Grupo</span> ' : '') + esc(route(b)) + '</div><div class="l3">' + esc(b.ref + ' · ' + l3) + '</div></summary>' +
       '<div class="body"><dl class="kv">' + kv + '</dl>' +
-      '<label>Precio para el cliente (€, IVA incluido)' + (locked ? ' · bloqueado por la factura' : '') + '</label>' +
-      '<input data-k="price" type="number" inputmode="decimal" min="0" step="0.01" value="' + (b.price == null ? '' : esc(b.price)) + '"' + (locked ? ' disabled' : '') + (b.kind === 'group' ? ' placeholder="Pon el precio del presupuesto"' : '') + '>' +
+      '<div data-admin><label>Precio para el cliente (€, IVA incluido)' + (locked ? ' · bloqueado por la factura' : '') + '</label>' +
+      '<input data-k="price" type="number" inputmode="decimal" min="0" step="0.01" value="' + (b.price == null ? '' : esc(b.price)) + '"' + (locked ? ' disabled' : '') + (b.kind === 'group' ? ' placeholder="Pon el precio del presupuesto"' : '') + '></div>' +
       '<div class="row"><div><label>Día</label><input data-k="date" type="date" value="' + esc(b.date) + '"></div>' +
       '<div><label>Hora</label><input data-k="time" type="time" value="' + esc(b.time) + '"></div></div>' +
       '<h3>Empresa de transporte</h3>' +
       '<input data-k="driverName" list="drivers-dl" value="' + esc(b.driverName) + '" placeholder="Empresa o autónomo (elige de la lista o escribe)">' +
       '<div class="row"><div><label>Su teléfono</label><input data-k="driverPhone" type="tel" value="' + esc(b.driverPhone) + '"></div>' +
-      '<div><label>Le pagas (€)</label><input data-k="driverPay" type="number" inputmode="decimal" min="0" step="0.01" value="' + (b.driverPay == null ? '' : esc(b.driverPay)) + '"></div></div>' +
-      '<div class="row"><div><label>IVA en ese pago (%)</label><select data-k="driverVat">' + vatOptions(b.driverVat || 0) + '</select></div>' +
+      '<div data-admin><label>Le pagas (€)</label><input data-k="driverPay" type="number" inputmode="decimal" min="0" step="0.01" value="' + (b.driverPay == null ? '' : esc(b.driverPay)) + '"></div></div>' +
+      '<div class="row" data-admin><div><label>IVA en ese pago (%)</label><select data-k="driverVat">' + vatOptions(b.driverVat || 0) + '</select></div>' +
       '<div><label>Nº de su factura</label><input data-k="driverInvoiceNo" value="' + esc(b.driverInvoiceNo || '') + '"></div></div>' +
       '<label>Correo de la empresa</label><input data-k="driverEmail" type="email" value="' + esc(b.driverEmail || '') + '" placeholder="Para el justificante de pago">' +
       '<h3>Quién va</h3><div class="msg" style="margin-top:-4px">El cliente ve a este conductor. Si lo dejas vacío, ve la empresa.</div>' +
@@ -1063,8 +1121,8 @@
       '<div><label>Su móvil</label><input data-k="chauffeurPhone" type="tel" value="' + esc(b.chauffeurPhone || '') + '"></div></div>' +
       '<label>Coche y matrícula</label><input data-k="driverCar" value="' + esc(b.driverCar) + '" placeholder="Ej.: Toyota · 1234 ABC">' +
       '<label>Nota para el conductor (sale en la hoja de servicio)</label><input data-k="driverNote" value="' + esc(b.driverNote) + '">' +
-      '<div class="msg" data-suggest></div>' +
-      '<div class="margin" data-margin></div>' + payBox(b) +
+      '<div class="msg" data-suggest data-admin></div>' +
+      '<div class="margin" data-margin data-admin></div><div data-admin>' + payBox(b) + '</div>' +
       '<label>Estado</label><select data-k="status">' + opts + '</select>' +
       '<label>DNI o pasaporte del cliente (para el Ministerio)</label><input data-k="clientDoc" value="' + esc(b.clientDoc || '') + '">' +
       '<label class="check"><input type="checkbox" data-k="ministry"' + (b.ministry ? ' checked' : '') + '> Comunicado al Ministerio</label>' +
@@ -1079,8 +1137,8 @@
       (b.driverName || b.driverPhone ? contactRow('Empresa', b.driverName, b.driverPhone, driverMsg(b), b.driverEmail, 'Servicio ' + b.ref + ' – Bravo Transfers') : '') +
       (b.chauffeur || b.chauffeurPhone ? contactRow('Conductor que va', b.chauffeur, b.chauffeurPhone, chauffeurMsg(b)) : '') +
       '<div class="msg">El WhatsApp se abre con el mensaje ya escrito (con los datos guardados): tú solo le das a enviar.</div></div>' +
-      quoteBox(b) + invoiceBox(b) + incidentBox(b) + ministryBox(b) +
-      (allInv(b).length ? '' : '<div class="btns"><button type="button" class="b red" data-del>🗑 Borrar esta reserva</button></div>') +
+      '<div data-admin>' + quoteBox(b) + invoiceBox(b) + '</div>' + incidentBox(b) + ministryBox(b) + historyBox(b) +
+      (allInv(b).length ? '' : '<div class="btns" data-admin><button type="button" class="b red" data-del>🗑 Borrar esta reserva</button></div>') +
       '</div></details>';
   }
 
@@ -1157,6 +1215,18 @@
     }
     return h + '<div class="msg" data-q-msg></div></div>';
   }
+
+  // Quién cambió qué en la reserva
+  function historyBox(b) {
+    if (!(b.history || []).length) return '';
+    return '<div class="box"><b>Cambios</b>' + b.history.slice(-10).reverse().map(function (x) {
+      return '<div class="hist">' + esc(new Date(x.at).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + ' · ' + x.who + ': ' + x.fields.map(fieldName).join(', ')) + '</div>';
+    }).join('') + '</div>';
+  }
+  var FIELD_NAMES = { status: 'estado', date: 'día', time: 'hora', driverName: 'empresa', driverPhone: 'teléfono de la empresa', driverEmail: 'correo de la empresa', driverCar: 'coche',
+    chauffeur: 'conductor', chauffeurPhone: 'móvil del conductor', driverNote: 'nota para el conductor', ministry: 'Ministerio', clientDoc: 'documento del cliente', notes: 'notas',
+    price: 'precio', driverPay: 'pago a la empresa', driverVat: 'IVA del pago', driverInvoiceNo: 'factura de la empresa', driverPaid: 'pagado' };
+  function fieldName(k) { return FIELD_NAMES[k] || k; }
 
   // Incidencias del viaje
   var INC_KINDS = ['retraso', 'queja', 'objeto perdido', 'accidente', 'daños', 'otro'];
@@ -1430,7 +1500,7 @@
         '<div class="body"><label>Sobre la reserva</label><select data-r="ref"><option value="">—</option>' + refs + '</select>' +
         '<label>' + (t.messages.length ? 'Tu respuesta' : 'Escribirle (lo verá en su cuenta)') + '</label><textarea data-r="text" maxlength="2000"></textarea>' +
         '<button type="button" class="save" data-r="send">' + (t.messages.length ? 'Responder' : 'Enviar') + '</button><div class="msg" data-r="msg"></div>' +
-        '<div class="btns" style="margin-top: 14px"><button type="button" class="b red" data-cdel="' + esc(c.id) + '">🗑 Borrar sus datos (si lo pide)</button></div></div></details>';
+        '<div class="btns" style="margin-top: 14px" data-admin><button type="button" class="b red" data-cdel="' + esc(c.id) + '">🗑 Borrar sus datos (si lo pide)</button></div></div></details>';
     }).join('');
     filterClients();
     qsa('[data-goto]', $('threads')).forEach(function (bt) {
@@ -1892,12 +1962,12 @@
         '<div class="row"><div><label>Coche</label><input data-d="car" value="' + esc(d.car) + '"></div><div><label>Matrícula</label><input data-d="plate" value="' + esc(d.plate) + '"></div></div>' +
         '<div class="row"><div><label>Correo</label><input data-d="email" type="email" value="' + esc(d.email || '') + '"></div><div><label>NIF / CIF</label><input data-d="taxId" value="' + esc(d.taxId || '') + '"></div></div>' +
         '<label>Notas (lo que cobra, zona, sus conductores…)</label><textarea data-d="notes">' + esc(d.notes) + '</textarea>' +
-        '<div class="row3"><div><label>Cobra por km (€)</label><input data-d="rateKm" type="number" min="0" step="0.01" inputmode="decimal" value="' + esc(d.rateKm || '') + '"></div>' +
+        '<div class="row3" data-admin><div><label>Cobra por km (€)</label><input data-d="rateKm" type="number" min="0" step="0.01" inputmode="decimal" value="' + esc(d.rateKm || '') + '"></div>' +
         '<div><label>Por hora (€)</label><input data-d="rateHour" type="number" min="0" step="0.01" inputmode="decimal" value="' + esc(d.rateHour || '') + '"></div>' +
         '<div><label>Mínimo (€)</label><input data-d="rateMin" type="number" min="0" step="0.01" inputmode="decimal" value="' + esc(d.rateMin || '') + '"></div></div>' +
         (d.phone || d.email ? contactRow('Contactar', '', d.phone, 'Hola ' + (d.name || '') + ', ', d.email, 'Bravo Transfers') : '') +
         (d.id ? docsBox(d.id) : '<div class="msg">Guarda la empresa para poder añadir sus papeles.</div>') +
-        '<div class="btns"><button type="button" class="b red" data-drv-del="' + i + '">Quitar</button></div></div>';
+        '<div class="btns" data-admin><button type="button" class="b red" data-drv-del="' + i + '">Quitar</button></div></div>';
     }).join('');
     qsa('[data-drv-del]').forEach(function (b) { b.addEventListener('click', function () { readDrivers(); drivers.splice(Number(b.getAttribute('data-drv-del')), 1); renderDrivers(); }); });
   }
@@ -1944,6 +2014,11 @@
   // ---------- carga ----------
   async function load() {
     try {
+      var who = await api('admin/me');
+      role = who.role;
+      document.body.classList.toggle('op', isOp());
+      $('who').textContent = isOp() ? 'PANEL · ' + who.name.toUpperCase() : 'PANEL · PRUEBAS';
+      if (isOp() && ['billing', 'accounts', 'settings'].indexOf(tab) >= 0) setTab('trips');
       var r = await Promise.all([api('admin/bookings'), api('admin/drivers'), api('admin/settings'), api('admin/docs')]);
       list = r[0].bookings || []; drivers = r[1].drivers || []; cfg = r[2]; docs = r[3].docs || []; docKinds = r[3].kinds || [];
       fillDatalist(); renderTrips();

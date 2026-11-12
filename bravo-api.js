@@ -214,7 +214,8 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
     try { counters = JSON.parse(fs.readFileSync(path.join(DIR, 'invoice-counter.json'), 'utf8')); } catch (e) { /* ninguno */ }
     return { exportedAt: new Date().toISOString(), settings: settings(), drivers: drivers(), bookings: allBookings(), ledger: ledger(), bank: bank(), inbox: inbox(), invoiceCounters: counters,
       customers: customers().map((c) => ({ id: c.id, email: c.email, name: c.name, phone: c.phone, lang: c.lang, createdAt: c.createdAt, lastLogin: c.lastLogin || null })),
-      messages: messages(), docs: docsList(), partners: partners(), codes: codes() };
+      messages: messages(), docs: docsList(), partners: partners(), codes: codes(),
+      users: users().map((u) => ({ id: u.id, name: u.name, user: u.user, active: u.active !== false })) };
   }
   function autoBackup() {
     try {
@@ -1016,11 +1017,42 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
     }
     return out;
   }
-  function authed(req) {
+  function adminAuthed(req) {
     if (!TOKEN) return false;
     const got = Buffer.from(cookies(req)[COOKIE] || '');
     const want = Buffer.from(TOKEN);
     return got.length === want.length && crypto.timingSafeEqual(got, want);
+  }
+  // ---------- usuarios del panel (el sobrino…): ven los viajes, no el dinero ----------
+  const USERS = path.join(DIR, 'users.json');
+  function users() { try { return JSON.parse(fs.readFileSync(USERS, 'utf8')); } catch (e) { return []; } }
+  function opSession(req) {
+    const tok = cookies(req).bravo_op;
+    if (!tok || !/^[a-f0-9]{48}$/.test(tok)) return null;
+    const h = crypto.createHash('sha256').update(tok).digest('hex'), list = users();
+    const u = list.find((x) => x.active !== false && (x.sessions || []).some((y) => y.h === h && y.exp > Date.now()));
+    return u ? { u, list, h } : null;
+  }
+  function whoIs(req) {
+    if (adminAuthed(req)) return { role: 'admin', name: 'Alberto' };
+    const s = opSession(req);
+    return s ? { role: 'operador', name: s.u.name, id: s.u.id } : null;
+  }
+  function authed(req) { return Boolean(whoIs(req)); }
+  function opCookie(req, value, maxAge) {
+    const secure = String(req.headers['x-forwarded-proto'] || '').includes('https') ? '; Secure' : '';
+    return `bravo_op=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
+  }
+  // Lo que puede hacer un usuario que no es Alberto (todo lo demás del panel, no)
+  const OP_ROUTES = new Set(['GET admin/me', 'GET admin/bookings', 'POST admin/update', 'POST admin/incident', 'POST admin/book', 'GET admin/drivers',
+    'GET admin/docs', 'GET admin/docs/file', 'GET admin/messages', 'POST admin/messages/reply', 'POST admin/messages/read', 'GET admin/settings', 'GET admin/partners']);
+  const OP_UPDATE = ['ref', 'status', 'driverName', 'driverPhone', 'driverEmail', 'driverCar', 'chauffeur', 'chauffeurPhone', 'driverNote', 'ministry', 'clientDoc', 'notes', 'date', 'time'];
+  const MONEY = ['price', 'driverPay', 'driverVat', 'driverPaid', 'driverInvoiceNo', 'invoice', 'previousInvoices', 'creditNotes', 'quote', 'quotes', 'discount', 'payment'];
+  function forOperator(b) { const o = Object.assign({}, b); for (const k of MONEY) delete o[k]; return o; }
+  // Registro de cambios: quién, cuándo y qué
+  const AUDIT = path.join(DIR, 'audit.jsonl');
+  function audit(me, what, extra) {
+    try { fs.appendFileSync(AUDIT, JSON.stringify(Object.assign({ at: new Date().toISOString(), who: me ? me.name : '?', role: me ? me.role : '', what }, extra || {})) + '\n'); } catch (e) { /* sin registro */ }
   }
   function cookieHeader(req, value, maxAge) {
     const secure = String(req.headers['x-forwarded-proto'] || '').includes('https') ? '; Secure' : '';
@@ -1038,12 +1070,16 @@ input{width:100%;box-sizing:border-box;padding:14px;border-radius:10px;border:1.
 button{width:100%;padding:14px;border:0;border-radius:10px;background:linear-gradient(135deg,#e5b44b,#df7a2c);color:#17120d;font-weight:700;font-size:16px}
 #e{color:#b3261e;min-height:1.2em;margin-top:10px;font-size:.9rem}</style></head><body><form class="box" id="f">
 <img class="logo" src="/api/bravo/logo.png" alt=""><h1>BRAVO TRANSFERS</h1><p>En preparación · Coming soon</p>
+<input id="u" placeholder="Usuario" autocomplete="username" autocapitalize="none" hidden>
 <input type="password" id="k" placeholder="Contraseña" autocomplete="current-password" required>
-<button>Entrar</button><div id="e"></div></form><script>
+<button>Entrar</button><div id="e"></div>
+<a href="#" id="t" style="display:inline-block;margin-top:14px;color:#6f6252;font-size:.9rem">Entrar con usuario</a></form><script>
+document.getElementById('t').addEventListener('click',function(ev){ev.preventDefault();var u=document.getElementById('u');u.hidden=!u.hidden;this.textContent=u.hidden?'Entrar con usuario':'Entrar solo con la contraseña';if(!u.hidden)u.focus();});
 document.getElementById('f').addEventListener('submit',async function(ev){ev.preventDefault();
-var e=document.getElementById('e');e.textContent='';
-try{var r=await fetch('/api/bravo/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:document.getElementById('k').value})});
-if(r.ok){location.reload();return;}e.textContent=r.status===429?'Demasiados intentos. Espera un rato.':'Contraseña incorrecta.';}
+var e=document.getElementById('e');e.textContent='';var u=document.getElementById('u');
+var body=u.hidden?{key:document.getElementById('k').value}:{user:u.value,password:document.getElementById('k').value};
+try{var r=await fetch('/api/bravo/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+if(r.ok){location.reload();return;}e.textContent=r.status===429?'Demasiados intentos. Espera un rato.':u.hidden?'Contraseña incorrecta.':'Usuario o contraseña incorrectos.';}
 catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
 
   // Páginas /bravo/...: si no hay contraseña, la puerta; si la hay, la página, sin caché ni Google.
@@ -1195,8 +1231,24 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
 
     if (req.method === 'POST' && route === 'login') {
       if (over('fail:' + ip, 10, 900000) || over('fail:all', 60, 3600000)) return json(res, 429, { error: 'too_many_attempts' });
-      let key = '';
-      try { key = String(JSON.parse(await readBody(req, 2000)).key || ''); } catch (e) { /* vacío */ }
+      let key = '', ld = {};
+      try { ld = JSON.parse(await readBody(req, 2000)); key = String(ld.key || ''); } catch (e) { /* vacío */ }
+      if (ld.user) {
+        // Un usuario del panel (no Alberto)
+        const name = String(ld.user).trim().toLowerCase(), uk = 'fail:u:' + crypto.createHash('sha256').update(name).digest('hex');
+        if (over(uk, 8, 3600000)) return json(res, 429, { error: 'too_many_attempts' });
+        const list = users(), u = list.find((x) => x.user === name && x.active !== false);
+        let good = false;
+        if (u) { const a1 = Buffer.from(hashPw(String(ld.password || '').slice(0, 200), u.salt), 'hex'), b1 = Buffer.from(u.pw, 'hex'); good = a1.length === b1.length && crypto.timingSafeEqual(a1, b1); }
+        if (!good) { over('fail:' + ip, 10, 900000, true); over('fail:all', 60, 3600000, true); over(uk, 8, 3600000, true); return json(res, 401, { error: 'wrong_login' }); }
+        const tok = crypto.randomBytes(24).toString('hex');
+        u.sessions = (u.sessions || []).filter((x) => x.exp > Date.now()).slice(-4);
+        u.sessions.push({ h: crypto.createHash('sha256').update(tok).digest('hex'), exp: Date.now() + 30 * 86400000 });
+        u.lastLogin = new Date().toISOString();
+        writeJson(USERS, list);
+        audit({ name: u.name, role: 'operador' }, 'entra en el panel');
+        return json(res, 200, { ok: true, role: 'operador' }, { 'Set-Cookie': opCookie(req, tok, 30 * 86400) });
+      }
       const a = Buffer.from(key), b = Buffer.from(KEY);
       if (!KEY || a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
         over('fail:' + ip, 10, 900000, true);
@@ -1206,7 +1258,10 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       return json(res, 200, { ok: true }, { 'Set-Cookie': cookieHeader(req, TOKEN, 30 * 86400) });
     }
     if (req.method === 'POST' && route === 'logout') {
-      return json(res, 200, { ok: true }, { 'Set-Cookie': cookieHeader(req, '', 0) });
+      const os = opSession(req);
+      if (os) { os.u.sessions = os.u.sessions.filter((x) => x.h !== os.h); writeJson(USERS, os.list); }
+      res.setHeader('Set-Cookie', [cookieHeader(req, '', 0), opCookie(req, '', 0)]);
+      return json(res, 200, { ok: true });
     }
 
     // El logo y los iconos: públicos (la pantalla de la contraseña y el icono del iPhone los necesitan)
@@ -1260,7 +1315,41 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
 
     // Todo lo demás, solo con la contraseña (fase de pruebas)
     if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+    const me = whoIs(req);
+    if (me.role !== 'admin' && route.startsWith('admin/') && !OP_ROUTES.has(req.method + ' ' + route)) return json(res, 403, { error: 'forbidden' });
+    if (req.method === 'POST' && route.startsWith('admin/') && !['admin/messages/read', 'admin/reminders/run', 'admin/update', 'admin/book'].includes(route)) audit(me, route);
     const cfg = settings();
+    if (req.method === 'GET' && route === 'admin/me') return json(res, 200, { role: me.role, name: me.name });
+
+    // ---------- usuarios del panel y registro de cambios (solo Alberto) ----------
+    if (req.method === 'GET' && route === 'admin/users') {
+      return json(res, 200, { users: users().map((u) => ({ id: u.id, name: u.name, user: u.user, active: u.active !== false, createdAt: u.createdAt, lastLogin: u.lastLogin || null })) });
+    }
+    if (req.method === 'POST' && (route === 'admin/users/save' || route === 'admin/users/delete')) {
+      let d;
+      try { d = JSON.parse(await readBody(req, 2000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+      const list = users();
+      if (route === 'admin/users/delete') { writeJson(USERS, list.filter((x) => x.id !== d.id)); return json(res, 200, { ok: true }); }
+      const name = clean(d.name, 60), user = String(d.user || '').trim().toLowerCase();
+      if (name.length < 2) return json(res, 400, { error: 'bad_name' });
+      if (!/^[a-z0-9._-]{3,30}$/.test(user)) return json(res, 400, { error: 'bad_user' });
+      if (list.some((x) => x.user === user && x.id !== d.id)) return json(res, 400, { error: 'user_taken' });
+      let u = d.id ? list.find((x) => x.id === d.id) : null;
+      if (d.id && !u) return json(res, 404, { error: 'not_found' });
+      const pw = String(d.password || '');
+      if ((!u || pw) && (pw.length < 10 || pw.length > 200)) return json(res, 400, { error: 'short_password' });
+      if (!u) { u = { id: crypto.randomBytes(4).toString('hex'), createdAt: new Date().toISOString(), sessions: [] }; list.push(u); }
+      Object.assign(u, { name, user, role: 'operador', active: d.active !== false });
+      if (pw) { u.salt = crypto.randomBytes(16).toString('hex'); u.pw = hashPw(pw, u.salt); u.sessions = []; }
+      if (!u.active) u.sessions = [];
+      writeJson(USERS, list);
+      return json(res, 200, { ok: true });
+    }
+    if (req.method === 'GET' && route === 'admin/audit') {
+      let lines = [];
+      try { lines = fs.readFileSync(AUDIT, 'utf8').trim().split('\n').filter(Boolean).slice(-300).reverse().map((l) => { try { return JSON.parse(l); } catch (e) { return null; } }).filter(Boolean); } catch (e) { /* vacío */ }
+      return json(res, 200, { entries: lines });
+    }
 
     if (req.method === 'GET' && route === 'config') {
       return json(res, 200, {
@@ -1566,6 +1655,7 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       if (kind !== 'hourly' && !toText) return json(res, 400, { error: 'bad_places' });
       const passengers = int(d.passengers, 1, 500);
       if (!passengers) return json(res, 400, { error: 'bad_passengers' });
+      if (me.role !== 'admin') d.price = null;
       const price = d.price === '' || d.price == null ? null : num(d.price, 0, 100000, 2);
       if (price === null && !(d.price === '' || d.price == null)) return json(res, 400, { error: 'bad_price' });
       const hours = kind === 'hourly' ? int(d.hours, 1, 24) : null;
@@ -1593,8 +1683,11 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       });
       ensureTokens(b);
       saveBooking(b);
+      b.history = [{ at: new Date().toISOString(), who: me.name, fields: ['reserva creada a mano'] }];
       const acct = afterBooking(b, { sendEmail: d.sendEmail === true });
-      return json(res, 200, { ok: true, booking: JSON.parse(fs.readFileSync(bookingFile(b.ref), 'utf8')), newAccount: acct.newAccount });
+      audit(me, 'reserva a mano', { ref: b.ref });
+      const saved = JSON.parse(fs.readFileSync(bookingFile(b.ref), 'utf8'));
+      return json(res, 200, { ok: true, booking: me.role === 'admin' ? saved : forOperator(saved), newAccount: acct.newAccount });
     }
 
     // ---------- presupuestos ----------
@@ -1626,6 +1719,7 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
     }
 
     // ---------- hoteles y agencias ----------
+    if (req.method === 'GET' && route === 'admin/partners' && me.role !== 'admin') return json(res, 200, { partners: partners().map((p) => ({ id: p.id, code: p.code, name: p.name, type: p.type, active: p.active })) });
     if (req.method === 'GET' && route === 'admin/partners') {
       const all = allBookings(), month = today().slice(0, 7);
       return json(res, 200, { partners: partners().map((p) => {
@@ -1712,16 +1806,20 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
         else if (d.action === 'delete') b.incidents = b.incidents.filter((x) => x !== it);
         else return json(res, 400, { error: 'bad_action' });
       }
+      b.history = (b.history || []).concat([{ at: new Date().toISOString(), who: me.name, fields: ['incidencia: ' + (d.action === 'add' ? 'nueva' : d.action)] }]).slice(-30);
       saveBooking(b);
-      return json(res, 200, { ok: true, booking: b });
+      return json(res, 200, { ok: true, booking: me.role === 'admin' ? b : forOperator(b) });
     }
 
     if (req.method === 'GET' && route === 'admin/bookings') {
       const list = allBookings().sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
       for (const b of list) if (ensureTokens(b)) saveBooking(b);
-      return json(res, 200, { bookings: list });
+      return json(res, 200, { bookings: me.role === 'admin' ? list : list.map(forOperator) });
     }
 
+    if (route === 'admin/settings' && me.role !== 'admin') {
+      return json(res, 200, { role: me.role, email: { configured: mail.configured(), provider: mail.provider }, notifyCompany: settings().notifyCompany, reviewUrl: settings().reviewUrl, invoice: { defaultVat: 0 } });
+    }
     if (route === 'admin/settings') {
       if (req.method === 'GET') {
         const s = settings();
@@ -1745,7 +1843,7 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
     }
 
     if (route === 'admin/drivers') {
-      if (req.method === 'GET') return json(res, 200, { drivers: drivers() });
+      if (req.method === 'GET') return json(res, 200, { drivers: me.role === 'admin' ? drivers() : drivers().map((x) => { const o = Object.assign({}, x); delete o.rateKm; delete o.rateHour; delete o.rateMin; return o; }) });
       if (req.method === 'POST') {
         let d;
         try { d = JSON.parse(await readBody(req, 60000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
@@ -1855,15 +1953,17 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
     if (req.method === 'POST' && route === 'admin/update') {
       let d;
       try { d = JSON.parse(await readBody(req, 6000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+      if (me.role !== 'admin') d = Object.fromEntries(Object.entries(d).filter(([k]) => OP_UPDATE.includes(k)));
       const ref = /^BT-\d{4,6}$/.test(d.ref || '') ? d.ref : null;
       let b = null;
       try { b = ref && JSON.parse(fs.readFileSync(bookingFile(ref), 'utf8')); } catch (e) { /* no existe */ }
       if (!b) return json(res, 404, { error: 'not_found' });
+      const old = JSON.parse(JSON.stringify(b));
       if (d.status !== undefined) {
         if (!STATUSES.includes(d.status)) return json(res, 400, { error: 'bad_status' });
         b.status = d.status;
       }
-      const before = b.driverName + '|' + b.date + '|' + b.time;
+      const before = old.driverName + '|' + old.date + '|' + old.time;
       if (d.driverName !== undefined) b.driverName = clean(d.driverName, 80);
       if (d.driverPhone !== undefined) b.driverPhone = clean(d.driverPhone, 25);
       if (d.driverPay !== undefined) {
@@ -1913,6 +2013,12 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
         }
       }
       b.updatedAt = new Date().toISOString();
+      const changed = ['status', 'date', 'time', 'driverName', 'driverPhone', 'driverEmail', 'driverCar', 'chauffeur', 'chauffeurPhone', 'driverNote', 'ministry', 'clientDoc', 'notes',
+        'price', 'driverPay', 'driverVat', 'driverInvoiceNo', 'driverPaid'].filter((k) => JSON.stringify(old[k] == null ? '' : old[k]) !== JSON.stringify(b[k] == null ? '' : b[k]));
+      if (changed.length) {
+        b.history = (b.history || []).concat([{ at: new Date().toISOString(), who: me.name, fields: changed }]).slice(-30);
+        audit(me, 'cambia la reserva', { ref: b.ref, fields: changed });
+      }
       saveBooking(b);
       if (newlyPaid) autoPayEmail('driver', b.ref);
       // La empresa recibe el servicio (con su hoja) al asignárselo, o si cambia el día o la hora
@@ -1923,7 +2029,7 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
         companyNotified = true;
         setImmediate(() => { sendNotice(b.ref, 'empresa: nuevo servicio', (x) => companyNotice(x, 'new')).catch(() => {}); });
       }
-      return json(res, 200, { ok: true, booking: b, companyNotified });
+      return json(res, 200, { ok: true, booking: me.role === 'admin' ? b : forOperator(b), companyNotified });
     }
 
     // ---------- contabilidad ----------
