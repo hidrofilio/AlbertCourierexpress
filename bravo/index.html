@@ -986,6 +986,11 @@
   });
 
   // Aviso a Alberto por correo. Si falla, la reserva ya está guardada en el panel.
+  function dayEs(d) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || '');
+    if (!m) return d || '';
+    return ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'][new Date(d + 'T12:00:00').getDay()] + ' ' + m[3] + '/' + m[2] + '/' + m[1];
+  }
   function notify(ref, b, price, km) {
     var lines = ['Reserva ' + ref + ' (PRUEBAS, sin cobrar)', ''];
     if (b.kind === 'group') {
@@ -993,14 +998,19 @@
     } else {
       lines.push('Tipo: ' + (b.kind === 'hourly' ? 'Por horas (' + b.hours + ' h)' : 'Traslado' + (b.roundTrip ? ' de ida y vuelta' : '')));
       lines.push('Desde: ' + b.from.label);
+      if (b.via && b.via.label) lines.push('Parada: ' + b.via.label);
       if (b.to) lines.push('Hasta: ' + b.to.label + (km ? ' (' + km + ' km)' : ''));
-      lines.push('Vehículo: ' + (b.vehicle === 'van' ? 'Monovolumen' : 'Coche') + ' · Precio: ' + price + ' €');
+      lines.push('Vehículo: ' + (b.vehicle === 'van' ? 'Monovolumen' : 'Coche') + ' · Precio: ' + price + ' €' + (b.code ? ' (con el código ' + b.code + ')' : ''));
     }
-    lines.push('Día: ' + b.date + ' a las ' + b.time);
-    if (b.roundTrip) lines.push('Vuelta: ' + b.returnDate + ' a las ' + b.returnTime);
+    lines.push('Día: ' + dayEs(b.date) + ' a las ' + b.time);
+    if (b.roundTrip) lines.push('Vuelta: ' + dayEs(b.returnDate) + ' a las ' + b.returnTime);
     lines.push('Personas: ' + b.passengers, '', 'Cliente: ' + b.name, 'Teléfono: ' + b.phone, 'Correo: ' + b.email);
     if (b.flight) lines.push('Vuelo: ' + b.flight);
+    else if (b.from && b.from.airport) lines.push('Vuelo: ⚠️ no lo ha puesto');
     if (b.kind !== 'group') lines.push('Maletas: ' + b.bags + ' · Sillas de niño: ' + b.childSeats);
+    if (b.special) lines.push('Equipaje especial: ' + (T.es['sp_' + b.special] || b.special));
+    if (b.meetSign) lines.push('Cartel con su nombre: sí');
+    if (b.partner) lines.push('Viene del hotel o agencia: ' + b.partner);
     if (b.comments) lines.push('Comentarios: ' + b.comments);
     lines.push('Idioma: ' + b.lang, '', 'Panel: https://albertcourierexpress.com/bravo/panel/');
     try {
