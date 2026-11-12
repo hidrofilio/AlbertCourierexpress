@@ -413,7 +413,7 @@
 
     <h3>Correos y cuenta del cliente</h3>
     <div class="card" id="mail-state"></div>
-    <label class="check"><input type="checkbox" data-s="autoInvoice"> Hacer la factura sola al reservar (con el IVA por defecto) y mandarla en el correo</label>
+    <label class="check"><input type="checkbox" data-s="autoInvoice"> Hacer la factura sola cuando el cliente paga (con el IVA por defecto) y mandársela por correo. Al reservar, el cliente recibe «Reserva y presupuesto», pendiente de pago</label>
     <h3>Avisos automáticos (por correo)</h3>
     <label class="check"><input type="checkbox" data-s="reminders"> Al cliente, el día antes del viaje (desde las 10), con su conductor, el coche y la matrícula</label>
     <label class="check"><input type="checkbox" data-s="notifyCompany"> A la empresa de transporte: al asignarle el viaje y la víspera, con su hoja de servicio</label>
@@ -498,7 +498,7 @@
     already_invoiced: 'Esta reserva ya tiene factura', invoiced: 'Tiene factura: para cambiar el precio, anúlala antes',
     has_invoice: 'Tiene o tuvo factura: no se puede borrar', bad_price: 'Precio no válido', bad_pay: 'Pago no válido',
     bad_hours_ahead: 'Antelación no válida (0 a 168 horas)', bad_cancel_hours: 'Horas para cancelar no válidas (0 a 168)', bad_review_url: 'El enlace de Google tiene que empezar por https://',
-    bad_date: 'Día u hora no válidos', bad_email: 'El correo no es válido', bad_paid: 'Pon el día del pago',
+    bad_date: 'Día u hora no válidos', bad_email: 'El correo no es válido', bad_paid: 'Pon el día del pago', cancelled: 'La reserva está cancelada',
     no_email: 'No tiene correo: ponlo y guarda antes', not_paid: 'Todavía no está pagado',
     bad_user: 'Usuario no válido (3 a 30 letras o números, sin espacios)', user_taken: 'Ese usuario ya existe', short_password: 'La contraseña tiene que tener 10 letras o más', forbidden: 'Eso solo lo puede hacer Alberto',
     bad_code: 'Código no válido (letras, números y guiones)', code_taken: 'Ese código ya lo tiene otro', bad_percent: 'Porcentaje no válido (0 a 50)', no_quote: 'No hay presupuesto',
@@ -594,7 +594,9 @@
   }
 
   // ---------- HOY: lo que hay que mirar al entrar ----------
-  function toCollect(b) { return activeInv(b) && !b.invoice.paid && b.invoice.total > 0; }
+  // Cobrada: marcada a mano («Cobro del cliente») o con su factura cobrada (p. ej., casada con el banco)
+  function paidB(b) { return Boolean(b.clientPaid || (activeInv(b) && b.invoice.paid)); }
+  function toCollect(b) { return b.status !== 'cancelada' && b.price > 0 && !paidB(b); }
   function toPay(b) { return b.status !== 'cancelada' && b.driverPay > 0 && !b.driverPaid && b.date <= madridDay(0); }
   function openIncidents(b) { return (b.incidents || []).filter(function (x) { return !x.resolved; }); }
   var unreadMsgs = 0;
@@ -614,7 +616,7 @@
       tile('tomorrow', man.length, 'mañana' + (man.filter(function (b) { return !b.driverName; }).length ? ' · ' + man.filter(function (b) { return !b.driverName; }).length + ' sin asignar' : '')) +
       tile('nodriver', sin.length, 'sin asignar (7 días)', sin.length > 0) +
       tile('msgs', unreadMsgs, 'mensaje' + (unreadMsgs === 1 ? '' : 's') + ' sin leer', unreadMsgs > 0) +
-      (isOp() ? '' : tile('collect', euro(sum(cob, function (b) { return b.invoice.total; })), 'por cobrar · ' + cob.length + ' factura' + (cob.length === 1 ? '' : 's')) +
+      (isOp() ? '' : tile('collect', euro(sum(cob, function (b) { return b.price; })), 'por cobrar · ' + cob.length + ' reserva' + (cob.length === 1 ? '' : 's')) +
       tile('pay', euro(sum(pag, function (b) { return b.driverPay; })), 'por pagar a empresas · ' + pag.length)) +
       tile('incid', inc, 'incidencia' + (inc === 1 ? '' : 's') + ' abierta' + (inc === 1 ? '' : 's'), inc > 0) +
       tile('docs', docs.length, 'papeles que caducan pronto', docs.length > 0) + '</div>';
@@ -1069,7 +1071,7 @@
   function card(b) {
     var veh = vehName(b.vehicle);
     var inv = b.invoice;
-    var l3 = [b.passengers + ' pers.', veh, isOp() ? '' : b.price != null ? euro(b.price) : 'sin precio', b.driverName ? '🚐 ' + b.driverName : 'sin asignar', inv ? '🧾 ' + inv.number + (inv.status === 'anulada' ? ' (anulada)' : '') : '',
+    var l3 = [b.passengers + ' pers.', veh, isOp() ? '' : b.price != null ? euro(b.price) + (paidB(b) ? ' ✓ cobrado' : b.status !== 'cancelada' ? ' · sin cobrar' : '') : 'sin precio', b.driverName ? '🚐 ' + b.driverName : 'sin asignar', inv ? '🧾 ' + inv.number + (inv.status === 'anulada' ? ' (anulada)' : '') : '',
       b.cancelledBy === 'cliente' ? '✖ la canceló el cliente' : '']
       .filter(Boolean).join(' · ');
     var kv = [
@@ -1091,7 +1093,7 @@
       b.flight ? ['Vuelo', esc(b.flight)] : null,
       b.kind !== 'group' ? ['Maletas', esc(b.bags + ' · sillas de niño: ' + b.childSeats)] : null,
       b.comments ? ['Comentarios', esc(b.comments)] : null,
-      isOp() ? null : ['Pago', esc(b.payment || '')],
+      isOp() ? null : ['Pago', paidB(b) ? '<span class="pos">✓ Cobrado' + ((b.clientPaid || b.invoice.paid).date ? ' el ' + esc(dmy((b.clientPaid || b.invoice.paid).date)) : '') + '</span>' : b.price > 0 && b.status !== 'cancelada' ? '<span class="neg"><b>Pendiente de pago</b></span>' : esc(b.payment || '')],
       b.source && b.source !== 'web' ? ['Llegó por', esc(b.source + (b.manual ? ' (apuntada a mano)' : ''))] : null,
       b.partner ? ['Hotel / agencia', esc(partnerName(b.partner))] : null,
       b.discount && !isOp() ? ['Descuento', esc(b.discount.pct + ' %' + (b.discount.code ? ' (código ' + b.discount.code + ')' : ' (del hotel o agencia)') + ' · −' + euro(b.discount.amount))] : null
@@ -1137,7 +1139,7 @@
       (b.driverName || b.driverPhone ? contactRow('Empresa', b.driverName, b.driverPhone, driverMsg(b), b.driverEmail, 'Servicio ' + b.ref + ' – Bravo Transfers') : '') +
       (b.chauffeur || b.chauffeurPhone ? contactRow('Conductor que va', b.chauffeur, b.chauffeurPhone, chauffeurMsg(b)) : '') +
       '<div class="msg">El WhatsApp se abre con el mensaje ya escrito (con los datos guardados): tú solo le das a enviar.</div></div>' +
-      '<div data-admin>' + quoteBox(b) + invoiceBox(b) + '</div>' + incidentBox(b) + ministryBox(b) + historyBox(b) +
+      '<div data-admin>' + quoteBox(b) + collectBox(b) + invoiceBox(b) + '</div>' + incidentBox(b) + ministryBox(b) + historyBox(b) +
       (allInv(b).length ? '' : '<div class="btns" data-admin><button type="button" class="b red" data-del>🗑 Borrar esta reserva</button></div>') +
       '</div></details>';
   }
@@ -1275,6 +1277,25 @@
     if (vals.indexOf(Number(sel)) < 0) { vals.push(Number(sel)); vals.sort(function (a, c) { return a - c; }); }
     return vals.map(function (x) { return '<option value="' + x + '"' + (Number(x) === Number(sel) ? ' selected' : '') + '>' + String(x).replace('.', ',') + ' %</option>'; }).join('');
   }
+  var VIA_NAMES = { tarjeta: 'tarjeta', banco: 'transferencia', bizum: 'Bizum', efectivo: 'efectivo' };
+  function collectBox(b) {
+    if (!(b.price > 0)) return '';
+    var h = '<div class="box"><b>Cobro del cliente</b>';
+    if (paidB(b)) {
+      var pd = b.clientPaid || b.invoice.paid;
+      h += '<p class="pos"><b>✓ Cobrado</b>' + (pd.date ? ' el ' + esc(dmy(pd.date)) : '') + (pd.via ? ' · ' + esc(VIA_NAMES[pd.via] || pd.via) : '') + ' · ' + euro(b.price) + '</p>' +
+        (b.clientPaid ? '<div class="btns"><button type="button" class="b" data-cpay-undo>Deshacer</button></div>' : '');
+    } else if (b.status === 'cancelada') {
+      return '';
+    } else {
+      h += '<p class="neg"><b>Pendiente de pago</b> · ' + euro(b.price) + '</p>' +
+        '<div class="row"><div><label>Día del cobro</label><input type="date" data-cpay="date" value="' + madridDay(0) + '"></div>' +
+        '<div><label>Cómo ha pagado</label><select data-cpay="via"><option value="tarjeta">Tarjeta</option><option value="banco">Transferencia</option><option value="bizum">Bizum</option><option value="efectivo">Efectivo</option></select></div></div>' +
+        (cfg && cfg.autoInvoice && !activeInv(b) ? '<p class="msg">Al marcarlo se hace la factura sola' + (b.email ? ' y se le manda por correo' : '') + '.</p>' : '') +
+        '<button type="button" class="save" data-cpay-save>Marcar como cobrado</button>';
+    }
+    return h + '<div class="msg" data-cpay-msg></div></div>';
+  }
   function invoiceBox(b) {
     var h = '<div class="box"><b>Factura</b>';
     if (activeInv(b)) {
@@ -1366,7 +1387,7 @@
     qsa('[data-qst]', el).forEach(function (bt) {
       bt.addEventListener('click', async function () {
         var st = bt.getAttribute('data-qst');
-        if (!confirm(st === 'aceptado' ? '¿Marcar el presupuesto como aceptado? Su precio pasa a la reserva' + (cfg && cfg.autoInvoice ? ' y se hace la factura.' : '.') : '¿Marcar el presupuesto como rechazado?')) return;
+        if (!confirm(st === 'aceptado' ? '¿Marcar el presupuesto como aceptado? Su precio pasa a la reserva (la factura se hace al cobrar).' : '¿Marcar el presupuesto como rechazado?')) return;
         try { var r = await api('admin/quote/status', { ref: b.ref, status: st }); replace(r.booking); open[b.ref] = true; renderTrips(); }
         catch (e) { alert(e.message); }
       });
@@ -1430,6 +1451,22 @@
         catch (e) { msg.className = 'msg bad'; msg.textContent = e.message; btn.disabled = false; }
       });
     }
+    var cps = el.querySelector('[data-cpay-save]');
+    if (cps) cps.addEventListener('click', async function () {
+      var msg = el.querySelector('[data-cpay-msg]'), btn = this;
+      btn.disabled = true; msg.className = 'msg'; msg.textContent = 'Guardando…';
+      try {
+        var data = await api('admin/client-paid', { ref: b.ref, date: el.querySelector('[data-cpay="date"]').value, via: el.querySelector('[data-cpay="via"]').value });
+        replace(data.booking); open[b.ref] = true; renderTrips();
+        flash(b.ref, '[data-cpay-msg]', '✓ Cobrado' + (data.invoiced ? ' · factura ' + data.booking.invoice.number + ' hecha' + (data.emailed ? ' y enviada al cliente' : '') : ''));
+      } catch (e) { msg.className = 'msg bad'; msg.textContent = e.message; btn.disabled = false; }
+    });
+    var cpu = el.querySelector('[data-cpay-undo]');
+    if (cpu) cpu.addEventListener('click', async function () {
+      if (!confirm('¿Quitar el cobro de esta reserva? Volverá a salir como pendiente de pago (la factura, si la hay, no se toca).')) return;
+      try { var data = await api('admin/client-paid', { ref: b.ref, clear: true }); replace(data.booking); open[b.ref] = true; renderTrips(); flash(b.ref, '[data-cpay-msg]', 'Cobro quitado'); }
+      catch (e) { var m = el.querySelector('[data-cpay-msg]'); m.className = 'msg bad'; m.textContent = e.message; }
+    });
     var vd = el.querySelector('[data-void]');
     if (vd) vd.addEventListener('click', async function () {
       var reason = prompt('Se hará una factura rectificativa (en negativo) que anula la ' + b.invoice.number + '. Después podrás hacer otra nueva.\n\n¿Motivo?', 'Error en los datos de la factura');

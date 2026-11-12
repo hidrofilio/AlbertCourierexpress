@@ -61,7 +61,7 @@ function pdfString(s) {
 }
 
 const PAGE_W = 595, PAGE_H = 842;
-const C = { ink: [0.09, 0.07, 0.05], gold: [0.90, 0.71, 0.29], orange: [0.87, 0.48, 0.17], muted: [0.44, 0.38, 0.32], line: [0.88, 0.84, 0.78], band: [0.95, 0.93, 0.88], white: [1, 1, 1], red: [0.70, 0.15, 0.12] };
+const C = { ink: [0.09, 0.07, 0.05], gold: [0.90, 0.71, 0.29], orange: [0.87, 0.48, 0.17], muted: [0.44, 0.38, 0.32], line: [0.88, 0.84, 0.78], band: [0.95, 0.93, 0.88], white: [1, 1, 1], red: [0.70, 0.15, 0.12], green: [0.13, 0.50, 0.27] };
 const rgb = (c) => c.map((v) => v.toFixed(3)).join(' ');
 
 function canvas() {
@@ -256,13 +256,16 @@ function invoicePdf(b, which) {
 
 // ---------- JUSTIFICANTE (para el cliente, en su idioma) ----------
 const J = {
-  es: { stop: 'Parada', sign: 'Cartel', signYes: 'Te esperamos con un cartel con tu nombre', special: 'Equipaje especial', title: 'JUSTIFICANTE DE RESERVA', ref: 'Reserva', when: 'Día y hora', from: 'Desde', to: 'Hasta', pickup: 'Recogida', hours: 'Horas', ret: 'Vuelta', pax: 'Pasajeros', veh: 'Vehículo', flight: 'Vuelo', bags: 'Maletas', seats: 'Sillas de niño', driver: 'Conductor', car: 'Coche', total: 'PRECIO TOTAL (IVA incluido)', quote: 'Presupuesto pendiente', note: 'Este documento confirma la reserva. No es una factura.', name: 'Cliente' },
-  en: { stop: 'Stop', sign: 'Sign', signYes: 'We will wait for you with a sign with your name', special: 'Special luggage', title: 'BOOKING CONFIRMATION', ref: 'Booking', when: 'Date and time', from: 'From', to: 'To', pickup: 'Pick-up', hours: 'Hours', ret: 'Return', pax: 'Passengers', veh: 'Vehicle', flight: 'Flight', bags: 'Suitcases', seats: 'Child seats', driver: 'Driver', car: 'Car', total: 'TOTAL PRICE (VAT included)', quote: 'Quote pending', note: 'This document confirms your booking. It is not an invoice.', name: 'Customer' }
+  es: { stop: 'Parada', sign: 'Cartel', signYes: 'Te esperamos con un cartel con tu nombre', special: 'Equipaje especial', title: 'JUSTIFICANTE DE RESERVA', titleQ: 'RESERVA Y PRESUPUESTO', unpaid: 'PENDIENTE DE PAGO', paidYes: 'PAGADO', cancelled: 'CANCELADA', toPay: 'Importe a pagar (IVA incluido)', noteQ: 'Este documento es tu reserva y su presupuesto. No es una factura: la factura se hace cuando se paga.', ref: 'Reserva', when: 'Día y hora', from: 'Desde', to: 'Hasta', pickup: 'Recogida', hours: 'Horas', ret: 'Vuelta', pax: 'Pasajeros', veh: 'Vehículo', flight: 'Vuelo', bags: 'Maletas', seats: 'Sillas de niño', driver: 'Conductor', car: 'Coche', total: 'PRECIO TOTAL (IVA incluido)', quote: 'Presupuesto pendiente', note: 'Este documento confirma la reserva. No es una factura.', name: 'Cliente' },
+  en: { stop: 'Stop', sign: 'Sign', signYes: 'We will wait for you with a sign with your name', special: 'Special luggage', title: 'BOOKING CONFIRMATION', titleQ: 'BOOKING AND QUOTE', unpaid: 'PAYMENT PENDING', paidYes: 'PAID', cancelled: 'CANCELLED', toPay: 'Amount to pay (VAT included)', noteQ: 'This document is your booking and its quote. It is not an invoice: the invoice is issued once you have paid.', ref: 'Booking', when: 'Date and time', from: 'From', to: 'To', pickup: 'Pick-up', hours: 'Hours', ret: 'Return', pax: 'Passengers', veh: 'Vehicle', flight: 'Flight', bags: 'Suitcases', seats: 'Child seats', driver: 'Driver', car: 'Car', total: 'TOTAL PRICE (VAT included)', quote: 'Quote pending', note: 'This document confirms your booking. It is not an invoice.', name: 'Customer' }
 };
+// Pagada si está marcada como cobrada en el panel, o si su factura está cobrada (p. ej., casada con el banco)
+function isPaid(b) { return Boolean(b.clientPaid || (b.invoice && b.invoice.status === 'emitida' && b.invoice.paid)); }
 function confirmationPdf(b, issuer) {
   const t = J[b.lang === 'en' ? 'en' : 'es'];
   const c = canvas();
-  header(c, t.title, b.ref);
+  const paid = isPaid(b), cancelled = b.status === 'cancelada', pending = b.price != null && !paid && !cancelled;
+  header(c, pending ? t.titleQ : t.title, b.ref);
   let y = 130;
   y = rows(c, 40, y, [
     [t.name, b.name],
@@ -283,10 +286,17 @@ function confirmationPdf(b, issuer) {
   ], 140, 515);
   y += 14;
   c.rect(40, y, 515, 40, C.ink);
-  c.text(56, y + 25, t.total, { size: 10, bold: true, color: C.gold });
+  c.text(56, y + 25, pending ? t.toPay.toUpperCase() : t.total, { size: 10, bold: true, color: C.gold });
   c.text(540, y + 26, b.price != null ? money(b.price) : t.quote, { size: 15, bold: true, color: C.white, align: 'right' });
-  y += 64;
-  c.text(40, y, t.note, { size: 9.5, color: C.muted });
+  y += 52;
+  // El estado del pago, bien a la vista
+  if (b.price != null) {
+    const pd = paid ? (b.clientPaid || b.invoice.paid) : null;
+    c.rect(40, y, 515, 30, cancelled ? C.muted : paid ? C.green : C.red);
+    c.text(297, y + 20, cancelled ? t.cancelled : paid ? t.paidYes + (pd && pd.date ? ' · ' + day(pd.date) : '') : t.unpaid, { size: 12, bold: true, color: C.white, align: 'center' });
+    y += 50;
+  } else y += 12;
+  for (const l of c.wrap(pending ? t.noteQ : t.note, 9.5, false, 515)) { c.text(40, y, l, { size: 9.5, color: C.muted }); y += 13; }
   footer(c, [(issuer.name || 'Bravo Transfers') + (issuer.email ? ' · ' + issuer.email : '') + (issuer.phone ? ' · ' + issuer.phone : '')]);
   return assemble(c.ops, t.title + ' ' + b.ref);
 }
@@ -633,4 +643,4 @@ function accountsPdf(rep, issuer) {
   return assemble(pages, title);
 }
 
-module.exports = { invoicePdf, confirmationPdf, driverSheetPdf, paymentPdf, quotePdf, partnerPdf, accountsPdf, concept, _test: { W, WB, winAnsi, textWidth } };
+module.exports = { isPaid, invoicePdf, confirmationPdf, driverSheetPdf, paymentPdf, quotePdf, partnerPdf, accountsPdf, concept, _test: { W, WB, winAnsi, textWidth } };

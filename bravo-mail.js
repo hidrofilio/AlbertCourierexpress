@@ -75,7 +75,8 @@ const L = {
     update: 'Te enviamos los datos actualizados de tu reserva:',
     subject: 'Tu reserva {ref} con Bravo Transfers', subjectGroup: 'Tu petición de presupuesto {ref} · Bravo Transfers', subjectUpdate: 'Tu reserva {ref}: datos actualizados',
     ref: 'Reserva', when: 'Día y hora', from: 'Desde', to: 'Hasta', pickup: 'Recogida', hours: 'Horas', ret: 'Vuelta', pax: 'Pasajeros',
-    veh: 'Vehículo', flight: 'Vuelo', driver: 'Conductor', car: 'Coche', total: 'Total (IVA incluido)', paid: 'Pago', quote: 'Presupuesto pendiente',
+    veh: 'Vehículo', flight: 'Vuelo', driver: 'Conductor', car: 'Coche', total: 'Total (IVA incluido)', paid: 'Pago', paidYes: 'Pagado', paidNo: 'Pendiente de pago', quote: 'Presupuesto pendiente',
+    paidThanks: 'Hemos recibido tu pago. ¡Gracias! Estos son los datos de tu reserva:', subjectPaid: 'Pago recibido: la factura de tu reserva {ref}',
     attached: 'Te adjuntamos la factura y el justificante en PDF.', attachedOne: 'Te adjuntamos el justificante en PDF.',
     driverLater: 'Antes del viaje te enviaremos el nombre de tu conductor, el coche y la matrícula.',
     area: 'Tu área de cliente', areaText: 'Ahí puedes ver tus reservas y tus facturas, cancelar o pedir un cambio, y escribirnos.',
@@ -91,7 +92,8 @@ const L = {
     update: 'Here are the updated details of your booking:',
     subject: 'Your booking {ref} with Bravo Transfers', subjectGroup: 'Your quote request {ref} · Bravo Transfers', subjectUpdate: 'Your booking {ref}: updated details',
     ref: 'Booking', when: 'Date and time', from: 'From', to: 'To', pickup: 'Pick-up', hours: 'Hours', ret: 'Return', pax: 'Passengers',
-    veh: 'Vehicle', flight: 'Flight', driver: 'Driver', car: 'Car', total: 'Total (VAT included)', paid: 'Payment', quote: 'Quote pending',
+    veh: 'Vehicle', flight: 'Flight', driver: 'Driver', car: 'Car', total: 'Total (VAT included)', paid: 'Payment', paidYes: 'Paid', paidNo: 'Payment pending', quote: 'Quote pending',
+    paidThanks: 'We have received your payment. Thank you! Here are your booking details:', subjectPaid: 'Payment received: the invoice for your booking {ref}',
     attached: 'Your invoice and booking confirmation are attached as PDF files.', attachedOne: 'Your booking confirmation is attached as a PDF file.',
     driverLater: 'Before your trip we will send you your driver’s name, the car and its number plate.',
     area: 'Your customer area', areaText: 'There you can see your bookings and invoices, cancel or ask for a change, and message us.',
@@ -131,11 +133,11 @@ function bookingEmail(b, o) {
     [t.veh, b.vehicle === 'van' ? t.van_v : b.vehicle === 'car' ? t.car_v : ''], [t.flight, b.flight || ''],
     [t.driver, (b.chauffeur || b.driverName) && ['asignada', 'hecha'].includes(b.status) ? (b.chauffeur || b.driverName) + ((b.chauffeur ? b.chauffeurPhone || b.driverPhone : b.driverPhone) ? ' · ' + (b.chauffeur ? b.chauffeurPhone || b.driverPhone : b.driverPhone) : '') : ''],
     [t.car, b.driverCar && ['asignada', 'hecha'].includes(b.status) ? b.driverCar : ''],
-    [t.total, b.price != null ? money(b.price) : t.quote], [t.paid, b.payment || '']
+    [t.total, b.price != null ? money(b.price) : t.quote], [t.paid, b.price != null && b.status !== 'cancelada' ? (o.paid ? t.paidYes : t.paidNo) : '']
   ].filter((r) => r[1]);
   const table = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;border-collapse:collapse;margin:12px 0">' +
-    rows.map((r) => `<tr><td style="padding:7px 8px;color:#6f6252;border-bottom:1px solid #f0e8da;width:38%">${esc(r[0])}</td><td style="padding:7px 8px;border-bottom:1px solid #f0e8da;${r[0] === t.total ? 'font-weight:bold;font-size:16px' : ''}">${esc(r[1])}</td></tr>`).join('') + '</table>';
-  const intro = o.update ? t.update : group ? t.thanksGroup : t.thanks;
+    rows.map((r) => `<tr><td style="padding:7px 8px;color:#6f6252;border-bottom:1px solid #f0e8da;width:38%">${esc(r[0])}</td><td style="padding:7px 8px;border-bottom:1px solid #f0e8da;${r[0] === t.total ? 'font-weight:bold;font-size:16px' : ''}${r[0] === t.paid ? 'font-weight:bold;color:' + (o.paid ? '#21803f' : '#b3261e') : ''}">${esc(r[1])}</td></tr>`).join('') + '</table>';
+  const intro = o.paidMail ? t.paidThanks : o.update ? t.update : group ? t.thanksGroup : t.thanks;
   let html = `<p style="font-size:16px;margin:0 0 6px">${esc(t.hello)} ${esc(b.name)},</p><p style="margin:0 0 6px">${esc(intro)}</p>${table}`;
   html += `<p style="margin:10px 0">${esc(o.withInvoice ? t.attached : t.attachedOne)}</p>`;
   if (!group && !b.driverName && !b.chauffeur) html += `<p style="margin:10px 0">${esc(t.driverLater)}</p>`;
@@ -149,7 +151,7 @@ function bookingEmail(b, o) {
     .concat(rows.map((r) => r[0] + ': ' + r[1]), ['', o.withInvoice ? t.attached : t.attachedOne, '', t.area + ': ' + o.areaUrl])
     .concat(o.password ? [t.user + ': ' + b.email, t.pass + ': ' + o.password] : [])
     .concat(['', t.questions, '', t.bye, 'Bravo Transfers']).join('\n');
-  const subject = (o.update ? t.subjectUpdate : group ? t.subjectGroup : t.subject).replace('{ref}', b.ref);
+  const subject = (o.paidMail ? t.subjectPaid : o.update ? t.subjectUpdate : group ? t.subjectGroup : t.subject).replace('{ref}', b.ref);
   return { subject, html: shell(b.lang === 'en' ? 'en' : 'es', html, o.base), text };
 }
 

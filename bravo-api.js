@@ -296,8 +296,7 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
   function acceptQuote(b, by) {
     b.price = b.quote.price;
     b.quote.status = 'aceptado'; b.quote.acceptedAt = new Date().toISOString(); b.quote.acceptedBy = by;
-    const cfg = settings();
-    if (cfg.autoInvoice && b.price > 0 && !activeInvoice(b)) makeInvoice(b, cfg.invoice.defaultVat, {});
+    // La factura se hace al cobrar, no al aceptar (ver admin/client-paid)
   }
   async function sendQuoteEmail(ref) {
     let b;
@@ -464,7 +463,7 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
       via: (b.via && b.via.label) || '', meetSign: Boolean(b.meetSign), special: b.special || '',
       fromPt: b.from && Number.isFinite(b.from.lat) ? { lat: b.from.lat, lon: b.from.lon, label: b.from.label } : null,
       toPt: b.to && Number.isFinite(b.to.lat) ? { lat: b.to.lat, lon: b.to.lon, label: b.to.label } : null,
-      km: b.km || null, price: b.price, status: b.status, payment: b.payment || '', flight: b.flight || '', bags: b.bags, childSeats: b.childSeats, comments: b.comments || '',
+      km: b.km || null, price: b.price, status: b.status, payment: b.payment || '', paid: pdf.isPaid(b), flight: b.flight || '', bags: b.bags, childSeats: b.childSeats, comments: b.comments || '',
       driver: assigned && (b.chauffeur || b.driverName) ? { name: b.chauffeur || b.driverName, phone: (b.chauffeur ? b.chauffeurPhone || b.driverPhone : b.driverPhone) || '', car: b.driverCar || '' } : null,
       docs: {
         justificante: '/api/bravo/doc/' + b.clientToken + '/justificante.pdf',
@@ -491,11 +490,11 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
     const atts = [];
     if (activeInvoice(b)) atts.push({ name: b.invoice.number + '.pdf', buf: pdf.invoicePdf(b) });
     atts.push({ name: (b.lang === 'en' ? 'booking-' : 'reserva-') + b.ref + '.pdf', buf: pdf.confirmationPdf(b, issuerOf(cfg)) });
-    const m = TPL.bookingEmail(b, { password: o.password, update: o.update, withInvoice: activeInvoice(b), areaUrl: link, cancelHours: cfg.cancelHours, base: BASE, test: /pruebas/.test(b.payment || '') });
+    const m = TPL.bookingEmail(b, { password: o.password, update: o.update, paidMail: o.paidMail, paid: pdf.isPaid(b), withInvoice: activeInvoice(b), areaUrl: link, cancelHours: cfg.cancelHours, base: BASE, test: /pruebas/.test(b.payment || '') });
     const r = await mail.send({ to: b.email, toName: b.name, subject: m.subject, html: m.html, text: m.text, attachments: atts });
     try {
       const fresh = JSON.parse(fs.readFileSync(bookingFile(ref), 'utf8'));
-      fresh.emails = (fresh.emails || []).concat([{ at: new Date().toISOString(), kind: o.update ? 'actualización' : 'reserva', ok: r.ok, error: r.error || '' }]).slice(-20);
+      fresh.emails = (fresh.emails || []).concat([{ at: new Date().toISOString(), kind: o.paidMail ? 'pago recibido' : o.update ? 'actualización' : 'reserva', ok: r.ok, error: r.error || '' }]).slice(-20);
       saveBooking(fresh);
     } catch (e) { /* la reserva ya no está */ }
     return r;
@@ -511,7 +510,8 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
     let password = null;
     if (b.email) { const r = upsertCustomer(b); b.customerId = r.c.id; password = r.password; }
     const cfg = settings();
-    if (cfg.autoInvoice && b.price > 0 && !activeInvoice(b)) makeInvoice(b, cfg.invoice.defaultVat, {});
+    // La factura sola se hace cuando el cliente paga (12/11): al reservar sale «Reserva y presupuesto», pendiente de pago
+    if (cfg.autoInvoice && b.price > 0 && !activeInvoice(b) && pdf.isPaid(b)) makeInvoice(b, cfg.invoice.defaultVat, {});
     saveBooking(b);
     if (b.email && o.sendEmail !== false) setImmediate(() => { sendBookingEmail(b.ref, { password }).catch(() => {}); });
     return { newAccount: Boolean(password) };
@@ -1436,7 +1436,7 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       ensureTokens(b);
       saveBooking(b);
       const acct = afterBooking(b);
-      return json(res, 200, { ref: b.ref, kind: b.kind, price: b.price, km: b.km, doc: '/api/bravo/doc/' + b.clientToken + '/justificante.pdf',
+      return json(res, 200, { ref: b.ref, kind: b.kind, price: b.price, km: b.km, paid: pdf.isPaid(b), doc: '/api/bravo/doc/' + b.clientToken + '/justificante.pdf',
         invoiceDoc: activeInvoice(b) ? '/api/bravo/doc/' + b.clientToken + '/f/' + b.invoice.number + '.pdf' : '', newAccount: acct.newAccount, emailOn: mail.configured(), area: '/bravo/cuenta/' });
     }
 
@@ -1886,8 +1886,38 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       const vatRate = num(d.vatRate, 0, 30, 2);
       if (vatRate == null) return json(res, 400, { error: 'bad_vat' });
       makeInvoice(b, vatRate, d);
+      // Si ya estaba cobrada y es su primera factura, la factura nace cobrada
+      if (b.clientPaid && !(b.previousInvoices || []).some((x) => x.paid)) b.invoice.paid = { date: b.clientPaid.date, via: b.clientPaid.via };
       saveBooking(b);
       return json(res, 200, { ok: true, booking: b });
+    }
+
+    // El cobro del cliente, marcado a mano. Con «factura sola», la factura se hace aquí y se le manda por correo
+    if (req.method === 'POST' && route === 'admin/client-paid') {
+      const r = await loadRef();
+      if (r.error) return json(res, r.error === 'not_found' ? 404 : 400, r);
+      const { d, b } = r;
+      if (d.clear === true) {
+        b.clientPaid = null;
+        if (activeInvoice(b) && b.invoice.paid && !b.invoice.paid.lineId) b.invoice.paid = null;
+        b.history = (b.history || []).concat([{ at: new Date().toISOString(), who: me.name, fields: ['cobro deshecho'] }]).slice(-30);
+        saveBooking(b);
+        return json(res, 200, { ok: true, booking: b });
+      }
+      if (!(b.price > 0)) return json(res, 400, { error: 'no_price' });
+      if (b.status === 'cancelada') return json(res, 409, { error: 'cancelled' });
+      if (!['tarjeta', 'banco', 'bizum', 'efectivo'].includes(d.via) || !isDay(d.date)) return json(res, 400, { error: 'bad_paid' });
+      const paid = { date: d.date, via: d.via };
+      b.clientPaid = paid;
+      const cfg = settings();
+      let invoiced = false;
+      if (!activeInvoice(b) && cfg.autoInvoice) { makeInvoice(b, cfg.invoice.defaultVat, {}); invoiced = true; }
+      if (activeInvoice(b) && !(b.invoice.paid && b.invoice.paid.lineId)) b.invoice.paid = { date: paid.date, via: paid.via };
+      b.history = (b.history || []).concat([{ at: new Date().toISOString(), who: me.name, fields: ['cobrado (' + paid.via + ')' + (invoiced ? ' · factura ' + b.invoice.number : '')] }]).slice(-30);
+      saveBooking(b);
+      const emailed = invoiced && isEmail(b.email) && mail.configured();
+      if (emailed) setImmediate(() => { sendBookingEmail(b.ref, { paidMail: true }).catch(() => {}); });
+      return json(res, 200, { ok: true, booking: b, invoiced, emailed });
     }
 
     // En España una factura no se borra ni se anula: se corrige con una factura rectificativa

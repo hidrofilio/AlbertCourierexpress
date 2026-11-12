@@ -526,7 +526,7 @@
       doneTitle: 'Reserva {ref} recibida',
       doneText: 'Te escribiremos por WhatsApp con el nombre de tu conductor, el coche y la matrícula.',
       doneGroup: 'Te enviaremos el presupuesto por correo lo antes posible.',
-      newBooking: 'Hacer otra reserva', downloadDoc: '📄 Descargar el justificante (PDF)', downloadInv: '🧾 Descargar la factura (PDF)',
+      newBooking: 'Hacer otra reserva', downloadDoc: '📄 Descargar la reserva y el presupuesto (PDF)', payPending: 'Pendiente de pago: te escribiremos para decirte cómo pagar.', downloadInv: '🧾 Descargar la factura (PDF)',
       myAccount: 'Mi cuenta', goAccount: '👤 Ir a mi cuenta',
       heroEyebrow: 'MÁLAGA · COSTA DEL SOL', addStop: '＋ Añadir una parada en el camino', stop: 'Parada en el camino', stopLine: ' · parada: {s}',
       meetSign: 'Que me esperen con un cartel con mi nombre (gratis)', special: 'Equipaje especial',
@@ -536,7 +536,7 @@
       err_bad_code: 'Ese código no vale o ha caducado.',
       mailSent: 'Te hemos enviado un correo a {email} con todos los datos{inv}.', mailInv: ', la factura y el justificante',
       mailNew: ' También hemos creado tu cuenta: la contraseña va en ese correo. Con ella ves tus reservas, descargas tus facturas y nos escribes.',
-      mailOff: 'Te mandaremos a {email} los datos y la contraseña de «Mi cuenta», donde verás tus reservas y tus facturas.', return: 'Vuelta', price: 'Precio', vehicle: 'Vehículo',
+      mailOff: 'Esta es una versión de pruebas: todavía no se mandan correos. Descarga aquí tu reserva en PDF.', return: 'Vuelta', price: 'Precio', vehicle: 'Vehículo',
       groupIntro: 'Para grupos de 8 personas o más, en minibús o autobús. Te mandamos el presupuesto.',
       people: 'Número de personas', askQuote: 'Pedir presupuesto', groupDone: 'Grupo de {n} personas',
       how_t: 'Cómo funciona',
@@ -610,8 +610,8 @@
       err_bad_code: 'That code is not valid or has expired.',
       mailSent: 'We have emailed {email} with all the details{inv}.', mailInv: ', the invoice and the booking confirmation',
       mailNew: ' We have also created your account: the password is in that email. Use it to see your bookings, download your invoices and message us.',
-      mailOff: 'We will send the details and your “My account” password to {email}. There you will see your bookings and invoices.',
-      newBooking: 'Make another booking', downloadDoc: '📄 Download your booking confirmation (PDF)', return: 'Return', price: 'Price', vehicle: 'Vehicle',
+      mailOff: 'This is a test version: emails are not sent yet. Download your booking as a PDF here.',
+      newBooking: 'Make another booking', downloadDoc: '📄 Download your booking and quote (PDF)', payPending: 'Payment pending: we will contact you to tell you how to pay.', return: 'Return', price: 'Price', vehicle: 'Vehicle',
       groupIntro: 'For groups of 8 or more, by minibus or coach. We will send you a quote.',
       people: 'Number of people', askQuote: 'Ask for a quote', groupDone: 'Group of {n} people',
       how_t: 'How it works',
@@ -927,7 +927,8 @@
     try {
       var r = await api('book', body);
       var o = chosen();
-      var summary = tripLine(trip, state.quote) + '<br>' + whenLine(trip) + '<br>' + esc(t('veh_' + o.id)) + ' · ' + esc(money(r.price));
+      var summary = tripLine(trip, state.quote) + '<br>' + whenLine(trip) + '<br>' + esc(t('veh_' + o.id)) + ' · ' + esc(money(r.price)) +
+        (r.paid ? '' : '<br><b style="color:#b3261e" data-i18n="payPending">' + esc(t('payPending')) + '</b>');
       finish(r.ref, 'doneText', summary, r.doc, r, body.email);
       notify(r.ref, body, r.price, r.km);
     } catch (e) { showErr(e); }

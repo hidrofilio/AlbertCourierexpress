@@ -220,7 +220,7 @@
       stop: 'Parada', sign: 'Con cartel con tu nombre', special: 'Equipaje especial', again: '🔁 Reservar otra vez', back: '↩️ Reservar la vuelta',
       sp_golf: 'Palos de golf', sp_bike: 'Bicicleta', sp_surf: 'Tabla de surf', sp_ski: 'Esquís', sp_wheelchair: 'Silla de ruedas', sp_pram: 'Carrito de bebé', sp_pet: 'Mascota', sp_other: 'Otro',
       driver: 'Tu conductor', car: 'Coche', call: 'Llamar', waDriver: 'Hola, soy el cliente de la reserva {ref} de Bravo Transfers. ',
-      docConf: '📄 Justificante', docInv: '🧾 Factura', docRect: '🧾 Rectificativa', docVoid: '(anulada)', ics: '📅 A mi calendario',
+      docConf: '📄 Reserva', paidYes: 'Pagado', paidNo: 'Pendiente de pago', docInv: '🧾 Factura', docRect: '🧾 Rectificativa', docVoid: '(anulada)', ics: '📅 A mi calendario',
       change: '✏️ Pedir un cambio', cancel: '✖ Cancelar', cancelAsk: '¿Seguro que quieres cancelar la reserva {ref} del {when}?',
       cancelInv: 'Como ya tiene factura, te haremos la factura de anulación y, si la pagaste, te devolveremos el dinero.',
       cancelled: 'Reserva {ref} cancelada. Te escribiremos si hace falta algo más.',
@@ -261,7 +261,7 @@
       stop: 'Stop', sign: 'With a sign with your name', special: 'Special luggage', again: '🔁 Book again', back: '↩️ Book the return',
       sp_golf: 'Golf clubs', sp_bike: 'Bicycle', sp_surf: 'Surfboard', sp_ski: 'Skis', sp_wheelchair: 'Wheelchair', sp_pram: 'Pushchair', sp_pet: 'Pet', sp_other: 'Other',
       driver: 'Your driver', car: 'Car', call: 'Call', waDriver: 'Hello, I am the customer of Bravo Transfers booking {ref}. ',
-      docConf: '📄 Confirmation', docInv: '🧾 Invoice', docRect: '🧾 Credit note', docVoid: '(cancelled)', ics: '📅 Add to calendar',
+      docConf: '📄 Booking', paidYes: 'Paid', paidNo: 'Payment pending', docInv: '🧾 Invoice', docRect: '🧾 Credit note', docVoid: '(cancelled)', ics: '📅 Add to calendar',
       change: '✏️ Request a change', cancel: '✖ Cancel', cancelAsk: 'Are you sure you want to cancel booking {ref} on {when}?',
       cancelInv: 'As it has already been invoiced, we will issue a credit note and refund you if you paid.',
       cancelled: 'Booking {ref} cancelled. We will contact you if anything else is needed.',
@@ -433,6 +433,7 @@
     }
     h += '<div class="total"><span>' + esc(t('total')) + (b.price != null ? ' <small style="color:var(--muted)">(' + esc(t('ivaInc')) + ')</small>' : '') + '</span><b>' +
       esc(b.price != null ? money(b.price) : t('quotePending')) + '</b></div>';
+    if (b.price != null && b.status !== 'cancelada') h += '<div style="text-align:right;margin:-4px 0 8px;font-weight:700;color:' + (b.paid ? '#21803f">✓ ' + esc(t('paidYes')) : '#b3261e">' + esc(t('paidNo'))) + '</div>';
     h += '<div class="acts">';
     if (!group) h += '<a class="btn ghost" href="' + esc(b.docs.justificante) + '" target="_blank" rel="noopener">' + esc(t('docConf')) + '<small>' + esc(b.ref) + '</small></a>';
     b.docs.invoices.slice().sort(function (x, y) { return (x.status === 'emitida' ? 0 : 1) - (y.status === 'emitida' ? 0 : 1) || (x.number < y.number ? 1 : -1); }).forEach(function (i) {
