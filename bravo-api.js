@@ -1360,7 +1360,8 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
 
     if (req.method === 'GET' && route === 'routes') {
       if (over('routes:' + ip, 60, 3600000, true)) return json(res, 429, { error: 'too_many' });
-      return json(res, 200, { from: AGP, routes: await routePrices() });
+      // hero: si hay foto de portada (bravo/hero.jpg), para no pedirla en balde
+      return json(res, 200, { from: AGP, routes: await routePrices(), hero: fs.existsSync(path.join(__dirname, 'bravo', 'hero.jpg')) });
     }
 
     if (req.method === 'POST' && route === 'quote') {

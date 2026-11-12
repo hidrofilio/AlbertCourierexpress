@@ -35,11 +35,11 @@
   .word small { font-size: .6rem; letter-spacing: .42em; color: var(--orange); margin-top: 4px; }
   .top-actions { display: flex; align-items: center; gap: 10px; }
   .langs { display: flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: #fff; }
-  .langs button { background: none; border: 0; color: var(--muted); font-weight: 700; font-size: .8rem; padding: 7px 11px; cursor: pointer; }
+  .langs button { background: none; border: 0; color: var(--muted); font-weight: 700; font-size: .8rem; padding: 7px 11px; min-height: 40px; min-width: 40px; cursor: pointer; }
   .langs button.on { background: var(--ink); color: #fff; }
   .acct { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 7px 11px; font-weight: 700; font-size: .8rem; color: var(--ink); white-space: nowrap; }
   .done-mail { background: #eef6f0; color: #1f5b37; border-radius: 10px; padding: 10px 12px; font-size: .9rem; margin: 0 0 12px; text-align: left; }
-  .wa { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 50%; background: #25d366; }
+  .wa { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 50%; background: #25d366; }
 
   /* Portada: atardecer en la Costa del Sol, dibujado (o la foto de la IA, si existe /api/bravo/hero.jpg) */
   .hero { background: var(--ink); color: #f6efe3; padding: 0 0 40px; position: relative; overflow: hidden; }
@@ -136,16 +136,16 @@
   textarea { min-height: 80px; resize: vertical; }
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
-  .chip { border: 1px solid var(--line); background: #fbf8f2; color: var(--ink); border-radius: 999px; padding: 5px 10px; font-size: .8rem; cursor: pointer; }
+  .chip { border: 1px solid var(--line); background: #fbf8f2; color: var(--ink); border-radius: 999px; padding: 9px 12px; min-height: 38px; font-size: .8rem; cursor: pointer; }
   .chip.on { background: var(--ink); color: #fff; border-color: var(--ink); }
   .found { font-size: .8rem; color: var(--ok); margin-top: 5px; min-height: 0; }
   .check { display: flex; align-items: center; gap: 8px; font-weight: 600; margin: 4px 0 12px; }
   .check input { width: 20px; height: 20px; }
   .btn { display: block; width: 100%; border: 0; border-radius: 12px; padding: 14px; font-size: 1.02rem; font-weight: 800; cursor: pointer; background: linear-gradient(135deg, var(--gold-2), var(--orange)); color: var(--ink); }
   .btn:disabled { opacity: .55; cursor: wait; }
-  .link-btn { background: none; border: 0; color: var(--muted); font-weight: 600; padding: 6px 0; cursor: pointer; font-size: .92rem; }
+  .link-btn { background: none; border: 0; color: var(--muted); font-weight: 600; padding: 11px 0; cursor: pointer; font-size: .92rem; }
   .hint { font-size: .85rem; color: var(--muted); margin: 10px 0 0; }
-  .hint button { background: none; border: 0; padding: 0; color: var(--gold); font-weight: 700; text-decoration: underline; cursor: pointer; font-size: inherit; }
+  .hint button { background: none; border: 0; padding: 10px 0; color: var(--gold); font-weight: 700; text-decoration: underline; cursor: pointer; font-size: inherit; }
   .err { background: #fdecea; color: var(--err); border-radius: 10px; padding: 10px 12px; font-size: .9rem; margin: 0 0 12px; }
   .summary { background: #f7f1e6; border-radius: 12px; padding: 12px; margin-bottom: 14px; font-size: .92rem; }
   .summary b { display: block; font-size: 1rem; overflow-wrap: anywhere; }
@@ -181,7 +181,10 @@
   footer { background: var(--ink); color: #b8a98d; font-size: .85rem; padding: 26px 0; }
   footer p { margin: 0 0 4px; }
 
-  @media (max-width: 440px) { .acct span { display: none; } .acct { padding: 9px; } .brand img { height: 42px; } }
+  /* En pantallas pequeñas (iPhone SE) sobra el WhatsApp de arriba: está el botón verde flotante */
+  @media (max-width: 380px) { .top-actions .wa { display: none; } }
+  @media (max-width: 345px) { .brand img { height: 34px !important; } .brand { gap: 6px; } .brand .word b { font-size: 1.15rem; } .brand .word small { letter-spacing: .12em; } .top-actions { gap: 6px; } .langs button { min-width: 36px; padding: 7px 8px; } }
+  @media (max-width: 440px) { .acct span { display: none; } .acct { padding: 12px; } .brand img { height: 42px; } }
   @media (min-width: 720px) {
     .hero { padding: 0 0 60px; }
     .hero .intro { padding-top: 40px; }
@@ -1071,6 +1074,7 @@
   });
   fetch('/api/bravo/routes').then(function (res) { return res.ok ? res.json() : null; }).then(function (d) {
     if (d && d.routes) { routes = d.routes; renderDest(); }
+    if (d && d.hero) loadHero();
   }).catch(function () {});
 
   // ---------- «Reservar otra vez» o «la vuelta» desde Mi cuenta: ?from=lat,lon,sitio&to=… ----------
@@ -1083,12 +1087,15 @@
   }
 
   // ---------- la foto de portada hecha con IA, si existe ----------
-  var hp = new Image();
-  hp.onload = function () {
-    document.querySelector('.hero').classList.add('photo');
-    document.querySelector('.s-sky').style.backgroundImage = 'linear-gradient(180deg, rgba(23,18,13,.55), rgba(23,18,13,.12) 45%, rgba(23,18,13,.85)), url(/api/bravo/hero.jpg)';
-  };
-  hp.src = '/api/bravo/hero.jpg';
+  // Solo se pide si el servidor dice que existe (lo dice la lista de rutas)
+  function loadHero() {
+    var hp = new Image();
+    hp.onload = function () {
+      document.querySelector('.hero').classList.add('photo');
+      document.querySelector('.s-sky').style.backgroundImage = 'linear-gradient(180deg, rgba(23,18,13,.55), rgba(23,18,13,.12) 45%, rgba(23,18,13,.85)), url(/api/bravo/hero.jpg)';
+    };
+    hp.src = '/api/bravo/hero.jpg';
+  }
 
   // ---------- las secciones aparecen al bajar ----------
   // Aparece todo lo que ya está en pantalla o se ha pasado (también si se baja de golpe)
