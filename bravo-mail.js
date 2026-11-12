@@ -255,6 +255,21 @@ function companyEmail(b, o) {
   return { subject: (tomorrow ? 'Mañana: servicio ' + b.ref + ' a las ' + b.time : 'Nuevo servicio ' + b.ref + ' · ' + dmy(b.date) + ' ' + b.time) + ' · Bravo Transfers', html: shell('es', html, o.base), text };
 }
 
+// A una empresa de transporte: un viaje que se le ofrece (sin datos del cliente hasta que lo acepte)
+function offerEmail(b, o) {
+  const from = (b.from && b.from.label) || b.fromText || '', to = (b.to && b.to.label) || b.toText || '';
+  const rows = [['Día y hora', dmy(b.date) + ' · ' + b.time], ['Recogida', from], [b.kind === 'hourly' ? 'Horas' : 'Destino', b.kind === 'hourly' ? String(b.hours) : to],
+    ['Parada', (b.via && b.via.label) || ''], ['Pasajeros', String(b.passengers)],
+    ['Vehículo', b.vehicle === 'van' ? 'Monovolumen (hasta 7)' : b.vehicle === 'car' ? 'Coche (hasta 4)' : ''],
+    ['Se te paga', b.driverPay != null ? money(b.driverPay) : '']];
+  const first = String(o.name || '').split(' ')[0];
+  const intro = '¿Puedes hacer este servicio? El primero que lo acepta se lo queda.';
+  const html = `<p style="font-size:16px;margin:0 0 6px">Hola ${esc(first)},</p><p>${esc(intro)}</p>` + rowsHtml(rows) +
+    btn(o.link, 'Ver el viaje y aceptarlo') + '<p style="color:#6f6252">Los datos del cliente salen al aceptarlo.</p><p style="margin:10px 0">Gracias,<br>Bravo Transfers</p>';
+  const text = ['Hola ' + first + ',', '', intro, ''].concat(rows.filter((r) => r[1]).map((r) => r[0] + ': ' + r[1]), ['', 'Ver el viaje y aceptarlo: ' + o.link, '', 'Bravo Transfers']).join('\n');
+  return { subject: 'Viaje para ti: ' + b.ref + ' · ' + dmy(b.date) + ' ' + b.time + ' · Bravo Transfers', html: shell('es', html, o.base), text };
+}
+
 // El presupuesto, con un botón para aceptarlo en su cuenta
 function quoteEmail(b, o) {
   const en = b.lang === 'en', q = b.quote;
@@ -271,4 +286,4 @@ function quoteEmail(b, o) {
   return { subject: (en ? 'Your quote ' : 'Tu presupuesto ') + q.number + ' · Bravo Transfers', html: shell(en ? 'en' : 'es', html, o.base), text };
 }
 
-module.exports.templates = { bookingEmail, loginEmail, messageEmail, ownerEmail, paymentEmail, reminderEmail, reviewEmail, companyEmail, quoteEmail };
+module.exports.templates = { bookingEmail, loginEmail, messageEmail, ownerEmail, paymentEmail, reminderEmail, reviewEmail, companyEmail, quoteEmail, offerEmail };

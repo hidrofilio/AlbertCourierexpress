@@ -92,6 +92,14 @@ Web de una empresa de transporte urgente dedicado (vehículo exclusivo punto a p
     - **Números** (sub-pestaña de Cuentas): estadísticas, trimestres, borrador del modelo 303 y calendario de impuestos. **Las fechas de impuestos y el 303 son orientativos: los confirma el gestor.**
     - **La web nueva** (`bravo/index.html`): la portada A del lienzo (atardecer dibujado con CSS, con franjas de azulejo), rutas con precio desde el aeropuerto (`GET routes`, en caché 12 h), parada intermedia (`via`), cartel con nombre (`meetSign`) y equipaje especial (`SPECIAL`). Si se sube `bravo/hero.jpg`, sale de fondo; el vídeo aún no.
     - **Usuarios del panel** (`users.json`, cookie `bravo_op`): administrador u **operador** (el sobrino). El operador solo ve Viajes, Clientes y Empresas, sin dinero: `OP_ROUTES`, `OP_UPDATE` y `forOperator()` en `bravo-api.js`, y `[data-admin]` en el panel. Todo POST queda en `audit.jsonl`. Ojo: la hoja de servicio en PDF sí dice lo que se paga a la empresa.
+  - **Ofrecer el viaje a las empresas** (12/11):
+    - En cada viaje, «Ofrecer a empresas» (`POST admin/offer`, solo administrador). Hace falta tener `driverPay`.
+    - Cada empresa recibe por correo un enlace privado `/api/bravo/job/<token>` (sin contraseña; `JOB_HTML` en `bravo-api.js`). En el panel también hay botones de WhatsApp y de copiar el enlace.
+    - Antes de aceptar ve el viaje y lo que se le paga, **pero no al cliente**.
+    - **El primero que acepta se lo queda:** se asigna solo, con conductor y coche si los pone, y las demás ofertas pasan a `cerrada`. A Alberto le llega un aviso y la empresa recibe su hoja de servicio.
+    - Después marca «Cliente recogido» (`pickedUpAt`) y «Viaje terminado» (`status: 'hecha'`, `doneAt`).
+    - Una oferta se puede retirar (`admin/offer/withdraw`). Si todas dicen que no, se avisa a Alberto.
+    - Al asignar a mano se cierran las pendientes. Las ofertas están en `b.offers`, y el operador no las ve.
   - Las pruebas, con Playwright: un OSRM falso, un servicio de correo falso, Nominatim y Web3Forms simulados, y `pdftotext` para leer los PDF.
 - **`stats/`** y **`notas/`** — panel de analíticas y buzón de notas. **La clave no se escribe nunca aquí**: vive en la variable `STATS_KEY` de Railway, y apuntada en el repo privado (`NEGOCIO/empresa/acceso.md`)
 - **`data/events.jsonl`** — registro de visitas, en un volumen persistente de Railway montado en `/app/data`. **No está en git.**

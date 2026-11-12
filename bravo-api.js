@@ -338,6 +338,33 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
     } catch (e) { /* ya no está */ }
     return r;
   }
+  // ---------- viajes ofrecidos a las empresas de transporte ----------
+  function findOffer(tok) {
+    for (const b of allBookings()) { const o = (b.offers || []).find((x) => x.token === tok); if (o) return { b, o }; }
+    return null;
+  }
+  const jobUrl = (o) => BASE + '/api/bravo/job/' + o.token;
+  // Lo que ve la empresa: el viaje y lo que se le paga; el cliente, solo si el viaje es suyo
+  function jobView(b, o) {
+    const mine = o.status === 'aceptada';
+    return {
+      ref: b.ref, kind: b.kind, date: b.date, time: b.time, hours: b.hours || null,
+      from: b.kind === 'group' ? b.fromText : (b.from && b.from.label) || b.fromText || '', to: b.kind === 'group' ? b.toText : (b.to && b.to.label) || b.toText || '',
+      via: (b.via && b.via.label) || '', roundTrip: Boolean(b.roundTrip), returnDate: b.returnDate || '', returnTime: b.returnTime || '',
+      passengers: b.passengers, vehicle: b.vehicle || '', bags: b.bags || 0, childSeats: b.childSeats || 0, special: b.special || '', meetSign: Boolean(b.meetSign),
+      flight: b.flight || '', driverNote: b.driverNote || '', pay: b.driverPay != null ? b.driverPay : null,
+      company: o.name, status: o.status, taken: !mine && Boolean(b.driverName), cancelled: b.status === 'cancelada',
+      pickedUp: mine ? b.pickedUpAt || null : null, done: mine && b.status === 'hecha' ? b.doneAt || true : null,
+      client: mine ? { name: b.name || '', phone: b.phone || '' } : null, comments: mine ? b.comments || '' : '',
+      sheet: mine && b.driverToken ? '/api/bravo/doc/' + b.driverToken + '/hoja.pdf' : null
+    };
+  }
+  const jobLine = (b) => b.ref + ' · ' + b.date + ' ' + b.time + ' · ' + ((b.from && b.from.label) || b.fromText || '') + (b.kind === 'hourly' ? ' (' + b.hours + ' h)' : ' → ' + ((b.to && b.to.label) || b.toText || ''));
+  function tellOwner(subject, lines) {
+    if (!mail.configured()) return;
+    const m = TPL.ownerEmail(subject, lines, { url: BASE + '/bravo/panel/', base: BASE });
+    setImmediate(() => { mail.send({ to: mail.owner, subject: m.subject, html: m.html, text: m.text }).catch(() => {}); });
+  }
   function companyNotice(b, kind) {
     const to = companyAddr(b);
     if (!to) return null;
@@ -1048,7 +1075,7 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
   const OP_ROUTES = new Set(['GET admin/me', 'GET admin/bookings', 'POST admin/update', 'POST admin/incident', 'POST admin/book', 'GET admin/drivers',
     'GET admin/docs', 'GET admin/docs/file', 'GET admin/messages', 'POST admin/messages/reply', 'POST admin/messages/read', 'GET admin/settings', 'GET admin/partners']);
   const OP_UPDATE = ['ref', 'status', 'driverName', 'driverPhone', 'driverEmail', 'driverCar', 'chauffeur', 'chauffeurPhone', 'driverNote', 'ministry', 'clientDoc', 'notes', 'date', 'time'];
-  const MONEY = ['price', 'driverPay', 'driverVat', 'driverPaid', 'driverInvoiceNo', 'invoice', 'previousInvoices', 'creditNotes', 'quote', 'quotes', 'discount', 'payment'];
+  const MONEY = ['price', 'driverPay', 'driverVat', 'driverPaid', 'driverInvoiceNo', 'invoice', 'previousInvoices', 'creditNotes', 'quote', 'quotes', 'discount', 'payment', 'offers', 'clientPaid'];
   function forOperator(b) { const o = Object.assign({}, b); for (const k of MONEY) delete o[k]; return o; }
   // Registro de cambios: quién, cuándo y qué
   const AUDIT = path.join(DIR, 'audit.jsonl');
@@ -1082,6 +1109,63 @@ var body=u.hidden?{key:document.getElementById('k').value}:{user:u.value,passwor
 try{var r=await fetch('/api/bravo/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
 if(r.ok){location.reload();return;}e.textContent=r.status===429?'Demasiados intentos. Espera un rato.':u.hidden?'Contraseña incorrecta.':'Usuario o contraseña incorrectos.';}
 catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
+
+  // La página de la empresa de transporte para un viaje ofrecido (enlace privado, sin contraseña)
+  const JOB_HTML = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/png" href="/api/bravo/icon-64.png"><title>Viaje · Bravo Transfers</title><style>
+:root{--ink:#17120d;--muted:#6f6252;--line:#e7dccb;--gold:#e5b44b;--ok:#21803f;--err:#b3261e}
+*{box-sizing:border-box}body{margin:0;background:#faf6ee;color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:16px}
+.w{max-width:520px;margin:0 auto}.top{display:flex;align-items:center;gap:10px;margin-bottom:14px}.top img{height:44px}.top b{font-family:Georgia,serif;letter-spacing:.08em;font-size:1.2rem}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}h1{font-size:1.25rem;margin:0 0 4px}
+.st{display:inline-block;border-radius:999px;padding:4px 10px;font-size:.8rem;font-weight:800;background:#fbf3e2;color:#8a5a12}.st.ok{background:#e7f4ec;color:var(--ok)}.st.no{background:#fdecea;color:var(--err)}
+dl{display:grid;grid-template-columns:auto 1fr;gap:8px 12px;margin:12px 0 0}dt{color:var(--muted);font-size:.85rem}dd{margin:0;font-weight:600}
+.pay{font-size:1.4rem;font-weight:800;margin-top:12px}.btn{display:flex;align-items:center;justify-content:center;width:100%;min-height:50px;border:0;border-radius:12px;font-weight:800;font-size:1rem;margin-top:10px;text-decoration:none;color:var(--ink);background:linear-gradient(135deg,#e5b44b,#df7a2c);cursor:pointer}
+.btn.g{background:#fff;border:1.5px solid var(--line)}.btn.wa{background:#25d366;color:#fff}.btn:disabled{opacity:.5}
+label{display:block;font-size:.8rem;color:var(--muted);margin:10px 0 4px}input{width:100%;padding:12px;border:1.5px solid var(--line);border-radius:10px;font-size:16px}
+.msg{margin-top:10px;font-size:.92rem}.msg.bad{color:var(--err)}.msg.ok{color:var(--ok)}.note{color:var(--muted);font-size:.85rem;margin-top:10px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}</style></head><body><div class="w">
+<div class="top"><img src="/api/bravo/logo.png" alt=""><b>BRAVO TRANSFERS</b></div>
+<div id="app"><div class="card">Cargando…</div></div></div><script>
+var TOK=location.pathname.split('/').pop();
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function dmy(d){var m=/^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(d||'');return m?m[3]+'/'+m[2]+'/'+m[1]:(d||'');}
+function eur(n){return n==null?'':new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR'}).format(n);}
+var SP={golf:'Palos de golf',bike:'Bicicleta',surf:'Tabla de surf',ski:'Esquís',wheelchair:'Silla de ruedas',pram:'Carrito de bebé',pet:'Mascota',other:'Otro'};
+async function load(){var r=await fetch('/api/bravo/job/'+TOK+'/data');if(!r.ok){document.getElementById('app').innerHTML='<div class="card">Este enlace no vale o ha caducado. Si crees que es un error, escríbenos.</div>';return;}draw(await r.json());}
+function row(k,v){return v?'<dt>'+esc(k)+'</dt><dd>'+esc(v)+'</dd>':'';}
+function draw(v){
+ var st=v.cancelled?['no','Viaje cancelado']:v.status==='aceptada'?(v.done?['ok','Terminado']:v.pickedUp?['ok','Cliente recogido']:['ok','Es tuyo']):v.status==='rechazada'?['no','Has dicho que no puedes']:v.taken||v.status==='cerrada'?['no','Lo ha cogido otra empresa']:v.status==='retirada'?['no','Ya no está disponible']:['','Pendiente de respuesta'];
+ var h='<div class="card"><h1>Viaje '+esc(v.ref)+'</h1><span class="st '+st[0]+'">'+esc(st[1])+'</span><dl>'+
+  row('Día y hora',dmy(v.date)+' · '+v.time)+row('Recogida',v.from)+row(v.kind==='hourly'?'Horas':'Destino',v.kind==='hourly'?String(v.hours):v.to)+row('Parada',v.via)+
+  row('Vuelta',v.roundTrip?dmy(v.returnDate)+' · '+v.returnTime:'')+row('Pasajeros',String(v.passengers))+row('Vehículo',v.vehicle==='van'?'Monovolumen (hasta 7)':v.vehicle==='car'?'Coche (hasta 4)':'')+
+  row('Vuelo',v.flight)+row('Maletas',v.kind==='group'?'':String(v.bags||0)+(v.childSeats?' · sillas de niño: '+v.childSeats:''))+row('Equipaje especial',SP[v.special]||'')+row('Cartel',v.meetSign?'Esperar con un cartel con su nombre':'')+row('Nota',v.driverNote)+
+  '</dl>'+(v.pay!=null?'<div class="pay">Se te paga: '+esc(eur(v.pay))+'</div>':'')+'</div>';
+ var open=!v.cancelled&&v.status==='pendiente'&&!v.taken;
+ if(open){h+='<div class="card"><b>¿Lo puedes hacer?</b><div class="row"><div><label>Quién conduce (opcional)</label><input id="ch" autocomplete="off"></div><div><label>Su teléfono</label><input id="chp" type="tel"></div></div>'+
+  '<label>Coche y matrícula (opcional)</label><input id="car" placeholder="Ej.: Mercedes Clase E · 1234 ABC">'+
+  '<button class="btn" data-a="accept">✅ Acepto el viaje</button><button class="btn g" data-a="reject">❌ No puedo</button><div class="msg" id="m"></div>'+
+  '<p class="note">Los datos del cliente salen al aceptarlo. Si lo acepta otra empresa antes, se te avisa aquí.</p></div>';}
+ if(v.status==='aceptada'&&!v.cancelled){
+  h+='<div class="card"><b>Cliente</b><dl>'+row('Nombre',v.client&&v.client.name)+row('Teléfono',v.client&&v.client.phone)+row('Comentarios',v.comments)+'</dl>';
+  if(v.client&&v.client.phone){var ph=String(v.client.phone).replace(/[^\\d+]/g,'');h+='<div class="row"><a class="btn wa" href="https://wa.me/'+esc(ph.replace('+',''))+'" target="_blank" rel="noopener">WhatsApp</a><a class="btn g" href="tel:'+esc(ph)+'">📞 Llamar</a></div>';}
+  if(v.sheet)h+='<a class="btn g" href="'+esc(v.sheet)+'" target="_blank" rel="noopener">📄 Hoja de servicio (PDF)</a>';
+  h+='<p class="note"><b>Recuerda comunicar el servicio al registro del Ministerio antes de empezar.</b></p>';
+  if(!v.done)h+=(v.pickedUp?'':'<button class="btn" data-a="pickup">🚗 Cliente recogido</button>')+'<button class="btn'+(v.pickedUp?'':' g')+'" data-a="done">🏁 Viaje terminado</button>';
+  h+='<div class="msg" id="m"></div></div>';}
+ document.getElementById('app').innerHTML=h;
+ Array.prototype.forEach.call(document.querySelectorAll('[data-a]'),function(b){b.addEventListener('click',function(){act(b.getAttribute('data-a'),b);});});
+}
+async function act(a,b){
+ if(a==='reject'&&!confirm('¿Seguro que no puedes hacer este viaje?'))return;
+ if(a==='done'&&!confirm('¿Marcar el viaje como terminado?'))return;
+ b.disabled=true;var m=document.getElementById('m');m.className='msg';m.textContent='Guardando…';
+ var body={action:a};['ch','chp','car'].forEach(function(id){var e=document.getElementById(id);if(e)body[{ch:'chauffeur',chp:'chauffeurPhone',car:'car'}[id]]=e.value;});
+ try{var r=await fetch('/api/bravo/job/'+TOK+'/answer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});var d=await r.json();
+  if(d.view)draw(d.view);if(!r.ok){var mm=document.getElementById('m')||m;mm.className='msg bad';mm.textContent=d.error==='taken'?'Lo siento: otra empresa lo ha cogido antes.':d.error==='cancelled'?'El viaje se ha cancelado.':'No se ha podido guardar. Prueba otra vez.';b.disabled=false;}}
+ catch(e){m.className='msg bad';m.textContent='Sin conexión. Prueba otra vez.';b.disabled=false;}
+}
+load();</script></body></html>`;
 
   // Páginas /bravo/...: si no hay contraseña, la puerta; si la hay, la página, sin caché ni Google.
   function allowPage(req, res) {
@@ -1312,6 +1396,65 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
         'Cache-Control': 'no-store, private', 'X-Robots-Tag': 'noindex, nofollow', 'X-Content-Type-Options': 'nosniff'
       });
       return res.end(buf);
+    }
+
+    // El viaje ofrecido a una empresa de transporte: su página, sus datos y su respuesta (enlace privado)
+    const jobm = /^job\/([a-f0-9]{32})(\/data|\/answer)?$/.exec(route);
+    if (jobm) {
+      if (over('job:' + ip, 300, 3600000, true)) return json(res, 429, { error: 'too_many' });
+      if (req.method === 'GET' && !jobm[2]) {
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store, private', 'X-Robots-Tag': 'noindex, nofollow', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' });
+        return res.end(JOB_HTML);
+      }
+      const f = findOffer(jobm[1]);
+      if (!f) return json(res, 404, { error: 'not_found' });
+      const { b, o } = f;
+      if (req.method === 'GET' && jobm[2] === '/data') return json(res, 200, jobView(b, o));
+      if (req.method === 'POST' && jobm[2] === '/answer') {
+        let d = {};
+        try { d = JSON.parse(await readBody(req, 2000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+        const now = new Date().toISOString(), who = { name: 'Empresa: ' + o.name, role: 'empresa' };
+        const hist = (txt) => { b.history = (b.history || []).concat([{ at: now, who: who.name, fields: [txt] }]).slice(-30); };
+        if (b.status === 'cancelada') return json(res, 409, { error: 'cancelled', view: jobView(b, o) });
+        if (d.action === 'accept') {
+          if (o.status === 'aceptada') return json(res, 200, { ok: true, view: jobView(b, o) });
+          if (o.status !== 'pendiente' || b.driverName) return json(res, 409, { error: 'taken', view: jobView(b, o) });
+          const drv = drivers().find((x) => x.name === o.name) || {};
+          o.status = 'aceptada'; o.answeredAt = now;
+          b.driverName = o.name; b.driverPhone = o.phone || drv.phone || ''; b.driverEmail = o.email || drv.email || '';
+          b.driverCar = clean(d.car, 80) || b.driverCar || [drv.car, drv.plate].filter(Boolean).join(' · ');
+          if (clean(d.chauffeur, 80)) { b.chauffeur = clean(d.chauffeur, 80); b.chauffeurPhone = clean(d.chauffeurPhone, 30); }
+          b.status = 'asignada';
+          (b.offers || []).forEach((x) => { if (x !== o && x.status === 'pendiente') x.status = 'cerrada'; });
+          hist('aceptó el viaje');
+          saveBooking(b);
+          audit(who, 'acepta el viaje', { ref: b.ref });
+          tellOwner('✅ ' + o.name + ' ha cogido el viaje ' + b.ref, [jobLine(b)]);
+          // Su hoja de servicio por correo, como cuando se asigna desde el panel
+          const key = b.driverName + '|' + b.date + '|' + b.time;
+          if (settings().notifyCompany && mail.configured() && companyAddr(b) && (b.reminders || {}).companyNewFor !== key) {
+            setImmediate(() => { sendNotice(b.ref, 'empresa: nuevo servicio', (x) => companyNotice(x, 'new')).catch(() => {}); });
+          }
+          return json(res, 200, { ok: true, view: jobView(b, o) });
+        }
+        if (d.action === 'reject') {
+          if (o.status !== 'pendiente') return json(res, 409, { error: 'answered', view: jobView(b, o) });
+          o.status = 'rechazada'; o.answeredAt = now;
+          hist('no puede hacerlo');
+          saveBooking(b);
+          if (!b.driverName && !(b.offers || []).some((x) => x.status === 'pendiente')) tellOwner('⚠️ Nadie ha cogido el viaje ' + b.ref, [jobLine(b), 'Todas las empresas a las que se ofreció han dicho que no.']);
+          return json(res, 200, { ok: true, view: jobView(b, o) });
+        }
+        if (['pickup', 'done'].includes(d.action)) {
+          if (o.status !== 'aceptada') return json(res, 403, { error: 'forbidden', view: jobView(b, o) });
+          b.pickedUpAt = b.pickedUpAt || now;
+          if (d.action === 'done') { b.doneAt = b.doneAt || now; b.status = 'hecha'; hist('viaje terminado'); } else hist('cliente recogido');
+          saveBooking(b);
+          return json(res, 200, { ok: true, view: jobView(b, o) });
+        }
+        return json(res, 400, { error: 'bad_action' });
+      }
+      return json(res, 405, { error: 'method' });
     }
 
     // Todo lo demás, solo con la contraseña (fase de pruebas)
@@ -1903,6 +2046,47 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
     }
 
     // El cobro del cliente, marcado a mano. Con «factura sola», la factura se hace aquí y se le manda por correo
+    // Ofrecer el viaje a una o varias empresas de transporte (el primero que acepta se lo queda), o retirar una oferta
+    if (req.method === 'POST' && (route === 'admin/offer' || route === 'admin/offer/withdraw')) {
+      const r = await loadRef();
+      if (r.error) return json(res, r.error === 'not_found' ? 404 : 400, r);
+      const { d, b } = r;
+      const now = new Date().toISOString();
+      if (route === 'admin/offer/withdraw') {
+        const o = (b.offers || []).find((x) => x.token === d.token);
+        if (!o) return json(res, 404, { error: 'not_found' });
+        if (o.status === 'pendiente') { o.status = 'retirada'; o.answeredAt = now; saveBooking(b); }
+        return json(res, 200, { ok: true, booking: b });
+      }
+      if (b.status === 'cancelada') return json(res, 409, { error: 'cancelled' });
+      if (b.driverName) return json(res, 409, { error: 'assigned' });
+      if (!(b.driverPay > 0)) return json(res, 400, { error: 'need_pay' });
+      const list = drivers(), names = Array.isArray(d.companies) ? d.companies.map(String) : [];
+      b.offers = b.offers || [];
+      const created = [];
+      for (const nm of names) {
+        const drv = list.find((x) => x.name === nm);
+        if (!drv || b.offers.some((x) => x.name === nm && ['pendiente', 'aceptada'].includes(x.status))) continue;
+        const o = { token: token(), name: drv.name, phone: drv.phone || '', email: drv.email || '', at: now, status: 'pendiente', by: me.name };
+        b.offers.push(o); created.push(o);
+      }
+      if (!created.length) return json(res, 400, { error: 'no_companies' });
+      ensureTokens(b);
+      b.history = (b.history || []).concat([{ at: now, who: me.name, fields: ['ofrecido a ' + created.map((x) => x.name).join(', ')] }]).slice(-30);
+      saveBooking(b);
+      let emailed = 0;
+      if (mail.configured()) {
+        for (const o of created) {
+          if (!isEmail(o.email)) continue;
+          emailed++;
+          setImmediate(() => {
+            sendNotice(b.ref, 'oferta: ' + o.name, (x) => { const m = TPL.offerEmail(x, { link: jobUrl(o), base: BASE, name: o.name }); return { to: o.email, toName: o.name, subject: m.subject, html: m.html, text: m.text }; }).catch(() => {});
+          });
+        }
+      }
+      return json(res, 200, { ok: true, booking: b, emailed });
+    }
+
     if (req.method === 'POST' && route === 'admin/client-paid') {
       const r = await loadRef();
       if (r.error) return json(res, r.error === 'not_found' ? 404 : 400, r);
@@ -2062,6 +2246,11 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
         b.history = (b.history || []).concat([{ at: new Date().toISOString(), who: me.name, fields: changed }]).slice(-30);
         audit(me, 'cambia la reserva', { ref: b.ref, fields: changed });
       }
+      // Asignado a mano: las ofertas sin contestar se cierran; si se quita la empresa que aceptó, su oferta queda retirada
+      (b.offers || []).forEach((x) => {
+        if (b.driverName && x.status === 'pendiente') { x.status = 'cerrada'; x.answeredAt = new Date().toISOString(); }
+        if (x.status === 'aceptada' && b.driverName !== x.name) { x.status = 'retirada'; x.answeredAt = new Date().toISOString(); }
+      });
       saveBooking(b);
       if (newlyPaid) autoPayEmail('driver', b.ref);
       // La empresa recibe el servicio (con su hoja) al asignárselo, o si cambia el día o la hora
