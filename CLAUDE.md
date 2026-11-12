@@ -26,6 +26,12 @@ Web de una empresa de transporte urgente dedicado (vehículo exclusivo punto a p
   - Todo `/bravo/` (la web) y `/api/bravo/` pide contraseña: la variable `BRAVO_KEY` de Railway, o `STATS_KEY` mientras no exista. Lleva `noindex` y `no-store`. **No la pongas en `robots.txt`**, que es público y delataría la ruta.
   - El panel de Alberto está en `/bravo/panel/`. Las reservas (`bookings/BT-0001.json`…) y los precios (`settings.json`) se guardan en `DATA_DIR/bravo/`, nunca en git. Los precios de `DEFAULTS` en el código son **ficticios**. La regla 7 (no publicar precios) es de la mensajería; Bravo enseña precios por naturaleza.
   - **El servidor recalcula los km y el precio** antes de guardar: no te fíes de lo que mande la página. Los km salen de OSRM; `BRAVO_OSRM_URL` permite apuntar a uno falso en las pruebas.
+  - **Buscador de direcciones** (`bravo-geo.js`, en el servidor; la página llama a `GET /api/bravo/geo` y `geo/suggest`):
+    - El orden es: lista propia (`LIST`: aeropuertos, estaciones y pueblos de Andalucía) → lo ya buscado (`geo-cache.json`) → Nominatim (1 consulta/s, con User-Agent propio) → Photon.
+    - Si nada responde pero se nombra un pueblo de la lista, da el precio de ese pueblo (`approx`, `zone`) y guarda lo escrito como dirección.
+    - Lo no encontrado va a `geo-misses.json`. **Las sugerencias al escribir salen solo de la lista y de la caché**: Nominatim no permite autocompletar.
+    - Si no hay resultado, la página ofrece «Pedir el precio por WhatsApp» con el viaje escrito.
+    - Pruebas: `BRAVO_GEO_URL` y `BRAVO_PHOTON_URL`.
   - El JS va dentro del HTML, porque `isPublicPath()` solo deja servir `.js` de `cpc/`. El aviso a Alberto se manda con Web3Forms, como la mensajería (solo funciona desde el dominio propio).
   - **Panel** con seis pestañas: Viajes, Clientes, Facturas, Cuentas, Empresas y Ajustes. «Clientes» (antes «Mensajes», `tab-messages` en el código) es la ficha de cada cliente: buscador, sus reservas (un toque las abre en Viajes) y sus mensajes. En Ajustes se cambian los precios, los datos de las facturas, la factura automática (`autoInvoice`), el justificante de pago (`payEmail`) y las horas para que el cliente cancele (`cancelHours`), en `settings.json`.
   - **Llamar o escribir:** en cada viaje (cliente, empresa y conductor que va), en cada empresa y en cada cliente hay botones de WhatsApp (`wa.me`, con el mensaje ya escrito), 📞 Llamar (`tel:`) y correo. Al conductor que va se le manda el viaje sin lo que se paga. El cliente, en «Mi cuenta», tiene Llamar y WhatsApp a su conductor.

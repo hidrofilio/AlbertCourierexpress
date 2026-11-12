@@ -48,6 +48,7 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
   const BASE = (process.env.PUBLIC_URL || 'https://albertcourierexpress.com').replace(/\/$/, '');
   const OSRM = (process.env.BRAVO_OSRM_URL || 'https://router.project-osrm.org').replace(/\/$/, '');
   const DIR = path.join(DATA_DIR, 'bravo');
+  const geo = require('./bravo-geo')(DIR);
   const BOOKINGS = path.join(DIR, 'bookings');
   fs.mkdirSync(BOOKINGS, { recursive: true });
 
@@ -1358,6 +1359,14 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       });
     }
 
+    // Buscador de direcciones (por el servidor: lista propia, lo ya buscado, OpenStreetMap y plan B)
+    if (req.method === 'GET' && (route === 'geo' || route === 'geo/suggest')) {
+      if (over('geo:' + ip, route === 'geo' ? 120 : 600, 3600000, true)) return json(res, 429, { error: 'too_many' });
+      const sp = new URL(url, 'http://x').searchParams;
+      const q = String(sp.get('q') || '').slice(0, 160), lang = sp.get('lang') === 'en' ? 'en' : 'es';
+      if (route === 'geo/suggest') return json(res, 200, { results: geo.suggest(q, lang) });
+      return json(res, 200, await geo.search(q, lang));
+    }
     if (req.method === 'GET' && route === 'routes') {
       if (over('routes:' + ip, 60, 3600000, true)) return json(res, 429, { error: 'too_many' });
       // hero: si hay foto de portada (bravo/hero.jpg), para no pedirla en balde

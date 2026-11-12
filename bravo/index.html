@@ -147,6 +147,11 @@
   .hint { font-size: .85rem; color: var(--muted); margin: 10px 0 0; }
   .hint button { background: none; border: 0; padding: 10px 0; color: var(--gold); font-weight: 700; text-decoration: underline; cursor: pointer; font-size: inherit; }
   .err { background: #fdecea; color: var(--err); border-radius: 10px; padding: 10px 12px; font-size: .9rem; margin: 0 0 12px; }
+  .err .planb { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px; min-height: 44px; border-radius: 10px; background: #25d366; color: #fff; font-weight: 800; text-decoration: none; }
+  .sugg { border: 1px solid var(--line); border-radius: 12px; margin-top: 6px; overflow: hidden; background: #fff; box-shadow: 0 6px 18px rgba(23,18,13,.08); }
+  .sugg button { display: block; width: 100%; text-align: left; min-height: 44px; padding: 10px 12px; border: 0; border-bottom: 1px solid var(--line); background: #fff; font: inherit; font-size: .95rem; color: var(--ink); cursor: pointer; }
+  .sugg button:last-child { border-bottom: 0; }
+  .sugg button:active { background: #fbf3e2; }
   .summary { background: #f7f1e6; border-radius: 12px; padding: 12px; margin-bottom: 14px; font-size: .92rem; }
   .summary b { display: block; font-size: 1rem; overflow-wrap: anywhere; }
   .veh { display: grid; grid-template-columns: 44px 1fr auto; grid-template-areas: "ico txt price" "btn btn btn"; gap: 8px 12px; align-items: center; border: 1.5px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 10px; }
@@ -568,7 +573,9 @@
       footer: 'Versión de prueba. Aviso legal y privacidad: en preparación.',
       err_needPlace: 'Escribe una dirección, un hotel o una ciudad.',
       err_notFound: 'No encontramos «{q}». Prueba con otra dirección o con el nombre de la ciudad.',
-      err_geo: 'El buscador de direcciones no responde. Prueba otra vez en un momento.',
+      err_geo: 'El buscador de direcciones no responde ahora mismo.',
+      planB: 'Pedir el precio por WhatsApp', foundZone: 'precio para la zona de {z}',
+      waTrip: 'Hola, quiero un traslado: desde {from} hasta {to}, el {date} a las {time}, {pax} personas. ¿Me decís el precio?',
       err_needDate: 'Elige el día y la hora.',
       err_too_soon: 'Hay que reservar con al menos 24 horas de antelación. Si lo necesitas antes, escríbenos por WhatsApp.',
       err_origin_not_malaga: 'De momento solo hacemos viajes que salen de la provincia de Málaga.',
@@ -643,7 +650,9 @@
       footer: 'Test version. Legal notice and privacy policy: coming soon.',
       err_needPlace: 'Type an address, a hotel or a town.',
       err_notFound: 'We could not find “{q}”. Try another address or the name of the town.',
-      err_geo: 'The address search is not responding. Please try again in a moment.',
+      err_geo: 'The address search is not responding right now.',
+      planB: 'Ask for the price on WhatsApp', foundZone: 'price for the {z} area',
+      waTrip: 'Hi, I would like a transfer: from {from} to {to}, on {date} at {time}, {pax} people. Could you tell me the price?',
       err_needDate: 'Choose the date and time.',
       err_too_soon: 'Bookings must be made at least 24 hours ahead. If you need it sooner, message us on WhatsApp.',
       err_origin_not_malaga: 'For now we only do trips starting in the province of Málaga.',
@@ -723,15 +732,18 @@
       box.appendChild(b);
     });
     input.addEventListener('input', function () { f.place = null; f.chip = null; f.found.textContent = ''; markChips(f); });
+    hookSuggest(f);
   });
   // Parada en el camino (sin botones rápidos)
   fields['t-via'] = { input: $('t-via'), box: document.createElement('div'), found: document.querySelector('[data-found="t-via"]'), place: null, chip: null };
   $('t-via').addEventListener('input', function () { var f = fields['t-via']; f.place = null; f.found.textContent = ''; });
+  hookSuggest(fields['t-via']);
   $('t-via-open').addEventListener('click', function () { $('t-via-box').hidden = false; $('t-via-open').hidden = true; $('t-via').focus(); });
   function setPlace(f, p) {
     f.chip = null; markChips(f);
-    f.place = { lat: p.lat, lon: p.lon, label: p.label, airport: /aeropuerto|airport|\bAGP\b/i.test(p.label) };
+    f.place = { lat: p.lat, lon: p.lon, label: p.label, airport: Boolean(p.airport) || /aeropuerto|airport|\bAGP\b/i.test(p.label) };
     f.input.value = p.label; f.found.textContent = '📍 ' + t('found') + ': ' + p.label;
+    if (f.sugg) f.sugg.hidden = true;
   }
   function pickChip(f, key) {
     var p = PLACES[key];
@@ -742,22 +754,41 @@
   }
   function markChips(f) { qsa('.chip', f.box).forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-place') === f.chip); }); }
 
-  var lastGeo = 0;
   function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  // Lo busca nuestro servidor: su lista de sitios, lo ya buscado, OpenStreetMap y otro buscador de reserva
   async function geocode(q) {
-    // Nominatim: una consulta por segundo como mucho, y sin autocompletar (su norma de uso).
-    var gap = 1100 - (Date.now() - lastGeo);
-    if (gap > 0) await wait(gap);
-    lastGeo = Date.now();
-    var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=es' +
-      '&viewbox=-5.9,37.5,-3.5,36.1&accept-language=' + lang + '&q=' + encodeURIComponent(q);
-    var res;
-    try { res = await fetch(url); } catch (e) { throw { code: 'geo' }; }
-    if (!res.ok) throw { code: 'geo' };
-    var data = await res.json();
-    if (!data.length) return null;
-    var label = String(data[0].display_name || q).split(',').slice(0, 3).join(',').trim();
-    return { lat: Number(data[0].lat), lon: Number(data[0].lon), label: label };
+    var res, data;
+    try { res = await fetch('/api/bravo/geo?lang=' + lang + '&q=' + encodeURIComponent(q)); } catch (e) { throw { code: 'geo' }; }
+    if (res.status === 401) { location.reload(); throw { code: 'generic' }; }
+    try { data = await res.json(); } catch (e) { throw { code: 'geo' }; }
+    if (!res.ok || data.error) throw { code: 'geo' };
+    return data.result || null;
+  }
+  // Sugerencias al escribir (solo de la lista propia y de lo ya buscado)
+  var suggTimer = null;
+  function suggestFor(f) {
+    clearTimeout(suggTimer);
+    var q = f.input.value.trim();
+    if (!f.sugg) { f.sugg = document.createElement('div'); f.sugg.className = 'sugg'; f.sugg.hidden = true; f.input.insertAdjacentElement('afterend', f.sugg); }
+    if (q.length < 2) { f.sugg.hidden = true; return; }
+    suggTimer = setTimeout(async function () {
+      var list = [];
+      try { var r = await fetch('/api/bravo/geo/suggest?lang=' + lang + '&q=' + encodeURIComponent(q)); if (r.ok) list = (await r.json()).results || []; } catch (e) { /* sin sugerencias */ }
+      if (f.input.value.trim() !== q) return;
+      f.sugg.innerHTML = '';
+      list.forEach(function (p) {
+        var b = document.createElement('button');
+        b.type = 'button'; b.textContent = (p.airport ? '✈️ ' : '📍 ') + p.label;
+        // mousedown/touchstart: antes de que el campo pierda el foco
+        b.addEventListener('pointerdown', function (ev) { ev.preventDefault(); setPlace(f, p); f.sugg.hidden = true; });
+        f.sugg.appendChild(b);
+      });
+      f.sugg.hidden = !list.length;
+    }, 180);
+  }
+  function hookSuggest(f) {
+    f.input.addEventListener('input', function () { suggestFor(f); });
+    f.input.addEventListener('blur', function () { setTimeout(function () { if (f.sugg) f.sugg.hidden = true; }, 150); });
   }
   async function resolve(f) {
     if (f.place) return f.place;
@@ -765,10 +796,11 @@
     if (q.length < 3) { f.input.focus(); throw { code: 'needPlace' }; }
     var r = await geocode(q);
     if (!r) { f.input.focus(); throw { code: 'notFound', q: q }; }
-    r.airport = /aeropuerto|airport|\bAGP\b|flughafen/i.test(q + ' ' + r.label);
-    f.place = r;
-    f.found.textContent = '📍 ' + t('found') + ': ' + r.label;
-    return r;
+    r.airport = Boolean(r.airport) || r.kind === 'airport' || /aeropuerto|airport|\bAGP\b|flughafen/i.test(q + ' ' + r.label);
+    // Si solo se sabe el pueblo, se guarda lo que escribió el cliente (para el conductor) y el precio es el de esa zona
+    f.place = { lat: r.lat, lon: r.lon, label: r.label, airport: r.airport };
+    f.found.textContent = '📍 ' + t('found') + ': ' + r.label + (r.approx && r.zone ? ' · ' + t('foundZone').replace('{z}', r.zone) : '');
+    return f.place;
   }
 
   // ---------- servidor ----------
@@ -790,6 +822,18 @@
     var msg = T.es['err_' + code] ? t('err_' + code) : t('err_generic');
     if (code === 'notFound') msg = msg.replace('{q}', e.q || '');
     $('err').textContent = msg; $('err').hidden = false;
+    // Plan B: que nadie se quede sin precio. Se abre WhatsApp con el viaje ya escrito
+    if (code === 'notFound' || code === 'geo') {
+      var v = function (id) { var el = $(id); return el && el.value ? el.value.trim() : ''; };
+      var hourly = state.tab === 'hourly';
+      var txt = t('waTrip').replace('{from}', v(hourly ? 'h-from' : 't-from') || '?').replace('{to}', hourly ? (v('h-hours') + ' h') : (v('t-to') || '?'))
+        .replace('{date}', v(hourly ? 'h-date' : 't-date') || '?').replace('{time}', v(hourly ? 'h-time' : 't-time') || '?').replace('{pax}', v(hourly ? 'h-pax' : 't-pax') || '?');
+      var a = document.createElement('a');
+      a.className = 'planb'; a.target = '_blank'; a.rel = 'noopener';
+      a.href = 'https://wa.me/353874592308?text=' + encodeURIComponent(txt);
+      a.textContent = '💬 ' + t('planB');
+      $('err').appendChild(a);
+    }
     $('err').scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
   function clearErr() { $('err').hidden = true; $('err').textContent = ''; }
