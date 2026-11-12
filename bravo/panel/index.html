@@ -389,6 +389,13 @@
     <h3>Correos y cuenta del cliente</h3>
     <div class="card" id="mail-state"></div>
     <label class="check"><input type="checkbox" data-s="autoInvoice"> Hacer la factura sola al reservar (con el IVA por defecto) y mandarla en el correo</label>
+    <h3>Avisos automáticos (por correo)</h3>
+    <label class="check"><input type="checkbox" data-s="reminders"> Al cliente, el día antes del viaje (desde las 10), con su conductor, el coche y la matrícula</label>
+    <label class="check"><input type="checkbox" data-s="notifyCompany"> A la empresa de transporte: al asignarle el viaje y la víspera, con su hoja de servicio</label>
+    <label class="check"><input type="checkbox" data-s="ownerAlerts"> A ti, a las 18, si algún viaje de mañana sigue sin asignar</label>
+    <label>Enlace para dejar una opinión en Google (vacío: no se pide)</label><input data-s="reviewUrl" type="url" placeholder="https://g.page/r/…/review">
+    <p class="msg">Con el enlace, al día siguiente del viaje el cliente recibe un correo pidiéndole su opinión. El enlace sale en tu ficha de Google Business.</p>
+    <div class="btns"><button type="button" class="b" id="rem-run">🔔 Comprobar los avisos ahora</button></div><div class="msg" id="rem-msg"></div>
     <label class="check"><input type="checkbox" data-s="payEmail"> Al marcar un pago a una empresa de transporte o a un proveedor, mandarle el justificante de pago por correo (solo pagos de los últimos 15 días)</label>
     <label>El cliente puede cancelar él solo hasta (horas antes del viaje)</label>
     <input type="number" min="0" max="168" step="1" inputmode="numeric" data-s="cancelHours">
@@ -443,7 +450,7 @@
     no_price: 'Pon primero el precio y guarda', bad_vat: 'El IVA tiene que estar entre 0 y 30',
     already_invoiced: 'Esta reserva ya tiene factura', invoiced: 'Tiene factura: para cambiar el precio, anúlala antes',
     has_invoice: 'Tiene o tuvo factura: no se puede borrar', bad_price: 'Precio no válido', bad_pay: 'Pago no válido',
-    bad_hours_ahead: 'Antelación no válida (0 a 168 horas)', bad_cancel_hours: 'Horas para cancelar no válidas (0 a 168)',
+    bad_hours_ahead: 'Antelación no válida (0 a 168 horas)', bad_cancel_hours: 'Horas para cancelar no válidas (0 a 168)', bad_review_url: 'El enlace de Google tiene que empezar por https://',
     bad_date: 'Día u hora no válidos', bad_email: 'El correo no es válido', bad_paid: 'Pon el día del pago',
     no_email: 'No tiene correo: ponlo y guarda antes', not_paid: 'Todavía no está pagado',
     bad_name: 'Falta el nombre del cliente', bad_phone: 'Revisa el teléfono', need_contact: 'Pon el teléfono o el correo del cliente',
@@ -470,7 +477,8 @@
     if (t === 'billing') renderBilling();
     if (t === 'accounts') setSub(accSub);
     if (t === 'drivers') renderDrivers();
-    if (t === 'settings' || t === 'drivers') api('admin/docs').then(function (d) { docs = d.docs || docs; if (tab === 'settings') $('company-docs').innerHTML = docsBox('company'); if (tab === 'drivers') renderDrivers(); }).catch(function () {});
+    // Los papeles, al día: solo se redibujan sus recuadros (si no, se perdería lo que se esté escribiendo)
+    if (t === 'settings' || t === 'drivers') api('admin/docs').then(function (d) { docs = d.docs || docs; refreshDocBoxes(); }).catch(function () {});
     if (t === 'settings') renderSettings();
     window.scrollTo(0, 0);
   }
@@ -580,6 +588,16 @@
     });
   }
 
+  $('rem-run').addEventListener('click', async function () {
+    var m = $('rem-msg'); m.className = 'msg'; m.textContent = 'Comprobando…';
+    try {
+      var r = await api('admin/reminders/run', {});
+      m.className = 'msg ok';
+      m.textContent = r.emailOff ? 'Los correos no están activados (falta la clave de Brevo): no se puede mandar nada.' : r.sent ? '✓ Mandados ' + r.sent + ' aviso' + (r.sent === 1 ? '' : 's') + '.' : '✓ No había ningún aviso pendiente.';
+      var d = await api('admin/bookings'); list = d.bookings || list; renderTrips();
+    } catch (e) { m.className = 'msg bad'; m.textContent = e.message; }
+  });
+
   // ---------- PAPELES (empresas de transporte y la tuya) ----------
   function daysTo(d) { return Math.round((new Date(d + 'T12:00:00') - new Date(madridDay(0) + 'T12:00:00')) / 86400000); }
   function ownerName(o) { if (o === 'company') return 'Tu empresa'; var d = drivers.filter(function (x) { return x.id === o; })[0]; return d ? d.name : 'Empresa'; }
@@ -606,6 +624,14 @@
       '<div class="row"><div><label>Número</label><input data-doc="number"></div><div><label>Nota</label><input data-doc="title" placeholder="Ej.: furgoneta 1234 ABC"></div></div>' +
       '<label>Foto o PDF (opcional)</label><input data-doc="file" type="file" accept="image/*,application/pdf">' +
       '<div class="btns"><button type="button" class="b dark" data-doc-add>＋ Añadir papel</button></div><div class="msg" data-doc-msg></div></div>';
+  }
+  function refreshDocBoxes() {
+    qsa('[data-docs]').forEach(function (box) {
+      if (box.contains(document.activeElement)) return;
+      var tmp = document.createElement('div'); tmp.innerHTML = docsBox(box.getAttribute('data-docs'));
+      box.parentNode.replaceChild(tmp.firstChild, box);
+    });
+    renderToday();
   }
   function afterDocs(newDocs) {
     docs = newDocs;
@@ -734,6 +760,21 @@
       '. Recogida: ' + fromOf(b) + '. ' + dest + '. ' + b.passengers + ' pers.' + (b.flight ? ' Vuelo ' + b.flight + '.' : '') +
       ' Cliente: ' + b.name + ' ' + b.phone + '. Hoja de servicio: ' + docUrl(b, 'hoja');
   }
+  // Mensajes ya escritos para el cliente, en su idioma
+  function clientTemplates(b) {
+    var en = b.lang === 'en', first = String(b.name || '').split(' ')[0];
+    var who = b.chauffeur || b.driverName, whoPhone = b.chauffeur ? (b.chauffeurPhone || b.driverPhone) : b.driverPhone;
+    var drv = who ? who + (b.driverCar ? (en ? ', car ' : ', coche ') + b.driverCar : '') + (whoPhone ? (en ? ', phone ' : ', tel. ') + whoPhone : '') : '';
+    var airport = /aeropuerto|airport|agp/i.test(fromOf(b));
+    var t = [['datos', en ? 'Booking details' : 'Datos de la reserva', clientMsg(b)]];
+    if (who) t.push(['conductor', en ? 'Your driver' : 'Tu conductor', en ? 'Hi ' + first + ', your driver for booking ' + b.ref + ' (' + dmy(b.date) + ' at ' + b.time + ') is ' + drv + '.' : 'Hola ' + first + ', tu conductor para la reserva ' + b.ref + ' (' + dmy(b.date) + ' a las ' + b.time + ') es ' + drv + '.']);
+    t.push(['manana', en ? 'Reminder (tomorrow)' : 'Recordatorio (mañana)', en ? 'Hi ' + first + ', a reminder of your transfer tomorrow at ' + b.time + ' from ' + fromOf(b) + '.' + (drv ? ' Your driver: ' + drv + '.' : '') + ' Have a good trip!' : 'Hola ' + first + ', te recordamos tu traslado de mañana a las ' + b.time + ' desde ' + fromOf(b) + '.' + (drv ? ' Tu conductor: ' + drv + '.' : '') + ' ¡Buen viaje!']);
+    t.push(['llegada', en ? 'Driver waiting' : 'Ya te espera', en ? 'Hi ' + first + ', your driver is already waiting for you' + (airport ? ' in the arrivals hall with a sign with your name.' : ' at ' + fromOf(b) + '.') + (whoPhone ? ' Phone: ' + whoPhone + '.' : '') : 'Hola ' + first + ', tu conductor ya te está esperando' + (airport ? ' en la salida de llegadas, con un cartel con tu nombre.' : ' en ' + fromOf(b) + '.') + (whoPhone ? ' Teléfono: ' + whoPhone + '.' : '')]);
+    t.push(['retraso', en ? 'Driver running late' : 'Retraso del conductor', en ? 'Hi ' + first + ', your driver will be a few minutes late. Sorry for the inconvenience; we will message you as soon as they are there.' : 'Hola ' + first + ', tu conductor llegará unos minutos tarde. Perdona las molestias; te escribimos en cuanto esté allí.']);
+    if (activeInv(b)) t.push(['factura', en ? 'Invoice' : 'Factura', invoiceMsg(b)]);
+    t.push(['gracias', en ? 'Thank you (+ review)' : 'Gracias (+ opinión)', (en ? 'Hi ' + first + ', thank you for travelling with Bravo Transfers. If you liked it, a review would help us a lot' : 'Hola ' + first + ', gracias por viajar con Bravo Transfers. Si te ha gustado, tu opinión nos ayudaría mucho') + (cfg && cfg.reviewUrl ? ': ' + cfg.reviewUrl : '.')]);
+    return t;
+  }
   function invoiceMsg(b) {
     var en = b.lang === 'en';
     return (en ? 'Hi ' + b.name + ', here is your invoice ' + b.invoice.number + ' from Bravo Transfers: ' : 'Hola ' + b.name + ', aquí tienes tu factura ' + b.invoice.number + ' de Bravo Transfers: ') + docUrl(b, 'factura');
@@ -801,6 +842,7 @@
       '<a class="b" target="_blank" rel="noopener" href="' + esc(docUrl(b, 'hoja')) + '">🚐 Hoja de servicio</a></div>' + mailBox(b) + '</div>' +
       '<div class="box" data-contact><b>Llamar o escribir</b>' +
       contactRow('Cliente', b.name, b.phone, clientMsg(b), b.email, (b.lang === 'en' ? 'Your booking ' : 'Tu reserva ') + b.ref + ' – Bravo Transfers') +
+      '<label>Mensaje para el cliente</label><select data-tpl>' + clientTemplates(b).map(function (x) { return '<option value="' + x[0] + '">' + esc(x[1]) + '</option>'; }).join('') + '</select>' +
       (b.driverName || b.driverPhone ? contactRow('Empresa', b.driverName, b.driverPhone, driverMsg(b), b.driverEmail, 'Servicio ' + b.ref + ' – Bravo Transfers') : '') +
       (b.chauffeur || b.chauffeurPhone ? contactRow('Conductor que va', b.chauffeur, b.chauffeurPhone, chauffeurMsg(b)) : '') +
       '<div class="msg">El WhatsApp se abre con el mensaje ya escrito (con los datos guardados): tú solo le das a enviar.</div></div>' +
@@ -842,11 +884,13 @@
 
   // El correo automático de la reserva: si salió y el botón para mandarlo otra vez (con los datos de ahora)
   function mailBox(b) {
-    if (!b.email) return '<div class="mail-line">✉️ Sin correo del cliente: avísale por WhatsApp o por teléfono.</div>';
-    var last = (b.emails || [])[b.emails ? b.emails.length - 1 : 0];
-    var line = !last ? '✉️ Todavía no se le ha mandado el correo automático.'
-      : last.ok ? '✉️ Correo de ' + esc(last.kind) + ' enviado el ' + esc(new Date(last.at).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) + '.'
-        : '⚠️ El correo de ' + esc(last.kind) + ' no salió' + (last.error === 'not_configured' ? ': los correos aún no están activados.' : ' (' + esc(last.error) + ').');
+    var sentList = (b.emails || []).slice(-6).map(function (x) {
+      var when = new Date(x.at).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+      return x.ok ? '✉️ Correo de ' + esc(x.kind) + ' enviado el ' + esc(when) + '.'
+        : '⚠️ El correo de ' + esc(x.kind) + ' no salió' + (x.error === 'not_configured' ? ': los correos aún no están activados.' : ' (' + esc(x.error) + ').');
+    });
+    if (!b.email) return '<div class="mail-line">' + sentList.concat(['✉️ Sin correo del cliente: avísale por WhatsApp o por teléfono.']).join('<br>') + '</div>';
+    var line = sentList.length ? sentList.join('<br>') : '✉️ Todavía no se le ha mandado el correo automático.';
     var on = cfg && cfg.email && cfg.email.configured;
     return '<div class="mail-line">' + line + '</div><div class="btns"><button type="button" class="b dark" data-mail' + (on ? '' : ' aria-disabled="true"') + '>✉️ Enviar el correo de la reserva' +
       (activeInv(b) ? ' (con la factura)' : '') + '</button></div>' + (on ? '' : '<div class="msg">Se activa cuando esté la clave de Brevo en Railway.</div>');
@@ -977,6 +1021,14 @@
       try { var data = await api('admin/incident', { ref: b.ref, action: 'add', kind: el.querySelector('[data-inc-kind]').value, text: text }); replace(data.booking); open[b.ref] = true; renderTrips(); }
       catch (e) { alert(e.message); }
     });
+    var tplSel = el.querySelector('[data-tpl]');
+    if (tplSel) tplSel.addEventListener('change', function () {
+      var x = clientTemplates(b).filter(function (y) { return y[0] === tplSel.value; })[0];
+      var row = el.querySelector('[data-contact] .ct');
+      var w = row.querySelector('a.wa'), mm = row.querySelector('a[href^="mailto:"]');
+      if (w) w.href = wa(b.phone, x[2]);
+      if (mm) mm.href = mail(b.email, (b.lang === 'en' ? 'Your booking ' : 'Tu reserva ') + b.ref + ' – Bravo Transfers', x[2]);
+    });
     var cm = el.querySelector('[data-copy-min]');
     if (cm) cm.addEventListener('click', function () {
       var t = ministryText(b);
@@ -1006,7 +1058,7 @@
         var nb = data.booking, nowPaid = nb.driverPaid && !b.driverPaid;
         var willMail = nowPaid && cfg && cfg.payEmail && cfg.email && cfg.email.configured && (nb.driverEmail || '').indexOf('@') > 0;
         replace(nb); open[b.ref] = true; renderTrips();
-        flash(b.ref, '[data-msg]', '✓ Guardado.' + (moved ? ' Has cambiado el día o la hora: avisa al cliente (botón «Enviar el correo de la reserva» o WhatsApp).' : '') +
+        flash(b.ref, '[data-msg]', '✓ Guardado.' + (data.companyNotified ? ' Le mandamos el servicio a la empresa por correo.' : '') + (moved ? ' Has cambiado el día o la hora: avisa al cliente (botón «Enviar el correo de la reserva» o WhatsApp).' : '') +
           (willMail ? ' Le mandamos el justificante de pago a ' + nb.driverEmail + '.' : nowPaid && (nb.driverEmail || '').indexOf('@') < 0 ? ' No tiene correo: el justificante no se le manda.' : ''));
         if (willMail) setTimeout(function () { api('admin/bookings').then(function (r) { list = r.bookings || list; renderTrips(); }).catch(function () {}); }, 2500);
       } catch (e) { msg.className = 'msg bad'; msg.textContent = 'No se ha guardado: ' + e.message; btn.disabled = false; }

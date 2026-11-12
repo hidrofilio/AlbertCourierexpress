@@ -25,6 +25,10 @@ const DEFAULTS = {
   autoInvoice: true, // factura automática al reservar (con el IVA por defecto)
   cancelHours: 24, // el cliente cancela solo hasta estas horas antes
   backupEmail: false, // mandar a Alberto la copia de seguridad por correo cada lunes
+  reminders: true, // al cliente, el día antes
+  notifyCompany: true, // a la empresa de transporte, al asignarle el viaje y la víspera
+  ownerAlerts: true, // a Alberto, si un viaje de mañana sigue sin asignar
+  reviewUrl: '', // enlace para dejar una opinión en Google (vacío: no se pide)
   payEmail: true, // al marcar un pago (empresa de transporte o proveedor), mandarle el justificante por correo
   // Provisional: solo salidas desde la provincia de Málaga (caja aproximada)
   originBox: { latMin: 36.28, latMax: 37.32, lonMin: -5.65, lonMax: -3.75 },
@@ -96,6 +100,8 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
     if (Number.isFinite(s.cancelHours)) out.cancelHours = s.cancelHours;
     if (typeof s.payEmail === 'boolean') out.payEmail = s.payEmail;
     if (typeof s.backupEmail === 'boolean') out.backupEmail = s.backupEmail;
+    for (const k of ['reminders', 'notifyCompany', 'ownerAlerts']) if (typeof s[k] === 'boolean') out[k] = s[k];
+    if (typeof s.reviewUrl === 'string') out.reviewUrl = s.reviewUrl;
     return out;
   }
   function num(v, min, max, decimals) {
@@ -109,6 +115,13 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
     const cur = settings();
     const out = { vehicles: {}, minHoursAhead: cur.minHoursAhead, invoice: {}, autoInvoice: cur.autoInvoice, cancelHours: cur.cancelHours, payEmail: cur.payEmail, backupEmail: cur.backupEmail };
     if (d.backupEmail !== undefined) out.backupEmail = d.backupEmail === true || d.backupEmail === 'true';
+    for (const k of ['reminders', 'notifyCompany', 'ownerAlerts']) out[k] = d[k] !== undefined ? (d[k] === true || d[k] === 'true') : cur[k];
+    out.reviewUrl = cur.reviewUrl;
+    if (d.reviewUrl !== undefined) {
+      const u = String(d.reviewUrl || '').trim();
+      if (u && (!/^https:\/\/[^\s<>"']+$/.test(u) || u.length > 300)) return { error: 'bad_review_url' };
+      out.reviewUrl = u;
+    }
     if (d.autoInvoice !== undefined) out.autoInvoice = d.autoInvoice === true || d.autoInvoice === 'true';
     if (d.payEmail !== undefined) out.payEmail = d.payEmail === true || d.payEmail === 'true';
     if (d.cancelHours !== undefined) {
@@ -223,6 +236,90 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
   }
   setTimeout(autoBackup, 4000).unref();
   setInterval(autoBackup, 3600000).unref();
+
+  // ---------- avisos automáticos (cada 15 minutos) ----------
+  function madridHour() { return Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Madrid', hour: '2-digit', hour12: false }).format(new Date())) % 24; }
+  function companyAddr(b) {
+    if (isEmail(b.driverEmail)) return b.driverEmail.trim();
+    const n = String(b.driverName || '').toLowerCase(), d = drivers().find((x) => x.name && x.name.toLowerCase() === n);
+    return d && isEmail(d.email) ? d.email : '';
+  }
+  // Manda un aviso y lo apunta en la reserva (leída de nuevo, por si se cambió mientras tanto)
+  async function sendNotice(ref, kind, build) {
+    let b;
+    try { b = JSON.parse(fs.readFileSync(bookingFile(ref), 'utf8')); } catch (e) { return { ok: false, error: 'not_found' }; }
+    const m = build(b);
+    if (!m) return { ok: false, error: 'nothing' };
+    const r = await mail.send(m);
+    try {
+      const fresh = JSON.parse(fs.readFileSync(bookingFile(ref), 'utf8'));
+      fresh.reminders = Object.assign(fresh.reminders || {}, m.mark || {});
+      fresh.emails = (fresh.emails || []).concat([{ at: new Date().toISOString(), kind, ok: r.ok, error: r.error || '', to: m.to }]).slice(-20);
+      saveBooking(fresh);
+    } catch (e) { /* ya no está */ }
+    return r;
+  }
+  function companyNotice(b, kind) {
+    const to = companyAddr(b);
+    if (!to) return null;
+    const m = TPL.companyEmail(b, { kind, base: BASE });
+    const mark = kind === 'tomorrow' ? { companyTomorrow: new Date().toISOString() } : { companyNewFor: b.driverName + '|' + b.date + '|' + b.time };
+    return { to, toName: b.driverName, subject: m.subject, html: m.html, text: m.text, mark, attachments: [{ name: 'hoja-' + b.ref + '.pdf', buf: pdf.driverSheetPdf(b, issuerOf(settings())) }] };
+  }
+  let remBusy = false;
+  async function runReminders(force) {
+    if (remBusy) return { sent: 0, busy: true };
+    if (!mail.configured()) return { sent: 0, emailOff: true };
+    remBusy = true;
+    let sent = 0;
+    try {
+      const cfg = settings(), t0 = today(), t1 = addDays(t0, 1), tm1 = addDays(t0, -1), late = force || madridHour() >= 10;
+      for (const b of allBookings()) {
+        if (b.status === 'cancelada') continue;
+        const done = b.reminders || {};
+        // 1. Al cliente, el día antes, en cuanto el viaje tiene empresa (si no, a las 18 se avisa a Alberto)
+        if (cfg.reminders && late && b.kind !== 'group' && isEmail(b.email) && b.date === t1 && !done.client && b.driverName) {
+          await sendNotice(b.ref, 'recordatorio', (x) => {
+            let link = areaUrl('');
+            const cl = customers(), c = cl.find((y) => y.id === x.customerId);
+            if (c) { link = areaUrl(loginToken(c, 48)); saveCustomers(cl); }
+            const m = TPL.reminderEmail(x, { areaUrl: link, base: BASE });
+            return { to: x.email, toName: x.name, subject: m.subject, html: m.html, text: m.text, mark: { client: new Date().toISOString() } };
+          });
+          sent++;
+        }
+        // 2. A la empresa, la víspera
+        if (cfg.notifyCompany && late && b.driverName && b.date === t1 && !done.companyTomorrow && companyAddr(b)) {
+          await sendNotice(b.ref, 'empresa: mañana', (x) => companyNotice(x, 'tomorrow'));
+          sent++;
+        }
+        // 3. Al cliente, el día después: su opinión (solo si hay enlace)
+        if (cfg.reviewUrl && late && isEmail(b.email) && b.date === tm1 && ['asignada', 'hecha'].includes(b.status) && !done.review) {
+          await sendNotice(b.ref, 'opinión', (x) => {
+            const m = TPL.reviewEmail(x, { reviewUrl: cfg.reviewUrl, base: BASE });
+            return { to: x.email, toName: x.name, subject: m.subject, html: m.html, text: m.text, mark: { review: new Date().toISOString() } };
+          });
+          sent++;
+        }
+      }
+      // 4. A Alberto: viajes de mañana sin asignar (una vez al día, desde las 18)
+      const ALERTS = path.join(DIR, 'alerts.json');
+      let al = {};
+      try { al = JSON.parse(fs.readFileSync(ALERTS, 'utf8')); } catch (e) { /* ninguno */ }
+      const loose = allBookings().filter((b) => b.date === t1 && b.status !== 'cancelada' && !b.driverName);
+      if (cfg.ownerAlerts && loose.length && al.unassigned !== t0 && (force || madridHour() >= 18)) {
+        al.unassigned = t0; writeJson(ALERTS, al);
+        const m = TPL.ownerEmail('Mañana hay ' + loose.length + ' viaje' + (loose.length === 1 ? '' : 's') + ' sin asignar', loose.map((b) => b.ref + ' · ' + b.time + ' · ' +
+          (b.kind === 'group' ? b.fromText : (b.from && b.from.label) || '') + (b.kind === 'hourly' ? ' (' + b.hours + ' h)' : ' → ' + (b.kind === 'group' ? b.toText : (b.to && b.to.label) || '')) + ' · ' + b.passengers + ' pers.'),
+          { url: BASE + '/bravo/panel/', base: BASE });
+        await mail.send({ to: mail.owner, subject: m.subject, html: m.html, text: m.text });
+        sent++;
+      }
+    } finally { remBusy = false; }
+    return { sent };
+  }
+  setTimeout(() => { runReminders(false).catch(() => {}); }, 8000).unref();
+  setInterval(() => { runReminders(false).catch(() => {}); }, 15 * 60000).unref();
 
   // ---------- clientes: su cuenta, contraseña, sesiones y mensajes ----------
   const CUSTOMERS = path.join(DIR, 'customers.json');
@@ -1297,6 +1394,10 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       }
       return json(res, 200, { ok: true, emailed });
     }
+    if (req.method === 'POST' && route === 'admin/reminders/run') {
+      const r = await runReminders(true);
+      return json(res, 200, r);
+    }
     if (req.method === 'GET' && route === 'admin/payment.pdf') {
       const sp = new URL(url, 'http://x').searchParams;
       const p = payment(sp.get('type'), sp.get('key'));
@@ -1403,6 +1504,7 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       if (req.method === 'GET') {
         const s = settings();
         return json(res, 200, { vehicles: s.vehicles, minHoursAhead: s.minHoursAhead, invoice: s.invoice, autoInvoice: s.autoInvoice, cancelHours: s.cancelHours, payEmail: s.payEmail, backupEmail: s.backupEmail,
+          reminders: s.reminders, notifyCompany: s.notifyCompany, ownerAlerts: s.ownerAlerts, reviewUrl: s.reviewUrl,
           email: { configured: mail.configured(), provider: mail.provider }, weakKey: !process.env.BRAVO_KEY || KEY.length < 10 });
       }
       if (req.method === 'POST') {
@@ -1415,6 +1517,7 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
         fs.renameSync(file + '.tmp', file);
         const s = settings();
         return json(res, 200, { ok: true, vehicles: s.vehicles, minHoursAhead: s.minHoursAhead, invoice: s.invoice, autoInvoice: s.autoInvoice, cancelHours: s.cancelHours, payEmail: s.payEmail, backupEmail: s.backupEmail,
+          reminders: s.reminders, notifyCompany: s.notifyCompany, ownerAlerts: s.ownerAlerts, reviewUrl: s.reviewUrl,
           email: { configured: mail.configured(), provider: mail.provider }, weakKey: !process.env.BRAVO_KEY || KEY.length < 10 });
       }
     }
@@ -1538,6 +1641,7 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
         if (!STATUSES.includes(d.status)) return json(res, 400, { error: 'bad_status' });
         b.status = d.status;
       }
+      const before = b.driverName + '|' + b.date + '|' + b.time;
       if (d.driverName !== undefined) b.driverName = clean(d.driverName, 80);
       if (d.driverPhone !== undefined) b.driverPhone = clean(d.driverPhone, 25);
       if (d.driverPay !== undefined) {
@@ -1589,7 +1693,15 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       b.updatedAt = new Date().toISOString();
       saveBooking(b);
       if (newlyPaid) autoPayEmail('driver', b.ref);
-      return json(res, 200, { ok: true, booking: b });
+      // La empresa recibe el servicio (con su hoja) al asignárselo, o si cambia el día o la hora
+      const nowKey = b.driverName + '|' + b.date + '|' + b.time;
+      let companyNotified = false;
+      if (b.driverName && nowKey !== before && b.status !== 'cancelada' && b.date >= today() && settings().notifyCompany && mail.configured() && companyAddr(b) &&
+          (b.reminders || {}).companyNewFor !== nowKey) {
+        companyNotified = true;
+        setImmediate(() => { sendNotice(b.ref, 'empresa: nuevo servicio', (x) => companyNotice(x, 'new')).catch(() => {}); });
+      }
+      return json(res, 200, { ok: true, booking: b, companyNotified });
     }
 
     // ---------- contabilidad ----------

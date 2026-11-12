@@ -190,4 +190,64 @@ function paymentEmail(p, o) {
   return { subject: `Pago de ${money(p.total)} · Bravo Transfers` + (p.ref ? ' · ' + p.ref : ''), html: shell('es', html, o.base), text };
 }
 
-module.exports.templates = { bookingEmail, loginEmail, messageEmail, ownerEmail, paymentEmail };
+// ---------- avisos automáticos ----------
+const R = {
+  es: {
+    remSubject: 'Mañana: tu traslado {ref}', remIntro: 'Te recordamos tu traslado de mañana:', when: 'Día y hora', from: 'Recogida', to: 'Destino', hours: 'Horas',
+    pax: 'Pasajeros', flight: 'Vuelo', driver: 'Tu conductor', car: 'Coche', later: 'En cuanto tengamos el conductor, te mandamos su nombre, el coche y la matrícula.',
+    help: '¿Algún cambio? Escríbenos por WhatsApp o desde tu cuenta.', area: 'Ver mi reserva', bye: 'Buen viaje,',
+    revSubject: '¿Qué tal tu viaje con Bravo Transfers?', revText: 'Gracias por viajar con nosotros. Si te ha gustado, ¿nos dejas tu opinión en Google? Son dos minutos y nos ayuda mucho.',
+    revBtn: 'Dejar mi opinión', revBad: 'Si algo no fue bien, contéstanos a este correo y lo arreglamos.', thanks: 'Gracias,'
+  },
+  en: {
+    remSubject: 'Tomorrow: your transfer {ref}', remIntro: 'A reminder of your transfer tomorrow:', when: 'Date and time', from: 'Pick-up', to: 'Drop-off', hours: 'Hours',
+    pax: 'Passengers', flight: 'Flight', driver: 'Your driver', car: 'Car', later: 'As soon as we have your driver, we will send you their name, the car and its number plate.',
+    help: 'Any changes? Message us on WhatsApp or from your account.', area: 'See my booking', bye: 'Have a good trip,',
+    revSubject: 'How was your trip with Bravo Transfers?', revText: 'Thank you for travelling with us. If you liked it, would you leave us a review on Google? It takes two minutes and helps us a lot.',
+    revBtn: 'Leave a review', revBad: 'If something went wrong, reply to this email and we will put it right.', thanks: 'Thank you,'
+  }
+};
+function rowsHtml(rows) {
+  return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:14px;margin:8px 0">' +
+    rows.filter((r) => r[1]).map((r) => `<tr><td style="padding:6px 8px;border-bottom:1px solid #eee;color:#6f6252;width:38%">${esc(r[0])}</td><td style="padding:6px 8px;border-bottom:1px solid #eee">${esc(r[1])}</td></tr>`).join('') + '</table>';
+}
+const who = (b) => b.chauffeur || b.driverName || '';
+const whoPhone = (b) => (b.chauffeur ? b.chauffeurPhone || b.driverPhone : b.driverPhone) || '';
+// Al cliente, el día antes
+function reminderEmail(b, o) {
+  const lang = b.lang === 'en' ? 'en' : 'es', t = R[lang];
+  const from = (b.from && b.from.label) || b.fromText || '', to = (b.to && b.to.label) || b.toText || '';
+  const rows = [[t.when, dmy(b.date) + ' · ' + b.time], [t.from, from], [b.kind === 'hourly' ? t.hours : t.to, b.kind === 'hourly' ? String(b.hours) : to], [t.pax, String(b.passengers)], [t.flight, b.flight],
+    [t.driver, who(b) ? who(b) + (whoPhone(b) ? ' · ' + whoPhone(b) : '') : ''], [t.car, who(b) ? b.driverCar : '']];
+  const html = `<p style="font-size:16px;margin:0 0 6px">${esc(L[lang].hello)} ${esc(String(b.name || '').split(' ')[0])},</p><p>${esc(t.remIntro)}</p>` + rowsHtml(rows) +
+    (who(b) ? '' : `<p>${esc(t.later)}</p>`) + `<p>${esc(t.help)}</p>` + (o.areaUrl ? btn(o.areaUrl, t.area) : '') + `<p style="margin:10px 0">${esc(t.bye)}<br>Bravo Transfers</p>`;
+  const text = [L[lang].hello + ' ' + String(b.name || '').split(' ')[0] + ',', '', t.remIntro, ''].concat(rows.filter((r) => r[1]).map((r) => r[0] + ': ' + r[1]),
+    ['', who(b) ? '' : t.later, t.help, o.areaUrl || '', '', t.bye, 'Bravo Transfers']).join('\n');
+  return { subject: t.remSubject.replace('{ref}', b.ref), html: shell(lang, html, o.base), text };
+}
+// Al cliente, el día después: su opinión en Google
+function reviewEmail(b, o) {
+  const lang = b.lang === 'en' ? 'en' : 'es', t = R[lang];
+  const html = `<p style="font-size:16px;margin:0 0 6px">${esc(L[lang].hello)} ${esc(String(b.name || '').split(' ')[0])},</p><p>${esc(t.revText)}</p>` + btn(o.reviewUrl, t.revBtn) +
+    `<p style="color:#6f6252">${esc(t.revBad)}</p><p style="margin:10px 0">${esc(t.thanks)}<br>Bravo Transfers</p>`;
+  const text = [L[lang].hello + ' ' + String(b.name || '').split(' ')[0] + ',', '', t.revText, o.reviewUrl, '', t.revBad, '', t.thanks, 'Bravo Transfers'].join('\n');
+  return { subject: t.revSubject, html: shell(lang, html, o.base), text };
+}
+// A la empresa de transporte: el servicio nuevo (al asignarlo) o el de mañana (la víspera), con su hoja
+function companyEmail(b, o) {
+  const tomorrow = o.kind === 'tomorrow';
+  const from = (b.from && b.from.label) || b.fromText || '', to = (b.to && b.to.label) || b.toText || '';
+  const rows = [['Día y hora', dmy(b.date) + ' · ' + b.time], ['Recogida', from], [b.kind === 'hourly' ? 'Horas' : 'Destino', b.kind === 'hourly' ? String(b.hours) : to],
+    ['Vuelta', b.roundTrip ? dmy(b.returnDate) + ' · ' + b.returnTime : ''], ['Pasajeros', String(b.passengers)], ['Vuelo', b.flight],
+    ['Maletas', b.kind === 'group' ? '' : String(b.bags || 0) + (b.childSeats ? ' · sillas de niño: ' + b.childSeats : '')],
+    ['Cliente', b.name + (b.phone ? ' · ' + b.phone : '')], ['Conductor', b.chauffeur || ''], ['Nota', b.driverNote], ['Se te paga', b.driverPay != null ? money(b.driverPay) : '']];
+  const intro = tomorrow ? 'Te recordamos el servicio de mañana:' : 'Te asignamos este servicio de Bravo Transfers:';
+  const html = `<p style="font-size:16px;margin:0 0 6px">Hola ${esc(String(b.driverName || '').split(' ')[0])},</p><p>${esc(intro)}</p>` + rowsHtml(rows) +
+    '<p>Te adjuntamos la hoja de servicio en PDF.</p><p style="color:#a8501a"><b>Recuerda comunicar el servicio al registro del Ministerio antes de empezar.</b></p>' +
+    (tomorrow ? '' : '<p>Si no puedes hacerlo, avísanos cuanto antes.</p>') + '<p style="margin:10px 0">Gracias,<br>Bravo Transfers</p>';
+  const text = ['Hola ' + String(b.driverName || '').split(' ')[0] + ',', '', intro, ''].concat(rows.filter((r) => r[1]).map((r) => r[0] + ': ' + r[1]),
+    ['', 'Te adjuntamos la hoja de servicio en PDF.', 'Recuerda comunicar el servicio al registro del Ministerio antes de empezar.', '', 'Gracias,', 'Bravo Transfers']).join('\n');
+  return { subject: (tomorrow ? 'Mañana: servicio ' + b.ref + ' a las ' + b.time : 'Nuevo servicio ' + b.ref + ' · ' + dmy(b.date) + ' ' + b.time) + ' · Bravo Transfers', html: shell('es', html, o.base), text };
+}
+
+module.exports.templates = { bookingEmail, loginEmail, messageEmail, ownerEmail, paymentEmail, reminderEmail, reviewEmail, companyEmail };
