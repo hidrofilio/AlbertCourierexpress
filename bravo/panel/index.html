@@ -147,6 +147,14 @@
   .doc .exp.bad { background: #fdecea; color: var(--err); }
   .doc .exp.soon { background: #fff1d6; color: #8a5a00; }
   .doc .exp.ok { background: #e2f3e8; color: var(--ok); }
+  .bars { margin-top: 6px; }
+  .bar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; font-size: .84rem; margin: 6px 0; }
+  .bar span { overflow-wrap: anywhere; }
+  .bar b { text-align: right; white-space: nowrap; }
+  .bar i { grid-column: 1 / -1; display: block; height: 7px; border-radius: 4px; background: linear-gradient(90deg, var(--gold-2), var(--orange)); }
+  .due { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 2px 10px; padding: 7px 0; border-top: 1px dashed var(--line); font-size: .86rem; }
+  .due b { white-space: nowrap; }
+  .due .who { font-size: .7rem; font-weight: 800; text-transform: uppercase; color: var(--muted); }
   .warn { background: #fff1d6; color: #8a5a00; border-radius: 9px; padding: 8px 10px; margin-top: 8px; font-size: .85rem; }
 </style>
 </head>
@@ -264,6 +272,7 @@
       <button type="button" data-sub="summary">📊 Resumen</button>
       <button type="button" data-sub="bank">🏦 Banco</button>
       <button type="button" data-sub="inbox">🧾 Tickets <span class="n" id="inbox-n"></span></button>
+      <button type="button" data-sub="stats">📈 Números</button>
     </div>
     <div id="acc-period">
       <div class="filters" id="acc-quick"></div>
@@ -322,6 +331,7 @@
     <div id="sub-summary">
       <div class="totals t2" id="acc-totals" style="margin-top:12px"></div>
       <div class="box" id="acc-vat"></div>
+      <div class="box" id="acc-303" hidden></div>
       <div class="box" id="acc-income"></div>
       <div class="box" id="acc-cats"></div>
       <div class="btns">
@@ -334,6 +344,11 @@
       <h3>Movimientos</h3>
       <div id="acc-list"></div>
       <p class="note">Contabilidad pensada para España: libros registro de facturas emitidas y recibidas, IVA por tipos, cobros y pagos, y libro diario con las cuentas del Plan General Contable (en el PDF). Los ingresos salen de las facturas (y de lo que apuntes); los pagos a las empresas de transporte, de las reservas; los cobros y pagos, del banco. Una factura no se borra: se rectifica. Al principio, que la revise un profesional antes de presentar impuestos.</p>
+    </div>
+
+    <div id="sub-stats" hidden>
+      <div id="stats"></div>
+      <div class="box" id="tax-cal"></div>
     </div>
 
     <div id="sub-bank" hidden>
@@ -618,6 +633,107 @@
       var d = await api('admin/bookings'); list = d.bookings || list; renderTrips();
     } catch (e) { m.className = 'msg bad'; m.textContent = e.message; }
   });
+
+  // ---------- IMPUESTOS: el trimestre y el calendario de Hacienda ----------
+  function quarterOf(from, to) {
+    var y = from.slice(0, 4);
+    var qs = [[y + '-01-01', y + '-03-31'], [y + '-04-01', y + '-06-30'], [y + '-07-01', y + '-09-30'], [y + '-10-01', y + '-12-31']];
+    for (var i = 0; i < 4; i++) if (from === qs[i][0] && to === qs[i][1]) return i + 1;
+    return 0;
+  }
+  // Plazos habituales de Hacienda (si caen en festivo o fin de semana, pasan al siguiente día hábil): confirmar con el gestor
+  function taxDeadlines() {
+    var y = Number(madridDay(0).slice(0, 4)), out = [];
+    [y - 1, y, y + 1].forEach(function (Y) {
+      var add = function (d, what, who) { out.push({ date: d, what: what, who: who }); };
+      add(Y + '-01-30', 'IVA del 4.º trimestre de ' + (Y - 1) + ' (303) y resumen anual del IVA (390)', 'los dos');
+      add(Y + '-01-30', 'Retenciones del 4.º trimestre (111) y resumen anual (190), si hay nóminas o profesionales', 'los dos');
+      add(Y + '-01-30', 'Pago a cuenta del IRPF del 4.º trimestre (130)', 'autónomo');
+      add(Y + '-02-28', 'Operaciones con terceros de más de 3.005,06 € al año (347)', 'los dos');
+      add(Y + '-04-20', 'IVA del 1.er trimestre (303) y retenciones (111)', 'los dos');
+      add(Y + '-04-20', 'Pago a cuenta del IRPF (130)', 'autónomo');
+      add(Y + '-04-20', 'Pago a cuenta del Impuesto de Sociedades (202)', 'SL');
+      add(Y + '-06-30', 'Declaración de la renta de ' + (Y - 1), 'autónomo');
+      add(Y + '-07-20', 'IVA del 2.º trimestre (303) y retenciones (111)', 'los dos');
+      add(Y + '-07-20', 'Pago a cuenta del IRPF (130)', 'autónomo');
+      add(Y + '-07-25', 'Impuesto de Sociedades de ' + (Y - 1) + ' (200)', 'SL');
+      add(Y + '-10-20', 'IVA del 3.er trimestre (303) y retenciones (111)', 'los dos');
+      add(Y + '-10-20', 'Pago a cuenta del IRPF (130)', 'autónomo');
+      add(Y + '-10-20', 'Pago a cuenta del Impuesto de Sociedades (202)', 'SL');
+      add(Y + '-12-20', 'Pago a cuenta del Impuesto de Sociedades (202)', 'SL');
+    });
+    var t = madridDay(0);
+    return out.filter(function (x) { return x.date >= t; }).sort(function (a, b) { return a.date.localeCompare(b.date); }).slice(0, 8);
+  }
+  function renderTaxCal() {
+    $('tax-cal').innerHTML = '<b>📅 Próximos plazos de Hacienda</b>' + taxDeadlines().map(function (x) {
+      var n = daysTo(x.date);
+      return '<div class="due"><b>' + esc(dmy(x.date).slice(0, 5)) + '</b><span>' + esc(x.what) + '<br><span class="who">' + esc(x.who === 'los dos' ? 'autónomo y SL' : 'solo ' + x.who) + ' · en ' + n + ' día' + (n === 1 ? '' : 's') + '</span></span></div>';
+    }).join('') + '<div class="msg">Los plazos habituales en España. Qué te toca depende de si eres autónomo o sociedad (SL): confírmalo con el gestor. Si el último día cae en festivo o fin de semana, pasa al siguiente día hábil.</div>';
+  }
+
+  // ---------- NÚMEROS DEL NEGOCIO ----------
+  var PREFIX = [['353', 'Irlanda'], ['351', 'Portugal'], ['358', 'Finlandia'], ['34', 'España'], ['44', 'Reino Unido'], ['49', 'Alemania'], ['33', 'Francia'], ['39', 'Italia'],
+    ['31', 'Países Bajos'], ['32', 'Bélgica'], ['41', 'Suiza'], ['43', 'Austria'], ['45', 'Dinamarca'], ['46', 'Suecia'], ['47', 'Noruega'], ['48', 'Polonia'], ['1', 'EE. UU. o Canadá']];
+  function countryOf(phone) {
+    var p = String(phone || '').replace(/[^0-9+]/g, '');
+    if (p.indexOf('00') === 0) p = '+' + p.slice(2);
+    if (p.charAt(0) !== '+') return /^[6789]\d{8}$/.test(p) ? 'España' : 'Sin prefijo';
+    p = p.slice(1);
+    for (var i = 0; i < PREFIX.length; i++) if (p.indexOf(PREFIX[i][0]) === 0) return PREFIX[i][1];
+    return 'Otros';
+  }
+  function place(t) { return String(t || '').split(',')[0].replace(/\s*\([^)]*\)/g, '').trim(); }
+  function bars(title, entries, fmt) {
+    if (!entries.length) return '';
+    var max = Math.max.apply(null, entries.map(function (e) { return e[1]; })) || 1;
+    return '<div class="box"><b>' + esc(title) + '</b><div class="bars">' + entries.map(function (e) {
+      return '<div class="bar"><span>' + esc(e[0]) + '</span><b>' + esc(fmt ? fmt(e) : String(e[1])) + '</b><i style="width:' + Math.max(3, Math.round(e[1] / max * 100)) + '%"></i></div>';
+    }).join('') + '</div></div>';
+  }
+  function countBy(arr, f) {
+    var m = {};
+    arr.forEach(function (b) { var k = f(b); if (k) m[k] = (m[k] || 0) + 1; });
+    return Object.keys(m).map(function (k) { return [k, m[k]]; }).sort(function (a, b) { return b[1] - a[1]; });
+  }
+  function renderStats() {
+    renderTaxCal();
+    var from = $('acc-from').value, to = $('acc-to').value;
+    var inP = list.filter(function (b) { return b.date >= from && b.date <= to; });
+    var act = inP.filter(function (b) { return b.status !== 'cancelada'; }), canc = inP.length - act.length;
+    var priced = act.filter(function (b) { return b.price > 0; });
+    var rev = r2(priced.reduce(function (a, b) { return a + b.price; }, 0)), pay = r2(act.reduce(function (a, b) { return a + (b.driverPay || 0); }, 0));
+    var withPay = priced.filter(function (b) { return b.driverPay != null; });
+    var mRev = withPay.reduce(function (a, b) { return a + b.price; }, 0), mPay = withPay.reduce(function (a, b) { return a + b.driverPay; }, 0);
+    var leads = act.filter(function (b) { return b.createdAt; }).map(function (b) { return Math.max(0, (new Date(b.date + 'T12:00:00') - new Date(b.createdAt.slice(0, 10) + 'T12:00:00')) / 86400000); });
+    var lead = leads.length ? Math.round(leads.reduce(function (a, x) { return a + x; }, 0) / leads.length) : 0;
+    var h = '<div class="totals t2" style="margin-top: 12px">' +
+      '<div><b>' + act.length + '</b><span>Reservas</span></div>' +
+      '<div><b>' + canc + '</b><span>Canceladas' + (inP.length ? ' (' + Math.round(canc / inP.length * 100) + ' %)' : '') + '</span></div>' +
+      '<div><b>' + euro(rev) + '</b><span>Vendido (con IVA)</span></div>' +
+      '<div><b>' + euro(priced.length ? r2(rev / priced.length) : 0) + '</b><span>Precio medio</span></div>' +
+      '<div><b>' + euro(pay) + '</b><span>Pagado a empresas</span></div>' +
+      '<div><b>' + (mRev ? Math.round((mRev - mPay) / mRev * 100) + ' %' : '—') + '</b><span>Margen medio (viajes con pago)</span></div>' +
+      '<div><b>' + lead + ' d</b><span>Antelación media</span></div>' +
+      '<div><b>' + countBy(act, function (b) { return b.email ? b.email.toLowerCase() : b.phone; }).filter(function (e) { return e[1] > 1; }).length + '</b><span>Clientes que repiten</span></div></div>';
+    if (!inP.length) h += '<p class="empty">No hay reservas en este periodo.</p>';
+    var months = {};
+    act.forEach(function (b) { var k = b.date.slice(0, 7); months[k] = months[k] || [k, 0, 0]; months[k][1]++; months[k][2] += b.price || 0; });
+    var ml = Object.keys(months).sort().map(function (k) { return months[k]; });
+    if (ml.length > 1) h += bars('Por mes', ml.map(function (m) { return [new Date(m[0] + '-15').toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }), m[1], m[2]]; }), function (e) { return e[1] + ' · ' + euro(r2(e[2])); });
+    h += bars('Rutas más pedidas', countBy(act, function (b) { return b.kind === 'hourly' ? place(fromOf(b)) + ' (por horas)' : place(fromOf(b)) + ' → ' + place(toOf(b)); }).slice(0, 6));
+    h += bars('De dónde son (por el teléfono)', countBy(act, function (b) { return countryOf(b.phone); }));
+    h += bars('Cómo llegan', countBy(act, function (b) { return b.partner ? partnerName(b.partner) : (b.source || 'web') === 'web' ? 'La web' : b.source; }));
+    h += bars('Tipo de servicio', countBy(act, function (b) { return kindLabel(b); }));
+    h += bars('Vehículo', countBy(act.filter(function (b) { return b.vehicle; }), function (b) { return vehName(b.vehicle); }));
+    h += bars('Idioma', countBy(act, function (b) { return b.lang === 'en' ? 'Inglés' : 'Español'; }));
+    h += bars('Lo que se paga a cada empresa', (function () {
+      var m = {};
+      act.forEach(function (b) { if (b.driverName && b.driverPay) { m[b.driverName] = m[b.driverName] || [b.driverName, 0, 0]; m[b.driverName][1] += b.driverPay; m[b.driverName][2]++; } });
+      return Object.keys(m).map(function (k) { return m[k]; }).sort(function (a, b) { return b[1] - a[1]; });
+    })(), function (e) { return euro(r2(e[1])) + ' · ' + e[2] + ' viaje' + (e[2] === 1 ? '' : 's'); });
+    $('stats').innerHTML = h;
+  }
 
   // ---------- HOTELES Y AGENCIAS ----------
   var partnersList = [];
@@ -1396,11 +1512,11 @@
   function setSub(x) {
     accSub = x;
     qsa('[data-sub]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-sub') === x); });
-    $('sub-summary').hidden = x !== 'summary'; $('sub-bank').hidden = x !== 'bank'; $('sub-inbox').hidden = x !== 'inbox';
+    $('sub-summary').hidden = x !== 'summary'; $('sub-bank').hidden = x !== 'bank'; $('sub-inbox').hidden = x !== 'inbox'; $('sub-stats').hidden = x !== 'stats';
     $('acc-period').hidden = x === 'inbox';
     reloadSub();
   }
-  function reloadSub() { if (accSub === 'bank') loadBank(); else if (accSub === 'inbox') loadInbox(); else loadAccounts(); }
+  function reloadSub() { if (accSub === 'bank') loadBank(); else if (accSub === 'inbox') loadInbox(); else if (accSub === 'stats') { renderQuick(); renderStats(); } else loadAccounts(); }
   qsa('[data-sub]').forEach(function (b) { b.addEventListener('click', function () { setSub(b.getAttribute('data-sub')); }); });
   function lastDay(y, m) { return new Date(Date.UTC(y, m, 0)).getUTCDate(); }
   function periods() {
@@ -1412,7 +1528,10 @@
       ['Este mes', y + '-' + pad(m) + '-01', y + '-' + pad(m) + '-' + lastDay(y, m)],
       ['Mes anterior', py + '-' + pad(pm) + '-01', py + '-' + pad(pm) + '-' + lastDay(py, pm)],
       ['Este trimestre', y + '-' + pad(qs) + '-01', y + '-' + pad(qs + 2) + '-' + lastDay(y, qs + 2)],
-      ['Este año', y + '-01-01', y + '-12-31']
+      ['Este año', y + '-01-01', y + '-12-31'],
+      ['1.er trim.', y + '-01-01', y + '-03-31'], ['2.º trim.', y + '-04-01', y + '-06-30'],
+      ['3.er trim.', y + '-07-01', y + '-09-30'], ['4.º trim.', y + '-10-01', y + '-12-31'],
+      ['Año pasado', (y - 1) + '-01-01', (y - 1) + '-12-31']
     ];
   }
   (function () { var p = periods()[0]; $('acc-from').value = p[1]; $('acc-to').value = p[2]; })();
@@ -1453,6 +1572,18 @@
       '<span><b>' + (t.ivaResultado >= 0 ? 'Diferencia: a pagar' : 'Diferencia: a devolver') + '</b></span><span>' + euro(Math.abs(t.ivaResultado)) + '</span></div>' +
       '<div class="kv2" style="margin-top:10px">' + acc.vatByRate.repercutido.map(function (x) { return '<span>Cobrado al ' + esc(String(x.rate).replace('.', ',')) + ' % · base ' + euro(x.base) + '</span><span>' + euro(x.vat) + '</span>'; }).join('') +
       acc.vatByRate.soportado.map(function (x) { return '<span>Pagado al ' + esc(String(x.rate).replace('.', ',')) + ' % · base ' + euro(x.base) + '</span><span>' + euro(x.vat) + '</span>'; }).join('') + '</div>';
+    var from = $('acc-from').value, to = $('acc-to').value, qn = quarterOf(from, to);
+    $('acc-303').hidden = !qn;
+    if (qn) {
+      var rep = acc.vatByRate.repercutido, sop = acc.vatByRate.soportado;
+      $('acc-303').innerHTML = '<b>Borrador del IVA del ' + qn + '.º trimestre de ' + from.slice(0, 4) + ' (modelo 303)</b><div class="kv2">' +
+        rep.map(function (x) { return '<span>IVA devengado al ' + esc(String(x.rate).replace('.', ',')) + ' % · base ' + euro(x.base) + '</span><span>' + euro(x.vat) + '</span>'; }).join('') +
+        '<span><b>Total devengado</b></span><span>' + euro(t.ivaRepercutido) + '</span>' +
+        sop.map(function (x) { return '<span>IVA deducible al ' + esc(String(x.rate).replace('.', ',')) + ' % · base ' + euro(x.base) + '</span><span>' + euro(x.vat) + '</span>'; }).join('') +
+        '<span><b>Total deducible</b></span><span>' + euro(t.ivaSoportado) + '</span>' +
+        '<span><b>' + (t.ivaResultado >= 0 ? 'Resultado: a ingresar' : 'Resultado: a compensar o devolver') + '</b></span><span><b>' + euro(Math.abs(t.ivaResultado)) + '</b></span></div>' +
+        '<div class="msg">Se presenta del 1 al ' + (qn === 4 ? '30 de enero' : '20 de ' + ['abril', 'julio', 'octubre'][qn - 1]) + '. Es un borrador para el gestor: revisa antes que estén todas las facturas y los tickets del trimestre.</div>';
+    }
     var fact = acc.movements.filter(function (m) { return m.source === 'factura' || m.source === 'rectificativa'; });
     var other = acc.movements.filter(function (m) { return m.kind === 'ingreso' && m.source === 'manual'; });
     var sum = function (arr, k) { return r2(arr.reduce(function (a, m) { return a + m[k]; }, 0)); };
