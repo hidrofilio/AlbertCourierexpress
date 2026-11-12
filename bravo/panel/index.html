@@ -1291,7 +1291,8 @@
       h += '<p class="neg"><b>Pendiente de pago</b> · ' + euro(b.price) + '</p>' +
         '<div class="row"><div><label>Día del cobro</label><input type="date" data-cpay="date" value="' + madridDay(0) + '"></div>' +
         '<div><label>Cómo ha pagado</label><select data-cpay="via"><option value="tarjeta">Tarjeta</option><option value="banco">Transferencia</option><option value="bizum">Bizum</option><option value="efectivo">Efectivo</option></select></div></div>' +
-        (cfg && cfg.autoInvoice && !activeInv(b) ? '<p class="msg">Al marcarlo se hace la factura sola' + (b.email ? ' y se le manda por correo' : '') + '.</p>' : '') +
+        (cfg && cfg.autoInvoice && !activeInv(b) ? '<p class="msg">Al marcarlo se hace la factura sola' + (b.email ? ' y se le manda por correo' : '') + '.</p>'
+          : activeInv(b) && b.email ? '<p class="msg">Al marcarlo se le manda por correo la factura ' + esc(b.invoice.number) + '.</p>' : '') +
         '<button type="button" class="save" data-cpay-save>Marcar como cobrado</button>';
     }
     return h + '<div class="msg" data-cpay-msg></div></div>';
@@ -1458,7 +1459,9 @@
       try {
         var data = await api('admin/client-paid', { ref: b.ref, date: el.querySelector('[data-cpay="date"]').value, via: el.querySelector('[data-cpay="via"]').value });
         replace(data.booking); open[b.ref] = true; renderTrips();
-        flash(b.ref, '[data-cpay-msg]', '✓ Cobrado' + (data.invoiced ? ' · factura ' + data.booking.invoice.number + ' hecha' + (data.emailed ? ' y enviada al cliente' : '') : ''));
+        var invN = data.booking.invoice && data.booking.invoice.status === 'emitida' ? data.booking.invoice.number : '';
+        flash(b.ref, '[data-cpay-msg]', '✓ Cobrado' + (data.invoiced ? ' · factura ' + invN + ' hecha' : '') +
+          (data.emailed ? (invN ? (data.invoiced ? ' y enviada al cliente' : ' · factura ' + invN + ' enviada al cliente') : ' · aviso de pago enviado al cliente') : ''));
       } catch (e) { msg.className = 'msg bad'; msg.textContent = e.message; btn.disabled = false; }
     });
     var cpu = el.querySelector('[data-cpay-undo]');

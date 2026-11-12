@@ -1915,7 +1915,10 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       if (activeInvoice(b) && !(b.invoice.paid && b.invoice.paid.lineId)) b.invoice.paid = { date: paid.date, via: paid.via };
       b.history = (b.history || []).concat([{ at: new Date().toISOString(), who: me.name, fields: ['cobrado (' + paid.via + ')' + (invoiced ? ' · factura ' + b.invoice.number : '')] }]).slice(-30);
       saveBooking(b);
-      const emailed = invoiced && isEmail(b.email) && mail.configured();
+      // «Pago recibido» (con la factura, si la hay, y el PDF que dice PAGADO): una sola vez por reserva,
+      // también si la factura ya existía de antes
+      const already = (b.emails || []).some((e) => e.kind === 'pago recibido' && e.ok);
+      const emailed = !already && isEmail(b.email) && mail.configured();
       if (emailed) setImmediate(() => { sendBookingEmail(b.ref, { paidMail: true }).catch(() => {}); });
       return json(res, 200, { ok: true, booking: b, invoiced, emailed });
     }
