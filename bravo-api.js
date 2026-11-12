@@ -280,13 +280,14 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
     mail.send({ to: mail.owner, subject: m.subject, html: m.html, text: m.text }).catch(() => {});
   }
   // Tras reservar: la cuenta del cliente, la factura automática y el correo
-  function afterBooking(b) {
-    const { c, password } = upsertCustomer(b);
-    b.customerId = c.id;
+  function afterBooking(b, o) {
+    o = o || {};
+    let password = null;
+    if (b.email) { const r = upsertCustomer(b); b.customerId = r.c.id; password = r.password; }
     const cfg = settings();
     if (cfg.autoInvoice && b.price > 0 && !activeInvoice(b)) makeInvoice(b, cfg.invoice.defaultVat, {});
     saveBooking(b);
-    setImmediate(() => { sendBookingEmail(b.ref, { password }).catch(() => {}); });
+    if (b.email && o.sendEmail !== false) setImmediate(() => { sendBookingEmail(b.ref, { password }).catch(() => {}); });
     return { newAccount: Boolean(password) };
   }
   function allInvoices(b) { return [b.invoice].concat(b.previousInvoices || [], b.creditNotes || []).filter(Boolean); }
@@ -1052,7 +1053,7 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
         createdAt: new Date().toISOString(), lang, date, time, ...who,
         comments: cleanLong(d.comments, 1000),
         status: 'pendiente', driverName: '', driverPhone: '', driverPay: null, ministry: false, notes: '',
-        payment: 'sin cobrar (pruebas)'
+        payment: 'sin cobrar (pruebas)', source: 'web'
       };
 
       if (d.kind === 'group') {
@@ -1275,6 +1276,78 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       return json(res, r.ok ? 200 : 502, r);
     }
 
+    // ---------- reserva a mano (teléfono, WhatsApp, hotel…) ----------
+    if (req.method === 'POST' && route === 'admin/book') {
+      let d;
+      try { d = JSON.parse(await readBody(req, 12000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+      const kind = ['transfer', 'hourly', 'group'].includes(d.kind) ? d.kind : 'transfer';
+      const name = clean(d.name, 80), phone = clean(d.phone, 25), email = clean(d.email, 120).toLowerCase();
+      if (name.length < 2) return json(res, 400, { error: 'bad_name' });
+      if (phone && !/^\+?[0-9 ()-]{6,24}$/.test(phone)) return json(res, 400, { error: 'bad_phone' });
+      if (email && !isEmail(email)) return json(res, 400, { error: 'bad_email' });
+      if (!phone && !email) return json(res, 400, { error: 'need_contact' });
+      const date = clean(d.date, 10), time = clean(d.time, 5);
+      if (!madridMs(date, time)) return json(res, 400, { error: 'bad_date' });
+      const fromText = clean(d.fromText, 160), toText = clean(d.toText, 160);
+      if (!fromText) return json(res, 400, { error: 'bad_places' });
+      if (kind !== 'hourly' && !toText) return json(res, 400, { error: 'bad_places' });
+      const passengers = int(d.passengers, 1, 500);
+      if (!passengers) return json(res, 400, { error: 'bad_passengers' });
+      const price = d.price === '' || d.price == null ? null : num(d.price, 0, 100000, 2);
+      if (price === null && !(d.price === '' || d.price == null)) return json(res, 400, { error: 'bad_price' });
+      const hours = kind === 'hourly' ? int(d.hours, 1, 24) : null;
+      if (kind === 'hourly' && !hours) return json(res, 400, { error: 'bad_hours' });
+      let returnDate = '', returnTime = '';
+      const roundTrip = kind === 'transfer' && Boolean(d.roundTrip);
+      if (roundTrip) {
+        returnDate = clean(d.returnDate, 10); returnTime = clean(d.returnTime, 5);
+        const back = madridMs(returnDate, returnTime);
+        if (!back || back <= madridMs(date, time)) return json(res, 400, { error: 'bad_return' });
+      }
+      const km = d.km === '' || d.km == null ? null : num(d.km, 0, 5000, 1);
+      const SOURCES = ['teléfono', 'whatsapp', 'correo', 'hotel', 'agencia', 'otro'];
+      const b = {
+        ref: nextRef(), kind, createdAt: new Date().toISOString(), lang: d.lang === 'en' ? 'en' : 'es', date, time, name, phone, email,
+        comments: cleanLong(d.comments, 1000), status: 'pendiente', driverName: '', driverPhone: '', driverPay: null, ministry: false,
+        notes: cleanLong(d.notes, 2000), payment: clean(d.payment, 60) || 'sin cobrar', source: SOURCES.includes(d.source) ? d.source : 'otro',
+        passengers, price, manual: true
+      };
+      if (kind === 'group') Object.assign(b, { fromText, toText });
+      else Object.assign(b, {
+        from: { label: fromText }, to: kind === 'hourly' ? null : { label: toText }, roundTrip, returnDate, returnTime, hours, km, minutes: null,
+        vehicle: ['car', 'van'].includes(d.vehicle) ? d.vehicle : '', flight: clean(d.flight, 12), bags: int(d.bags, 0, 20) || 0, childSeats: int(d.childSeats, 0, 6) || 0
+      });
+      ensureTokens(b);
+      saveBooking(b);
+      const acct = afterBooking(b, { sendEmail: d.sendEmail === true });
+      return json(res, 200, { ok: true, booking: JSON.parse(fs.readFileSync(bookingFile(b.ref), 'utf8')), newAccount: acct.newAccount });
+    }
+
+    // ---------- incidencias de un viaje (retraso, queja, objeto perdido…) ----------
+    if (req.method === 'POST' && route === 'admin/incident') {
+      let d;
+      try { d = JSON.parse(await readBody(req, 4000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+      if (!/^BT-\d{4,6}$/.test(d.ref || '')) return json(res, 400, { error: 'bad_ref' });
+      let b;
+      try { b = JSON.parse(fs.readFileSync(bookingFile(d.ref), 'utf8')); } catch (e) { return json(res, 404, { error: 'not_found' }); }
+      b.incidents = b.incidents || [];
+      const KINDS = ['retraso', 'queja', 'objeto perdido', 'accidente', 'daños', 'otro'];
+      if (d.action === 'add') {
+        const text = cleanLong(d.text, 1000);
+        if (!text) return json(res, 400, { error: 'empty' });
+        b.incidents.push({ id: crypto.randomBytes(4).toString('hex'), at: new Date().toISOString(), kind: KINDS.includes(d.kind) ? d.kind : 'otro', text, resolved: false });
+      } else {
+        const it = b.incidents.find((x) => x.id === d.id);
+        if (!it) return json(res, 404, { error: 'not_found' });
+        if (d.action === 'resolve') { it.resolved = true; it.resolvedAt = new Date().toISOString(); }
+        else if (d.action === 'reopen') { it.resolved = false; it.resolvedAt = null; }
+        else if (d.action === 'delete') b.incidents = b.incidents.filter((x) => x !== it);
+        else return json(res, 400, { error: 'bad_action' });
+      }
+      saveBooking(b);
+      return json(res, 200, { ok: true, booking: b });
+    }
+
     if (req.method === 'GET' && route === 'admin/bookings') {
       const list = allBookings().sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
       for (const b of list) if (ensureTokens(b)) saveBooking(b);
@@ -1311,6 +1384,9 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
           id: /^[a-f0-9]{8}$/.test(x.id || '') ? x.id : crypto.randomBytes(4).toString('hex'),
           name: clean(x.name, 80), phone: clean(x.phone, 25), licence: clean(x.licence, 40),
           email: isEmail(x.email) ? clean(x.email, 120) : '', taxId: clean(x.taxId, 30),
+          rateKm: num(x.rateKm === '' || x.rateKm == null ? 0 : x.rateKm, 0, 20, 2) || 0,
+          rateHour: num(x.rateHour === '' || x.rateHour == null ? 0 : x.rateHour, 0, 1000, 2) || 0,
+          rateMin: num(x.rateMin === '' || x.rateMin == null ? 0 : x.rateMin, 0, 5000, 2) || 0,
           car: clean(x.car, 60), plate: clean(x.plate, 15), seats: int(x.seats, 1, 80) || null, notes: cleanLong(x.notes, 500)
         })).filter((x) => x.name);
         fs.writeFileSync(DRIVERS + '.tmp', JSON.stringify(list, null, 1));
@@ -1444,6 +1520,7 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       }
       if (d.driverInvoiceNo !== undefined) b.driverInvoiceNo = clean(d.driverInvoiceNo, 40);
       if (d.chauffeur !== undefined) b.chauffeur = clean(d.chauffeur, 80);
+      if (d.clientDoc !== undefined) b.clientDoc = clean(d.clientDoc, 40);
       if (d.chauffeurPhone !== undefined) b.chauffeurPhone = clean(d.chauffeurPhone, 25);
       let newlyPaid = false;
       if (d.driverPaidVia !== undefined && !(b.driverPaid && b.driverPaid.lineId)) {

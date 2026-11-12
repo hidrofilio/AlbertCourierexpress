@@ -125,6 +125,23 @@
   .bub small { display: block; opacity: .7; font-size: .7rem; margin-top: 2px; }
   .bub .tag { font-size: .66rem; font-weight: 800; text-transform: uppercase; background: var(--orange); color: #fff; border-radius: 4px; padding: 0 4px; margin-right: 4px; }
   .mail-line { font-size: .82rem; margin-top: 6px; }
+  .today { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px; margin-bottom: 10px; }
+  .today h2 { margin: 0 0 8px; font-size: 1.1rem; }
+  .tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .tile { text-align: left; border: 1px solid var(--line); background: #fbf8f2; border-radius: 10px; padding: 8px 10px; cursor: pointer; font: inherit; color: var(--ink); min-height: 52px; }
+  .tile b { display: block; font-size: 1.1rem; }
+  .tile span { font-size: .75rem; color: var(--muted); }
+  .tile.alert { background: #fff1d6; border-color: #f0cf8a; }
+  .tile.alert b { color: #8a5a00; }
+  .t-line { display: flex; gap: 8px; align-items: baseline; width: 100%; text-align: left; border: 0; border-top: 1px dashed var(--line); background: none; padding: 8px 2px; font: inherit; font-size: .88rem; color: var(--ink); cursor: pointer; }
+  .t-line b { flex: none; }
+  .t-line span { overflow-wrap: anywhere; }
+  h3.day { margin: 14px 0 6px; color: var(--ink); font-size: .85rem; }
+  .inc { border-top: 1px dashed var(--line); padding: 6px 0; font-size: .88rem; }
+  .inc.done { color: var(--muted); }
+  .inc .kind { font-size: .68rem; font-weight: 800; text-transform: uppercase; background: #fff1d6; color: #8a5a00; border-radius: 4px; padding: 1px 5px; margin-right: 4px; }
+  .inc.done .kind { background: #e2f3e8; color: var(--ok); }
+  pre.min { white-space: pre-wrap; font: .82rem/1.45 ui-monospace, Menlo, monospace; background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 8px; margin: 8px 0 0; }
   .warn { background: #fff1d6; color: #8a5a00; border-radius: 9px; padding: 8px 10px; margin-top: 8px; font-size: .85rem; }
 </style>
 </head>
@@ -151,6 +168,55 @@
 <div class="wrap">
   <!-- VIAJES -->
   <section id="tab-trips">
+    <div id="today"></div>
+    <div class="btns" style="margin: 0 0 10px"><button type="button" class="b dark" id="nb-open">＋ Nueva reserva (teléfono, WhatsApp, hotel…)</button></div>
+    <div class="card" id="nb-form" hidden>
+      <h2 style="margin-top: 0">Nueva reserva</h2>
+      <div class="row">
+        <div><label for="nb-kind">Tipo</label><select id="nb-kind"><option value="transfer">Traslado</option><option value="hourly">Por horas</option><option value="group">Grupo / autobús</option></select></div>
+        <div><label for="nb-source">Cómo llegó</label><select id="nb-source"><option value="teléfono">Teléfono</option><option value="whatsapp">WhatsApp</option><option value="correo">Correo</option><option value="hotel">Hotel</option><option value="agencia">Agencia</option><option value="otro">Otro</option></select></div>
+      </div>
+      <label for="nb-from">Desde (recogida)</label><input id="nb-from" placeholder="Ej.: Aeropuerto de Málaga">
+      <div id="nb-to-box"><label for="nb-to">Hasta</label><input id="nb-to" placeholder="Hotel, dirección o ciudad"></div>
+      <div id="nb-hours-box" hidden><label for="nb-hours">Horas</label><input id="nb-hours" type="number" min="1" max="24" step="1" inputmode="numeric" value="3"></div>
+      <div class="row">
+        <div><label for="nb-date">Día</label><input id="nb-date" type="date"></div>
+        <div><label for="nb-time">Hora</label><input id="nb-time" type="time"></div>
+      </div>
+      <label class="check" id="nb-rt-box"><input type="checkbox" id="nb-rt"> Ida y vuelta</label>
+      <div class="row" id="nb-ret" hidden>
+        <div><label for="nb-rdate">Día de la vuelta</label><input id="nb-rdate" type="date"></div>
+        <div><label for="nb-rtime">Hora de la vuelta</label><input id="nb-rtime" type="time"></div>
+      </div>
+      <div class="row">
+        <div><label for="nb-pax">Personas</label><input id="nb-pax" type="number" min="1" max="500" step="1" inputmode="numeric" value="2"></div>
+        <div><label for="nb-veh">Vehículo</label><select id="nb-veh"><option value="car">Coche (hasta 4)</option><option value="van">Monovolumen (hasta 7)</option><option value="">Otro / autobús</option></select></div>
+      </div>
+      <div class="row">
+        <div><label for="nb-km">Km (si los sabes)</label><input id="nb-km" type="number" min="0" step="0.1" inputmode="decimal"></div>
+        <div><label for="nb-price">Precio (€, IVA incluido)</label><input id="nb-price" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Vacío: por presupuestar"></div>
+      </div>
+      <div class="btns"><button type="button" class="b" id="nb-calc">🧮 Calcular km y precio</button></div>
+      <div class="msg" id="nb-calc-msg"></div>
+      <h3>Cliente</h3>
+      <label for="nb-name">Nombre</label><input id="nb-name" autocomplete="off">
+      <div class="row">
+        <div><label for="nb-phone">Teléfono (con prefijo)</label><input id="nb-phone" type="tel"></div>
+        <div><label for="nb-lang">Idioma</label><select id="nb-lang"><option value="es">Español</option><option value="en">Inglés</option></select></div>
+      </div>
+      <label for="nb-email">Correo (opcional)</label><input id="nb-email" type="email" inputmode="email">
+      <div class="row3">
+        <div><label for="nb-flight">Vuelo</label><input id="nb-flight"></div>
+        <div><label for="nb-bags">Maletas</label><input id="nb-bags" type="number" min="0" max="20" inputmode="numeric" value="0"></div>
+        <div><label for="nb-seats">Sillas niño</label><input id="nb-seats" type="number" min="0" max="6" inputmode="numeric" value="0"></div>
+      </div>
+      <label for="nb-comments">Comentarios del cliente</label><textarea id="nb-comments"></textarea>
+      <label for="nb-notes">Notas internas (solo las ves tú)</label><textarea id="nb-notes"></textarea>
+      <label class="check"><input type="checkbox" id="nb-mail"> Mandarle el correo de la reserva (con la factura y la contraseña de su cuenta)</label>
+      <button type="button" class="save" id="nb-save">Guardar la reserva</button>
+      <div class="btns"><button type="button" class="b" id="nb-cancel">Cancelar</button></div>
+      <div class="msg" id="nb-msg"></div>
+    </div>
     <div class="filters" id="filters"></div>
     <div class="totals" id="totals"></div>
     <div id="list"></div>
@@ -369,7 +435,9 @@
     has_invoice: 'Tiene o tuvo factura: no se puede borrar', bad_price: 'Precio no válido', bad_pay: 'Pago no válido',
     bad_hours_ahead: 'Antelación no válida (0 a 168 horas)', bad_cancel_hours: 'Horas para cancelar no válidas (0 a 168)',
     bad_date: 'Día u hora no válidos', bad_email: 'El correo no es válido', bad_paid: 'Pon el día del pago',
-    no_email: 'No tiene correo: ponlo y guarda antes', not_paid: 'Todavía no está pagado', email_not_configured: 'Los correos no están activados (falta EMAIL_KEY en Railway)', empty: 'Escribe la respuesta'
+    no_email: 'No tiene correo: ponlo y guarda antes', not_paid: 'Todavía no está pagado',
+    bad_name: 'Falta el nombre del cliente', bad_phone: 'Revisa el teléfono', need_contact: 'Pon el teléfono o el correo del cliente',
+    bad_places: 'Falta desde dónde o hasta dónde', bad_passengers: 'Número de personas no válido', bad_hours: 'Horas no válidas', bad_return: 'La vuelta tiene que ser después de la ida', email_not_configured: 'Los correos no están activados (falta EMAIL_KEY en Railway)', empty: 'Escribe la respuesta'
   };
 
   // ---------- fechas de Málaga ----------
@@ -398,14 +466,17 @@
   qsa('nav [data-tab]').forEach(function (b) { b.addEventListener('click', function () { setTab(b.getAttribute('data-tab')); }); });
 
   // ---------- VIAJES ----------
-  var FILTERS = [['today', 'Hoy'], ['tomorrow', 'Mañana'], ['week', '7 días'], ['nodriver', 'Sin asignar'], ['groups', 'Grupos'], ['all', 'Todas']];
+  var FILTERS = [['today', 'Hoy'], ['tomorrow', 'Mañana'], ['week', '7 días'], ['nodriver', 'Sin asignar'], ['collect', 'Por cobrar'], ['pay', 'Por pagar'], ['incid', 'Incidencias'], ['groups', 'Grupos'], ['all', 'Todas']];
   function matches(b, f) {
     var today = madridDay(0);
     if (f === 'today') return b.date === today;
     if (f === 'tomorrow') return b.date === madridDay(1);
     if (f === 'week') return b.date >= today && b.date <= madridDay(7);
-    if (f === 'nodriver') return b.status !== 'cancelada' && b.status !== 'hecha' && !b.driverName;
+    if (f === 'nodriver') return b.status !== 'cancelada' && b.status !== 'hecha' && !b.driverName && b.date >= today;
     if (f === 'groups') return b.kind === 'group';
+    if (f === 'collect') return toCollect(b);
+    if (f === 'pay') return toPay(b);
+    if (f === 'incid') return openIncidents(b).length > 0;
     return true;
   }
   function kindLabel(b) {
@@ -441,9 +512,123 @@
     var shown = list.filter(function (b) { return matches(b, current); });
     $('totals').innerHTML = sums(shown);
     if (!shown.length) { $('list').innerHTML = '<p class="empty">No hay reservas aquí.</p>'; return; }
-    $('list').innerHTML = shown.map(card).join('');
+    var lastDay = '', html = '';
+    shown.forEach(function (b) {
+      if (b.date !== lastDay) { lastDay = b.date; html += '<h3 class="day">' + esc(dayLabel(b.date) + (b.date === madridDay(0) ? ' · hoy' : b.date === madridDay(1) ? ' · mañana' : '')) + '</h3>'; }
+      html += card(b);
+    });
+    $('list').innerHTML = html;
     shown.forEach(wire);
+    renderToday();
   }
+
+  // ---------- HOY: lo que hay que mirar al entrar ----------
+  function toCollect(b) { return activeInv(b) && !b.invoice.paid && b.invoice.total > 0; }
+  function toPay(b) { return b.status !== 'cancelada' && b.driverPay > 0 && !b.driverPaid && b.date <= madridDay(0); }
+  function openIncidents(b) { return (b.incidents || []).filter(function (x) { return !x.resolved; }); }
+  var unreadMsgs = 0;
+  function renderToday() {
+    var t0 = madridDay(0), t1 = madridDay(1), t7 = madridDay(7);
+    var act = list.filter(function (b) { return b.status !== 'cancelada'; });
+    var hoy = act.filter(function (b) { return b.date === t0; });
+    var man = act.filter(function (b) { return b.date === t1; });
+    var sin = act.filter(function (b) { return b.status !== 'hecha' && !b.driverName && b.date >= t0 && b.date <= t7; });
+    var cob = list.filter(toCollect), pag = list.filter(toPay);
+    var inc = list.reduce(function (a, b) { return a + openIncidents(b).length; }, 0);
+    var docs = typeof expiringDocs === 'function' ? expiringDocs() : [];
+    var sum = function (arr, f) { return r2(arr.reduce(function (a, b) { return a + f(b); }, 0)); };
+    function tile(f, n, label, alert) { return '<button type="button" class="tile' + (alert ? ' alert' : '') + '" data-tile="' + f + '"><b>' + n + '</b><span>' + label + '</span></button>'; }
+    var h = '<div class="today"><h2>Hoy, ' + esc(new Date(t0 + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })) + '</h2><div class="tiles">' +
+      tile('today', hoy.length, 'viaje' + (hoy.length === 1 ? '' : 's') + ' hoy') +
+      tile('tomorrow', man.length, 'mañana' + (man.filter(function (b) { return !b.driverName; }).length ? ' · ' + man.filter(function (b) { return !b.driverName; }).length + ' sin asignar' : '')) +
+      tile('nodriver', sin.length, 'sin asignar (7 días)', sin.length > 0) +
+      tile('msgs', unreadMsgs, 'mensaje' + (unreadMsgs === 1 ? '' : 's') + ' sin leer', unreadMsgs > 0) +
+      tile('collect', euro(sum(cob, function (b) { return b.invoice.total; })), 'por cobrar · ' + cob.length + ' factura' + (cob.length === 1 ? '' : 's')) +
+      tile('pay', euro(sum(pag, function (b) { return b.driverPay; })), 'por pagar a empresas · ' + pag.length) +
+      tile('incid', inc, 'incidencia' + (inc === 1 ? '' : 's') + ' abierta' + (inc === 1 ? '' : 's'), inc > 0) +
+      tile('docs', docs.length, 'papeles que caducan pronto', docs.length > 0) + '</div>';
+    hoy.concat(man.filter(function (b) { return !b.driverName; })).forEach(function (b) {
+      h += '<button type="button" class="t-line" data-open="' + esc(b.ref) + '"><b>' + esc((b.date === t0 ? '' : 'Mañana ') + b.time) + '</b><span>' + esc(route(b)) + ' · ' +
+        (b.driverName ? '🚐 ' + esc(b.driverName) : '⚠️ sin asignar') + '</span></button>';
+    });
+    docs.forEach(function (x) { h += '<button type="button" class="t-line" data-tile="docs"><b>📄</b><span>' + esc(x.who + ': ' + x.kind + ' · ' + x.when) + '</span></button>'; });
+    $('today').innerHTML = h + '</div>';
+    qsa('[data-tile]', $('today')).forEach(function (el) {
+      el.addEventListener('click', function () {
+        var f = el.getAttribute('data-tile');
+        if (f === 'msgs') return setTab('messages');
+        if (f === 'docs') return setTab('drivers');
+        current = f; renderTrips(); $('filters').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+    qsa('[data-open]', $('today')).forEach(function (el) {
+      el.addEventListener('click', function () {
+        var ref = el.getAttribute('data-open'); current = 'all'; open[ref] = true; renderTrips();
+        var c = $('bk-' + ref); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+  }
+
+  // ---------- NUEVA RESERVA (a mano) ----------
+  function nbKind() {
+    var k = $('nb-kind').value;
+    $('nb-to-box').hidden = k === 'hourly'; $('nb-hours-box').hidden = k !== 'hourly';
+    $('nb-rt-box').hidden = k !== 'transfer'; $('nb-ret').hidden = k !== 'transfer' || !$('nb-rt').checked;
+    $('nb-calc').parentNode.hidden = k === 'group';
+  }
+  $('nb-kind').addEventListener('change', nbKind);
+  $('nb-rt').addEventListener('change', nbKind);
+  $('nb-open').addEventListener('click', function () {
+    $('nb-form').hidden = false; $('nb-open').parentNode.hidden = true;
+    if (!$('nb-date').value) $('nb-date').value = madridDay(1);
+    nbKind(); $('nb-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  function nbClose() {
+    $('nb-form').hidden = true; $('nb-open').parentNode.hidden = false;
+    qsa('#nb-form input, #nb-form textarea').forEach(function (i) { if (i.type === 'checkbox') i.checked = false; else if (!/nb-(pax|bags|seats|hours)/.test(i.id)) i.value = ''; });
+    $('nb-msg').textContent = ''; $('nb-calc-msg').textContent = '';
+  }
+  $('nb-cancel').addEventListener('click', nbClose);
+  async function geocode(q) {
+    var r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=es&q=' + encodeURIComponent(q), { headers: { Accept: 'application/json' } });
+    var d = await r.json();
+    if (!d || !d[0]) throw new Error('No encuentro «' + q + '»');
+    return { lat: Number(d[0].lat), lon: Number(d[0].lon), label: q };
+  }
+  $('nb-calc').addEventListener('click', async function () {
+    var m = $('nb-calc-msg'); m.className = 'msg'; m.textContent = 'Calculando…';
+    try {
+      var k = $('nb-kind').value, body = { kind: k, passengers: Math.min(7, Number($('nb-pax').value) || 1) };
+      body.from = await geocode($('nb-from').value.trim());
+      if (k === 'hourly') body.hours = Number($('nb-hours').value) || 3;
+      else { body.to = await geocode($('nb-to').value.trim()); body.roundTrip = $('nb-rt').checked; }
+      var q = await api('quote', body);
+      var o = q.options.filter(function (x) { return x.id === $('nb-veh').value; })[0] || q.options[0];
+      if (q.km) $('nb-km').value = q.km;
+      $('nb-price').value = o.price;
+      m.className = 'msg ok'; m.textContent = '✓ ' + (q.km ? q.km + ' km · ' : '') + euro(o.price) + ' con los precios de Ajustes. Puedes cambiarlo.';
+    } catch (e) { m.className = 'msg bad'; m.textContent = 'No se ha podido calcular (' + e.message + '): pon el precio a mano.'; }
+  });
+  $('nb-save').addEventListener('click', async function () {
+    var m = $('nb-msg'), btn = this;
+    var body = {
+      kind: $('nb-kind').value, source: $('nb-source').value, fromText: $('nb-from').value, toText: $('nb-to').value, hours: $('nb-hours').value,
+      date: $('nb-date').value, time: $('nb-time').value, roundTrip: $('nb-rt').checked, returnDate: $('nb-rdate').value, returnTime: $('nb-rtime').value,
+      passengers: $('nb-pax').value, vehicle: $('nb-veh').value, km: $('nb-km').value, price: $('nb-price').value,
+      name: $('nb-name').value, phone: $('nb-phone').value, email: $('nb-email').value.trim(), lang: $('nb-lang').value,
+      flight: $('nb-flight').value, bags: $('nb-bags').value, childSeats: $('nb-seats').value, comments: $('nb-comments').value, notes: $('nb-notes').value,
+      sendEmail: $('nb-mail').checked
+    };
+    btn.disabled = true; m.className = 'msg'; m.textContent = 'Guardando…';
+    try {
+      var r = await api('admin/book', body);
+      list.push(r.booking); list.sort(function (a, c) { return (a.date + a.time).localeCompare(c.date + c.time); });
+      nbClose(); current = 'all'; open[r.booking.ref] = true; renderTrips();
+      flash(r.booking.ref, '[data-msg]', '✓ Reserva ' + r.booking.ref + ' creada' + (body.sendEmail && body.email ? '. Se le manda el correo.' : '.'));
+      var c = $('bk-' + r.booking.ref); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (e) { m.className = 'msg bad'; m.textContent = 'No se ha guardado: ' + e.message; }
+    btn.disabled = false;
+  });
 
   // ---------- enlaces y mensajes ----------
   function docUrl(b, kind) { return location.origin + '/api/bravo/doc/' + (kind === 'hoja' ? b.driverToken : b.clientToken) + '/' + kind + '.pdf'; }
@@ -512,7 +697,8 @@
       b.flight ? ['Vuelo', esc(b.flight)] : null,
       b.kind !== 'group' ? ['Maletas', esc(b.bags + ' · sillas de niño: ' + b.childSeats)] : null,
       b.comments ? ['Comentarios', esc(b.comments)] : null,
-      ['Pago', esc(b.payment || '')]
+      ['Pago', esc(b.payment || '')],
+      b.source && b.source !== 'web' ? ['Llegó por', esc(b.source + (b.manual ? ' (apuntada a mano)' : ''))] : null
     ].filter(Boolean).map(function (r) { return '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>'; }).join('');
     var opts = ['pendiente', 'asignada', 'hecha', 'cancelada'].map(function (s) {
       return '<option value="' + s + '"' + (b.status === s ? ' selected' : '') + '>' + s.charAt(0).toUpperCase() + s.slice(1) + '</option>';
@@ -539,8 +725,10 @@
       '<div><label>Su móvil</label><input data-k="chauffeurPhone" type="tel" value="' + esc(b.chauffeurPhone || '') + '"></div></div>' +
       '<label>Coche y matrícula</label><input data-k="driverCar" value="' + esc(b.driverCar) + '" placeholder="Ej.: Toyota · 1234 ABC">' +
       '<label>Nota para el conductor (sale en la hoja de servicio)</label><input data-k="driverNote" value="' + esc(b.driverNote) + '">' +
+      '<div class="msg" data-suggest></div>' +
       '<div class="margin" data-margin></div>' + payBox(b) +
       '<label>Estado</label><select data-k="status">' + opts + '</select>' +
+      '<label>DNI o pasaporte del cliente (para el Ministerio)</label><input data-k="clientDoc" value="' + esc(b.clientDoc || '') + '">' +
       '<label class="check"><input type="checkbox" data-k="ministry"' + (b.ministry ? ' checked' : '') + '> Comunicado al Ministerio</label>' +
       '<label>Notas internas (solo las ves tú)</label><textarea data-k="notes">' + esc(b.notes) + '</textarea>' +
       '<button type="button" class="save" data-save>Guardar</button><div class="msg" data-msg></div>' +
@@ -552,7 +740,7 @@
       (b.driverName || b.driverPhone ? contactRow('Empresa', b.driverName, b.driverPhone, driverMsg(b), b.driverEmail, 'Servicio ' + b.ref + ' – Bravo Transfers') : '') +
       (b.chauffeur || b.chauffeurPhone ? contactRow('Conductor que va', b.chauffeur, b.chauffeurPhone, chauffeurMsg(b)) : '') +
       '<div class="msg">El WhatsApp se abre con el mensaje ya escrito (con los datos guardados): tú solo le das a enviar.</div></div>' +
-      invoiceBox(b) +
+      invoiceBox(b) + incidentBox(b) + ministryBox(b) +
       (allInv(b).length ? '' : '<div class="btns"><button type="button" class="b red" data-del>🗑 Borrar esta reserva</button></div>') +
       '</div></details>';
   }
@@ -590,6 +778,7 @@
 
   // El correo automático de la reserva: si salió y el botón para mandarlo otra vez (con los datos de ahora)
   function mailBox(b) {
+    if (!b.email) return '<div class="mail-line">✉️ Sin correo del cliente: avísale por WhatsApp o por teléfono.</div>';
     var last = (b.emails || [])[b.emails ? b.emails.length - 1 : 0];
     var line = !last ? '✉️ Todavía no se le ha mandado el correo automático.'
       : last.ok ? '✉️ Correo de ' + esc(last.kind) + ' enviado el ' + esc(new Date(last.at).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) + '.'
@@ -597,6 +786,48 @@
     var on = cfg && cfg.email && cfg.email.configured;
     return '<div class="mail-line">' + line + '</div><div class="btns"><button type="button" class="b dark" data-mail' + (on ? '' : ' aria-disabled="true"') + '>✉️ Enviar el correo de la reserva' +
       (activeInv(b) ? ' (con la factura)' : '') + '</button></div>' + (on ? '' : '<div class="msg">Se activa cuando esté la clave de Brevo en Railway.</div>');
+  }
+
+  // Incidencias del viaje
+  var INC_KINDS = ['retraso', 'queja', 'objeto perdido', 'accidente', 'daños', 'otro'];
+  function incidentBox(b) {
+    var h = '<div class="box"><b>Incidencias</b>';
+    (b.incidents || []).forEach(function (x) {
+      h += '<div class="inc' + (x.resolved ? ' done' : '') + '"><span class="kind">' + esc(x.resolved ? 'resuelta' : x.kind) + '</span>' + esc(x.text) +
+        '<div class="l3">' + esc(x.kind + ' · ' + new Date(x.at).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) + '</div>' +
+        '<div class="btns"><button type="button" class="b" data-inc="' + (x.resolved ? 'reopen' : 'resolve') + ':' + esc(x.id) + '">' + (x.resolved ? 'Reabrir' : '✓ Resuelta') + '</button>' +
+        '<button type="button" class="b red" data-inc="delete:' + esc(x.id) + '">Borrar</button></div></div>';
+    });
+    return h + '<div class="row"><div><label>Tipo</label><select data-inc-kind>' + INC_KINDS.map(function (k) { return '<option>' + k + '</option>'; }).join('') + '</select></div>' +
+      '<div><label>Qué ha pasado</label><input data-inc-text placeholder="Ej.: el vuelo llegó 2 h tarde"></div></div>' +
+      '<div class="btns"><button type="button" class="b" data-inc-add>＋ Apuntar incidencia</button></div></div>';
+  }
+  // Los datos del servicio para el registro del Ministerio, listos para copiar
+  function ministryText(b) {
+    var co = drivers.filter(function (d) { return d.name && b.driverName && d.name.toLowerCase() === b.driverName.toLowerCase(); })[0] || {};
+    return ['Servicio ' + b.ref,
+      'Titular (empresa): ' + (b.driverName || '—') + (co.taxId ? ' · NIF ' + co.taxId : '') + (co.licence ? ' · licencia ' + co.licence : ''),
+      'Vehículo: ' + (b.driverCar || '—'),
+      'Conductor: ' + (b.chauffeur || b.driverName || '—'),
+      'Cliente: ' + b.name + (b.clientDoc ? ' · documento ' + b.clientDoc : ' · documento: FALTA'),
+      'Contratado: ' + new Date(b.createdAt).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+      'Inicio: ' + dmy(b.date) + ' ' + b.time + ' · ' + fromOf(b),
+      (b.kind === 'hourly' ? 'Por horas: ' + b.hours + ' h' : 'Destino: ' + toOf(b)) + (b.roundTrip ? ' (ida y vuelta: ' + dmy(b.returnDate) + ' ' + b.returnTime + ')' : '')].join('\n');
+  }
+  function ministryBox(b) {
+    if (b.kind === 'group') return '';
+    return '<div class="box"><b>Datos para el registro del Ministerio</b><pre class="min">' + esc(ministryText(b)) + '</pre>' +
+      '<div class="btns"><button type="button" class="b" data-copy-min>📋 Copiar</button></div>' +
+      '<div class="msg">Comprueba con tu sobrino qué datos pide exactamente el registro. Guarda antes los cambios.</div></div>';
+  }
+  // La tarifa de la empresa elegida: lo que se le pagaría y lo que te queda
+  function suggestPay(b, name) {
+    var d = drivers.filter(function (x) { return x.name && name && x.name.toLowerCase() === name.toLowerCase(); })[0];
+    if (!d || !(d.rateKm > 0 || d.rateHour > 0)) return null;
+    var v = null;
+    if (b.kind === 'hourly' && d.rateHour > 0) v = Math.max(d.rateMin || 0, (b.hours || 0) * d.rateHour);
+    else if (b.kind !== 'hourly' && d.rateKm > 0 && b.km) v = Math.max(d.rateMin || 0, b.km * (b.roundTrip ? 2 : 1) * d.rateKm);
+    return v == null ? null : Math.ceil(v);
   }
 
   function vatOptions(sel) {
@@ -652,6 +883,43 @@
       m.textContent = p == null ? 'Cobrado ' + euro(pr) + ' · pon lo que le pagas para ver lo que te queda' : 'Te queda: ' + euro(r2(pr - p)) + ' (cobrado ' + euro(pr) + ')';
     }
     pay.addEventListener('input', margin); price.addEventListener('input', margin); margin();
+    function showSuggest() {
+      var nameIn = el.querySelector('[data-k=driverName]'), box = el.querySelector('[data-suggest]'), v = suggestPay(b, nameIn.value.trim());
+      // Solo se redibuja si algo cambió: si no, el toque en «Usar» se pierde al salir del campo de la empresa
+      var key = [v, nameIn.value.trim(), pay.value, price.value].join('|');
+      if (box.getAttribute('data-key') === key) return;
+      box.setAttribute('data-key', key);
+      if (v == null) { box.innerHTML = ''; return; }
+      var pr = price.value === '' ? null : Number(price.value);
+      box.innerHTML = 'Según la tarifa de ' + esc(nameIn.value) + ': <b>' + euro(v) + '</b>' + (pr != null ? ' · te quedarían ' + euro(r2(pr - v)) : '') +
+        (Number(pay.value) === v ? '' : ' <button type="button" class="b" data-use-suggest>Usar</button>');
+      var u = box.querySelector('[data-use-suggest]');
+      if (u) u.addEventListener('click', function () { pay.value = v; margin(); showSuggest(); });
+    }
+    showSuggest();
+    el.querySelector('[data-k=driverName]').addEventListener('change', showSuggest);
+    pay.addEventListener('input', showSuggest);
+    qsa('[data-inc]', el).forEach(function (bt) {
+      bt.addEventListener('click', async function () {
+        var parts = bt.getAttribute('data-inc').split(':');
+        if (parts[0] === 'delete' && !confirm('¿Borrar esta incidencia?')) return;
+        try { var data = await api('admin/incident', { ref: b.ref, action: parts[0], id: parts[1] }); replace(data.booking); open[b.ref] = true; renderTrips(); }
+        catch (e) { alert(e.message); }
+      });
+    });
+    el.querySelector('[data-inc-add]').addEventListener('click', async function () {
+      var text = el.querySelector('[data-inc-text]').value.trim();
+      if (!text) { el.querySelector('[data-inc-text]').focus(); return; }
+      try { var data = await api('admin/incident', { ref: b.ref, action: 'add', kind: el.querySelector('[data-inc-kind]').value, text: text }); replace(data.booking); open[b.ref] = true; renderTrips(); }
+      catch (e) { alert(e.message); }
+    });
+    var cm = el.querySelector('[data-copy-min]');
+    if (cm) cm.addEventListener('click', function () {
+      var t = ministryText(b);
+      var done = function () { cm.textContent = '✓ Copiado'; setTimeout(function () { cm.textContent = '📋 Copiar'; }, 2000); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, function () { prompt('Copia el texto:', t); });
+      else prompt('Copia el texto:', t);
+    });
     var pv = el.querySelector('[data-k=driverPaidVia]'), pd = el.querySelector('[data-k=driverPaidDate]');
     if (pv) pv.addEventListener('change', function () { if (pv.value && !pd.value) pd.value = madridDay(0); if (!pv.value) pd.value = ''; });
     // Al elegir una empresa de la lista, se rellenan su teléfono, su coche y su correo
@@ -736,7 +1004,7 @@
 
   // ---------- MENSAJES ----------
   var threads = [], openTh = {};
-  function setUnread(n) { $('nav-unread').textContent = n; $('nav-unread').hidden = !n; }
+  function setUnread(n) { $('nav-unread').textContent = n; $('nav-unread').hidden = !n; unreadMsgs = n || 0; if ($('today').innerHTML) renderToday(); }
   async function loadMessages() {
     try { var d = await api('admin/messages'); threads = d.threads || []; setUnread(d.unread); renderMessages(d.emailOn); }
     catch (e) { $('threads').innerHTML = '<p class="empty">No se han podido cargar los mensajes.</p>'; }
@@ -1201,6 +1469,9 @@
         '<div class="row"><div><label>Coche</label><input data-d="car" value="' + esc(d.car) + '"></div><div><label>Matrícula</label><input data-d="plate" value="' + esc(d.plate) + '"></div></div>' +
         '<div class="row"><div><label>Correo</label><input data-d="email" type="email" value="' + esc(d.email || '') + '"></div><div><label>NIF / CIF</label><input data-d="taxId" value="' + esc(d.taxId || '') + '"></div></div>' +
         '<label>Notas (lo que cobra, zona, sus conductores…)</label><textarea data-d="notes">' + esc(d.notes) + '</textarea>' +
+        '<div class="row3"><div><label>Cobra por km (€)</label><input data-d="rateKm" type="number" min="0" step="0.01" inputmode="decimal" value="' + esc(d.rateKm || '') + '"></div>' +
+        '<div><label>Por hora (€)</label><input data-d="rateHour" type="number" min="0" step="0.01" inputmode="decimal" value="' + esc(d.rateHour || '') + '"></div>' +
+        '<div><label>Mínimo (€)</label><input data-d="rateMin" type="number" min="0" step="0.01" inputmode="decimal" value="' + esc(d.rateMin || '') + '"></div></div>' +
         (d.phone || d.email ? contactRow('Contactar', '', d.phone, 'Hola ' + (d.name || '') + ', ', d.email, 'Bravo Transfers') : '') +
         '<div class="btns"><button type="button" class="b red" data-drv-del="' + i + '">Quitar</button></div></div>';
     }).join('');
