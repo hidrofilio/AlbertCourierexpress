@@ -710,6 +710,25 @@
   }
   var fields = {};
 
+  // ---------- el embudo: cada paso, una vez por visita, sin datos personales ----------
+  var SID = '';
+  try { SID = sessionStorage.getItem('bt_sid') || ''; if (!SID) { SID = Math.random().toString(36).slice(2, 14); sessionStorage.setItem('bt_sid', SID); } }
+  catch (e) { SID = Math.random().toString(36).slice(2, 14); }
+  var sent = {};
+  function track(e, extra) {
+    var first = !sent[e];
+    try { if (sessionStorage.getItem('bt_ev_' + e)) first = false; sessionStorage.setItem('bt_ev_' + e, '1'); } catch (x) { /* sin almacén: cuenta igual */ }
+    sent[e] = true;
+    if (!first && e !== 'quote') return;
+    var body = { e: e, s: SID, first: first };
+    if (extra) for (var k in extra) body[k] = extra[k];
+    try { fetch('/api/bravo/ev', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), keepalive: true }).catch(function () {}); } catch (x) { /* da igual */ }
+  }
+  function quoteEv(trip, q) {
+    var prices = (q.options || []).filter(function (o) { return o.fits; }).map(function (o) { return o.price; });
+    track('quote', { route: (trip.from ? trip.from.label : '') + (trip.kind === 'hourly' ? ' (' + trip.hours + ' h)' : ' → ' + (trip.to ? trip.to.label : '')), price: prices.length ? Math.min.apply(null, prices) : null, kind: trip.kind });
+  }
+
   function fillSelect(id, from, to, def) {
     var s = $(id); s.innerHTML = '';
     for (var i = from; i <= to; i++) { var o = document.createElement('option'); o.value = i; o.textContent = i; if (i === def) o.selected = o.defaultSelected = true; s.appendChild(o); }
@@ -832,6 +851,7 @@
       a.className = 'planb'; a.target = '_blank'; a.rel = 'noopener';
       a.href = 'https://wa.me/353874592308?text=' + encodeURIComponent(txt);
       a.textContent = '💬 ' + t('planB');
+      a.addEventListener('click', function () { track('planb'); });
       $('err').appendChild(a);
     }
     $('err').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -895,7 +915,7 @@
         if (trip.returnDate + trip.returnTime <= trip.date + trip.time) throw { code: 'bad_return' };
       }
       var q = await quote({ kind: 'transfer', from: trip.from, to: trip.to, via: trip.via || null, passengers: trip.passengers, roundTrip: trip.roundTrip });
-      state.trip = trip; state.quote = q; renderOptions(); show('options');
+      state.trip = trip; state.quote = q; renderOptions(); show('options'); quoteEv(trip, q);
     } catch (e) { showErr(e); }
     finally { busy(this, false); }
   });
@@ -910,7 +930,7 @@
       if (!trip.date || !trip.time) throw { code: 'needDate' };
       if (tooSoon(trip.date, trip.time)) throw { code: 'too_soon' };
       var q = await quote({ kind: 'hourly', from: trip.from, hours: trip.hours, passengers: trip.passengers });
-      state.trip = trip; state.quote = q; renderOptions(); show('options');
+      state.trip = trip; state.quote = q; renderOptions(); show('options'); quoteEv(trip, q);
     } catch (e) { showErr(e); }
     finally { busy(this, false); }
   });
@@ -933,7 +953,7 @@
     if (dsc) $('code-ok').textContent = '✓ ' + t(dsc.code ? 'codeOk' : 'partnerOk').replace('{p}', String(dsc.pct).replace('.', ',')).replace('{c}', dsc.code || '');
     $('code-open').hidden = Boolean(dsc && dsc.code);
     qsa('[data-veh]', $('opt-list')).forEach(function (b) {
-      b.addEventListener('click', function () { state.vehicle = b.getAttribute('data-veh'); renderDetails(); show('details'); });
+      b.addEventListener('click', function () { state.vehicle = b.getAttribute('data-veh'); renderDetails(); show('details'); track('details'); });
     });
   }
 
@@ -976,7 +996,7 @@
       var o = chosen();
       var summary = tripLine(trip, state.quote) + '<br>' + whenLine(trip) + '<br>' + esc(t('veh_' + o.id)) + ' · ' + esc(money(r.price)) +
         (r.paid ? '' : '<br><b style="color:#b3261e" data-i18n="payPending">' + esc(t('payPending')) + '</b>');
-      finish(r.ref, 'doneText', summary, r.doc, r, body.email);
+      finish(r.ref, 'doneText', summary, r.doc, r, body.email); track('book');
       notify(r.ref, body, r.price, r.km);
     } catch (e) { showErr(e); }
     finally { busy(this, false); }
@@ -997,7 +1017,7 @@
       var r = await api('book', body);
       var summary = '<b>' + esc(body.fromText) + ' → ' + esc(body.toText) + '</b>' + esc(fmtDate(body.date) + ' · ' + body.time) +
         '<br>' + esc(t('groupDone').replace('{n}', body.passengers));
-      finish(r.ref, 'doneGroup', summary, '', r, body.email);
+      finish(r.ref, 'doneGroup', summary, '', r, body.email); track('group');
       notify(r.ref, body, null, null);
     } catch (e) { showErr(e); }
     finally { busy(this, false); }
@@ -1129,6 +1149,8 @@
     var parts = v.split(','), lat = Number(parts[0]), lon = Number(parts[1]), label = parts.slice(2).join(',').trim().slice(0, 160);
     return isFinite(lat) && isFinite(lon) && label ? { lat: lat, lon: lon, label: label } : null;
   }
+
+  track('visit');
 
   // ---------- la foto de portada hecha con IA, si existe ----------
   // Solo se pide si el servidor dice que existe (lo dice la lista de rutas)

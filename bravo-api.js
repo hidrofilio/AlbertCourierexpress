@@ -49,6 +49,11 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
   const OSRM = (process.env.BRAVO_OSRM_URL || 'https://router.project-osrm.org').replace(/\/$/, '');
   const DIR = path.join(DATA_DIR, 'bravo');
   const geo = require('./bravo-geo')(DIR);
+  // El embudo: cuánta gente entra, ve el precio, elige vehículo y reserva. Sin datos personales:
+  // solo contadores por día y las rutas con precio que se vieron (para saber qué no se reserva)
+  const FUNNEL = path.join(DIR, 'funnel.json');
+  const FUNNEL_EV = ['visit', 'quote', 'details', 'book', 'group', 'planb'];
+  function funnel() { try { const f = JSON.parse(fs.readFileSync(FUNNEL, 'utf8')); f.days = f.days || {}; f.quotes = f.quotes || []; return f; } catch (e) { return { days: {}, quotes: [] }; } }
   const BOOKINGS = path.join(DIR, 'bookings');
   fs.mkdirSync(BOOKINGS, { recursive: true });
 
@@ -1502,6 +1507,29 @@ load();</script></body></html>`;
       });
     }
 
+    // Embudo: la web avisa de cada paso (una vez por visita y paso; sin datos personales)
+    if (req.method === 'POST' && route === 'ev') {
+      if (over('ev:' + ip, 300, 3600000, true)) return json(res, 429, { error: 'too_many' });
+      let d = {};
+      try { d = JSON.parse(await readBody(req, 1000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+      const sid = /^[a-z0-9]{8,24}$/.test(String(d.s || '')) ? String(d.s) : '';
+      if (!FUNNEL_EV.includes(d.e) || !sid) return json(res, 400, { error: 'bad_event' });
+      const f = funnel(), day = today();
+      if (d.first !== false) { f.days[day] = f.days[day] || {}; f.days[day][d.e] = (f.days[day][d.e] || 0) + 1; }
+      if (d.e === 'quote') {
+        const rt = clean(d.route, 140), price = Number(d.price);
+        const last = f.quotes[f.quotes.length - 1];
+        if (rt && !(last && last.s === sid && last.route === rt)) f.quotes.push({ at: new Date().toISOString(), day, s: sid, route: rt, price: Number.isFinite(price) ? Math.round(price * 100) / 100 : null, kind: d.kind === 'hourly' ? 'hourly' : 'transfer' });
+      }
+      if (d.e === 'book') f.quotes.forEach((q) => { if (q.s === sid) q.booked = true; });
+      f.quotes = f.quotes.slice(-1000);
+      // Se guardan 400 días
+      const keep = Object.keys(f.days).sort().slice(-400);
+      f.days = Object.fromEntries(keep.map((k) => [k, f.days[k]]));
+      writeJson(FUNNEL, f);
+      return json(res, 200, { ok: true });
+    }
+
     // Buscador de direcciones (por el servidor: lista propia, lo ya buscado, OpenStreetMap y plan B)
     if (req.method === 'GET' && (route === 'geo' || route === 'geo/suggest')) {
       if (over('geo:' + ip, route === 'geo' ? 120 : 600, 3600000, true)) return json(res, 429, { error: 'too_many' });
@@ -2046,6 +2074,24 @@ load();</script></body></html>`;
     }
 
     // El cobro del cliente, marcado a mano. Con «factura sola», la factura se hace aquí y se le manda por correo
+    // El embudo de un periodo: los pasos, las rutas con precio que no se reservaron y lo que no se encontró
+    if (req.method === 'GET' && route === 'admin/funnel') {
+      const sp = new URL(url, 'http://x').searchParams;
+      const from = /^\d{4}-\d{2}-\d{2}$/.test(sp.get('from') || '') ? sp.get('from') : '0000-00-00', to = /^\d{4}-\d{2}-\d{2}$/.test(sp.get('to') || '') ? sp.get('to') : '9999-99-99';
+      const f = funnel(), totals = {};
+      for (const [day, c] of Object.entries(f.days)) if (day >= from && day <= to) for (const e of FUNNEL_EV) totals[e] = (totals[e] || 0) + (c[e] || 0);
+      const lost = {};
+      for (const q of f.quotes) {
+        if (q.booked || q.day < from || q.day > to) continue;
+        lost[q.route] = lost[q.route] || { route: q.route, n: 0, sum: 0, priced: 0 };
+        lost[q.route].n++;
+        if (q.price != null) { lost[q.route].sum += q.price; lost[q.route].priced++; }
+      }
+      const lostList = Object.values(lost).sort((a, b) => b.n - a.n).slice(0, 10).map((x) => ({ route: x.route, n: x.n, price: x.priced ? Math.round(x.sum / x.priced) : null }));
+      const misses = geo.misses().filter((m) => { const dd = String(m.at || '').slice(0, 10); return dd >= from && dd <= to; }).slice(-15).reverse();
+      return json(res, 200, { totals, lost: lostList, misses });
+    }
+
     // Ofrecer el viaje a una o varias empresas de transporte (el primero que acepta se lo queda), o retirar una oferta
     if (req.method === 'POST' && (route === 'admin/offer' || route === 'admin/offer/withdraw')) {
       const r = await loadRef();

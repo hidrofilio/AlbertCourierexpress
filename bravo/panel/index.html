@@ -157,6 +157,11 @@
   .due .who { font-size: .7rem; font-weight: 800; text-transform: uppercase; color: var(--muted); }
   body.op [data-admin] { display: none !important; }
   .offer { border-top: 1px solid var(--line); padding: 8px 0; }
+  .funnel { margin: 8px 0 4px; }
+  .fstep { position: relative; background: #f6efe2; border-radius: 10px; margin: 6px 0; min-height: 40px; overflow: hidden; }
+  .fbar { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, #e5b44b, #df7a2c); opacity: .55; border-radius: 10px; }
+  .fstep span { position: relative; display: block; padding: 10px 12px; font-size: .92rem; }
+  .fstep i { color: var(--muted); font-style: normal; font-size: .82rem; }
   .offer:first-of-type { border-top: 0; }
   body.op nav { grid-template-columns: repeat(3, 1fr); }
   .hist { font-size: .8rem; color: var(--muted); border-top: 1px dashed var(--line); padding: 4px 0; }
@@ -727,7 +732,7 @@
     var mRev = withPay.reduce(function (a, b) { return a + b.price; }, 0), mPay = withPay.reduce(function (a, b) { return a + b.driverPay; }, 0);
     var leads = act.filter(function (b) { return b.createdAt; }).map(function (b) { return Math.max(0, (new Date(b.date + 'T12:00:00') - new Date(b.createdAt.slice(0, 10) + 'T12:00:00')) / 86400000); });
     var lead = leads.length ? Math.round(leads.reduce(function (a, x) { return a + x; }, 0) / leads.length) : 0;
-    var h = '<div class="totals t2" style="margin-top: 12px">' +
+    var h = '<div id="funnel"></div><div class="totals t2" style="margin-top: 12px">' +
       '<div><b>' + act.length + '</b><span>Reservas</span></div>' +
       '<div><b>' + canc + '</b><span>Canceladas' + (inP.length ? ' (' + Math.round(canc / inP.length * 100) + ' %)' : '') + '</span></div>' +
       '<div><b>' + euro(rev) + '</b><span>Vendido (con IVA)</span></div>' +
@@ -753,6 +758,31 @@
       return Object.keys(m).map(function (k) { return m[k]; }).sort(function (a, b) { return b[1] - a[1]; });
     })(), function (e) { return euro(r2(e[1])) + ' · ' + e[2] + ' viaje' + (e[2] === 1 ? '' : 's'); });
     $('stats').innerHTML = h;
+    loadFunnel(from, to);
+  }
+  // El embudo de la web: cuánta gente entra, ve el precio, elige vehículo y reserva (sin datos personales)
+  async function loadFunnel(from, to) {
+    var box = $('funnel');
+    try {
+      var d = await api('admin/funnel?from=' + from + '&to=' + to);
+      if ($('funnel') !== box) return;
+      var t = d.totals || {}, steps = [['Entran en la web', t.visit || 0], ['Ven un precio', t.quote || 0], ['Eligen vehículo', t.details || 0], ['Reservan', t.book || 0]];
+      var max = Math.max(1, steps[0][1]);
+      var h = '<h3>La web: cuántos llegan a reservar</h3>';
+      if (!steps[0][1]) h += '<p class="empty">Todavía no hay visitas medidas en este periodo.</p>';
+      else {
+        h += '<div class="funnel">' + steps.map(function (st, i) {
+          var pct = i ? (steps[i - 1][1] ? Math.round(st[1] / steps[i - 1][1] * 100) + ' % del paso anterior' : '') : '';
+          return '<div class="fstep"><div class="fbar" style="width:' + Math.max(4, Math.round(st[1] / max * 100)) + '%"></div><span><b>' + st[1] + '</b> ' + esc(st[0]) + (pct ? ' <i>· ' + pct + '</i>' : '') + '</span></div>';
+        }).join('') + '</div>';
+        h += '<p class="msg">De cada 100 que entran, reservan <b>' + Math.round((t.book || 0) / steps[0][1] * 100) + '</b>. ' +
+          (t.group ? t.group + (t.group === 1 ? ' pidió' : ' pidieron') + ' presupuesto de grupo. ' : '') + (t.planb ? t.planb + (t.planb === 1 ? ' pulsó' : ' pulsaron') + ' «Pedir el precio por WhatsApp». ' : '') + 'Incluye tus pruebas.</p>';
+      }
+      if ((d.lost || []).length) h += bars('Precios vistos que no se reservaron', d.lost.map(function (x) { return [x.route, x.n, x.price]; }), function (e) { return e[1] + ' vez' + (e[1] === 1 ? '' : 'es') + (e[2] != null ? ' · ' + euro(e[2]) : ''); });
+      if ((d.misses || []).length) h += '<h3>Direcciones que no se encontraron</h3><p class="msg">Para añadirlas a la lista del buscador: dímelo y las meto.</p>' +
+        d.misses.map(function (m) { return '<div class="l3">' + esc(dmy(String(m.at).slice(0, 10))) + ' · ' + esc(m.q) + '</div>'; }).join('');
+      box.innerHTML = h;
+    } catch (e) { box.innerHTML = ''; }
   }
 
   // ---------- HOTELES Y AGENCIAS ----------

@@ -100,6 +100,10 @@ Web de una empresa de transporte urgente dedicado (vehículo exclusivo punto a p
     - Después marca «Cliente recogido» (`pickedUpAt`) y «Viaje terminado» (`status: 'hecha'`, `doneAt`).
     - Una oferta se puede retirar (`admin/offer/withdraw`). Si todas dicen que no, se avisa a Alberto.
     - Al asignar a mano se cierran las pendientes. Las ofertas están en `b.offers`, y el operador no las ve.
+  - **El embudo** (12/11): la web manda cada paso (`POST /api/bravo/ev`: `visit`, `quote`, `details`, `book`, `group`, `planb`), una vez por visita (`sessionStorage`), **sin datos personales**.
+    - Se guarda en `funnel.json`: contadores por día y las rutas con precio vistas (`quotes`; `booked` si acabaron en reserva).
+    - Sale en Cuentas → 📈 Números (`GET admin/funnel`), con los precios no reservados y las direcciones no encontradas.
+    - En la fase de pruebas incluye las visitas de Alberto.
   - Las pruebas, con Playwright: un OSRM falso, un servicio de correo falso, Nominatim y Web3Forms simulados, y `pdftotext` para leer los PDF.
 - **`stats/`** y **`notas/`** — panel de analíticas y buzón de notas. **La clave no se escribe nunca aquí**: vive en la variable `STATS_KEY` de Railway, y apuntada en el repo privado (`NEGOCIO/empresa/acceso.md`)
 - **`data/events.jsonl`** — registro de visitas, en un volumen persistente de Railway montado en `/app/data`. **No está en git.**
