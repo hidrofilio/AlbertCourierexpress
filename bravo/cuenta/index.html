@@ -214,6 +214,9 @@
       st_pendiente: 'Confirmada · buscando conductor', st_asignada: 'Conductor asignado', st_hecha: 'Hecha', st_cancelada: 'Cancelada', st_quote: 'Presupuesto pendiente',
       from: 'Recogida', to: 'Destino', ret: 'Vuelta', pax: 'Pasajeros', veh_car: 'Coche', veh_van: 'Monovolumen', flight: 'Vuelo', bags: 'Maletas', seats: 'Sillas de niño',
       hours: '{h} horas con conductor', group: 'Grupo', total: 'Total', ivaInc: 'IVA incluido', quotePending: 'Te mandaremos el presupuesto',
+      quoteT: 'Presupuesto', quoteValid: 'Válido hasta el {d}', qAccept: '✓ Aceptar', qReject: 'Rechazar el presupuesto', qAsk: '¿Aceptas el presupuesto {n} de {p}?',
+      qst_enviado: 'Pendiente de tu respuesta', qst_aceptado: 'Aceptado ✓', qst_rechazado: 'Rechazado', qDone: 'Presupuesto aceptado: te mandamos la confirmación.', qNo: 'Presupuesto rechazado. Si quieres otro, escríbenos.',
+      err_cannot_answer: 'Este presupuesto ya no se puede contestar. Escríbenos.',
       driver: 'Tu conductor', car: 'Coche', call: 'Llamar', waDriver: 'Hola, soy el cliente de la reserva {ref} de Bravo Transfers. ',
       docConf: '📄 Justificante', docInv: '🧾 Factura', docRect: '🧾 Rectificativa', docVoid: '(anulada)', ics: '📅 A mi calendario',
       change: '✏️ Pedir un cambio', cancel: '✖ Cancelar', cancelAsk: '¿Seguro que quieres cancelar la reserva {ref} del {when}?',
@@ -250,6 +253,9 @@
       st_pendiente: 'Confirmed · assigning driver', st_asignada: 'Driver assigned', st_hecha: 'Completed', st_cancelada: 'Cancelled', st_quote: 'Quote pending',
       from: 'Pick-up', to: 'Drop-off', ret: 'Return', pax: 'Passengers', veh_car: 'Car', veh_van: 'People carrier', flight: 'Flight', bags: 'Suitcases', seats: 'Child seats',
       hours: '{h} hours with driver', group: 'Group', total: 'Total', ivaInc: 'VAT included', quotePending: 'We will send you a quote',
+      quoteT: 'Quote', quoteValid: 'Valid until {d}', qAccept: '✓ Accept', qReject: 'Decline the quote', qAsk: 'Do you accept quote {n} for {p}?',
+      qst_enviado: 'Waiting for your answer', qst_aceptado: 'Accepted ✓', qst_rechazado: 'Declined', qDone: 'Quote accepted: we are sending you the confirmation.', qNo: 'Quote declined. If you would like another one, message us.',
+      err_cannot_answer: 'This quote can no longer be answered. Please message us.',
       driver: 'Your driver', car: 'Car', call: 'Call', waDriver: 'Hello, I am the customer of Bravo Transfers booking {ref}. ',
       docConf: '📄 Confirmation', docInv: '🧾 Invoice', docRect: '🧾 Credit note', docVoid: '(cancelled)', ics: '📅 Add to calendar',
       change: '✏️ Request a change', cancel: '✖ Cancel', cancelAsk: 'Are you sure you want to cancel booking {ref} on {when}?',
@@ -410,6 +416,14 @@
         (b.driver.phone ? '<br>' + esc(b.driver.phone) + '<div class="drv-btns"><a class="btn ghost" href="tel:' + esc(b.driver.phone.replace(/[^0-9+]/g, '')) + '">📞 ' + esc(t('call')) + '</a>' +
           '<a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/' + esc(waNum(b.driver.phone)) + '?text=' + encodeURIComponent(t('waDriver').replace('{ref}', b.ref)) + '">WhatsApp</a></div>' : '') + '</div>';
     }
+    if (b.quote) {
+      var qq = b.quote;
+      h += '<div class="driver">📄 <b>' + esc(t('quoteT') + ' ' + qq.number) + '</b>: ' + esc(money(qq.price)) + ' <small>(' + esc(t('ivaInc')) + ')</small><br>' +
+        esc(t('quoteValid').replace('{d}', qq.validUntil.split('-').reverse().join('/'))) + (qq.notes ? '<br>' + esc(qq.notes) : '') +
+        '<br><b>' + esc(t('qst_' + qq.status)) + '</b>' +
+        '<div class="drv-btns"><a class="btn ghost" href="' + esc(qq.url) + '" target="_blank" rel="noopener">📄 PDF</a>' +
+        (qq.canAnswer ? '<button type="button" class="btn" data-qacc="' + esc(b.ref) + '">' + esc(t('qAccept')) + '</button><button type="button" class="btn ghost" data-qrej="' + esc(b.ref) + '" style="grid-column: 1 / -1">' + esc(t('qReject')) + '</button>' : '') + '</div></div>';
+    }
     h += '<div class="total"><span>' + esc(t('total')) + (b.price != null ? ' <small style="color:var(--muted)">(' + esc(t('ivaInc')) + ')</small>' : '') + '</span><b>' +
       esc(b.price != null ? money(b.price) : t('quotePending')) + '</b></div>';
     h += '<div class="acts">';
@@ -428,6 +442,18 @@
     if (!isPast && !b.canCancel && (b.status === 'pendiente' || b.status === 'asignada')) h += '<p class="warn">' + esc(t('tooLate').replace('{h}', state.me.cancelHours)) + '</p>';
     return h + '</article>';
   }
+
+  // Aceptar o rechazar un presupuesto
+  document.addEventListener('click', async function (ev) {
+    var el = ev.target.closest('[data-qacc],[data-qrej]');
+    if (!el) return;
+    var acc = el.hasAttribute('data-qacc'), ref = el.getAttribute(acc ? 'data-qacc' : 'data-qrej');
+    var b = state.me.bookings.filter(function (x) { return x.ref === ref; })[0];
+    if (acc && !window.confirm(t('qAsk').replace('{n}', b.quote.number).replace('{p}', money(b.quote.price)))) return;
+    el.disabled = true;
+    try { await api('quote', { ref: ref, action: acc ? 'accept' : 'reject' }); await load(); setMsg('area-ok', t(acc ? 'qDone' : 'qNo')); }
+    catch (e) { el.disabled = false; setMsg('area-err', errText(e)); }
+  });
 
   // Botones de las reservas
   document.addEventListener('click', async function (ev) {

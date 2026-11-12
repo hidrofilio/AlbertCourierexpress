@@ -212,7 +212,7 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
     try { counters = JSON.parse(fs.readFileSync(path.join(DIR, 'invoice-counter.json'), 'utf8')); } catch (e) { /* ninguno */ }
     return { exportedAt: new Date().toISOString(), settings: settings(), drivers: drivers(), bookings: allBookings(), ledger: ledger(), bank: bank(), inbox: inbox(), invoiceCounters: counters,
       customers: customers().map((c) => ({ id: c.id, email: c.email, name: c.name, phone: c.phone, lang: c.lang, createdAt: c.createdAt, lastLogin: c.lastLogin || null })),
-      messages: messages(), docs: docsList() };
+      messages: messages(), docs: docsList(), partners: partners(), codes: codes() };
   }
   function autoBackup() {
     try {
@@ -236,6 +236,56 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
   }
   setTimeout(autoBackup, 4000).unref();
   setInterval(autoBackup, 3600000).unref();
+
+  // ---------- hoteles y agencias (cada uno con su enlace) y códigos de descuento ----------
+  const PARTNERS = path.join(DIR, 'partners.json');
+  const CODES = path.join(DIR, 'codes.json');
+  function partners() { try { return JSON.parse(fs.readFileSync(PARTNERS, 'utf8')); } catch (e) { return []; } }
+  function codes() { try { return JSON.parse(fs.readFileSync(CODES, 'utf8')); } catch (e) { return []; } }
+  // El código del cliente, si vale; si no, el descuento del hotel o agencia que lo trajo (no se suman)
+  function discountFor(d) {
+    const out = { pct: 0, code: '', partner: '' };
+    const pc = String(d.partner || '').trim().toLowerCase();
+    const p = pc ? partners().find((x) => x.active !== false && x.code === pc) : null;
+    if (p) out.partner = p.code;
+    const raw = String(d.code || '').trim().toUpperCase();
+    if (raw) {
+      const c = codes().find((x) => x.code === raw);
+      if (c && c.active !== false && (!c.validUntil || c.validUntil >= today()) && (!c.maxUses || (c.uses || 0) < c.maxUses)) { out.pct = c.percent; out.code = c.code; }
+      else out.badCode = true;
+    }
+    if (!out.code && p && p.discount > 0) out.pct = p.discount;
+    return out;
+  }
+  function applyDiscount(trip, disc) {
+    if (disc.pct > 0) trip.options = trip.options.map((o) => Object.assign({}, o, { fullPrice: o.price, price: Math.ceil(o.price * (1 - disc.pct / 100)) }));
+    trip.discount = disc.pct > 0 ? { pct: disc.pct, code: disc.code, byPartner: !disc.code && Boolean(disc.partner) } : null;
+    return trip;
+  }
+
+  // ---------- presupuestos (grupos y reservas sin precio) ----------
+  function acceptQuote(b, by) {
+    b.price = b.quote.price;
+    b.quote.status = 'aceptado'; b.quote.acceptedAt = new Date().toISOString(); b.quote.acceptedBy = by;
+    const cfg = settings();
+    if (cfg.autoInvoice && b.price > 0 && !activeInvoice(b)) makeInvoice(b, cfg.invoice.defaultVat, {});
+  }
+  async function sendQuoteEmail(ref) {
+    let b;
+    try { b = JSON.parse(fs.readFileSync(bookingFile(ref), 'utf8')); } catch (e) { return { ok: false, error: 'not_found' }; }
+    if (!b.quote || !isEmail(b.email)) return { ok: false, error: 'no_email' };
+    const cl = customers(), c = cl.find((x) => x.id === b.customerId) || cl.find((x) => x.email === normEmail(b.email));
+    let link = areaUrl('');
+    if (c) { link = areaUrl(loginToken(c, 14 * 24)); saveCustomers(cl); }
+    const m = TPL.quoteEmail(b, { areaUrl: link, base: BASE });
+    const r = await mail.send({ to: b.email, toName: b.name, subject: m.subject, html: m.html, text: m.text, attachments: [{ name: b.quote.number + '.pdf', buf: pdf.quotePdf(b, issuerFull()) }] });
+    try {
+      const fresh = JSON.parse(fs.readFileSync(bookingFile(ref), 'utf8'));
+      fresh.emails = (fresh.emails || []).concat([{ at: new Date().toISOString(), kind: 'presupuesto', ok: r.ok, error: r.error || '', to: b.email }]).slice(-20);
+      saveBooking(fresh);
+    } catch (e) { /* ya no está */ }
+    return r;
+  }
 
   // ---------- avisos automáticos (cada 15 minutos) ----------
   function madridHour() { return Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Madrid', hour: '2-digit', hour12: false }).format(new Date())) % 24; }
@@ -389,6 +439,8 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
         invoices: allInvoices(b).map((i) => ({ number: i.number, kind: i.kind || 'factura', status: i.status, total: i.total, url: '/api/bravo/doc/' + b.clientToken + '/f/' + i.number + '.pdf' }))
       },
       canCancel: ['pendiente', 'asignada'].includes(b.status) && Boolean(when) && when > Date.now() + cfg.cancelHours * 3600000,
+      quote: b.quote ? { number: b.quote.number, price: b.quote.price, validUntil: b.quote.validUntil, notes: b.quote.notes || '', status: b.quote.status,
+        canAnswer: b.quote.status === 'enviado' && b.quote.validUntil >= today() && b.status !== 'cancelada', url: '/api/bravo/doc/' + b.clientToken + '/presupuesto.pdf' } : null,
       cancelledBy: b.cancelledBy || null
     };
   }
@@ -1142,13 +1194,19 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       });
       return res.end(buf);
     }
-    const docm = /^doc\/([a-f0-9]{32})\/(justificante|factura|hoja)\.pdf$/.exec(route);
+    const docm = /^doc\/([a-f0-9]{32})\/(justificante|factura|hoja|presupuesto)\.pdf$/.exec(route);
     if (req.method === 'GET' && docm) {
       if (over('doc:' + ip, 200, 3600000, true)) return json(res, 429, { error: 'too_many' });
       const [, tok, kind] = docm;
       const isDriver = kind === 'hoja';
       const b = allBookings().find((x) => (isDriver ? x.driverToken : x.clientToken) === tok);
-      if (!b || (kind === 'factura' && !b.invoice)) return json(res, 404, { error: 'not_found' });
+      if (!b || (kind === 'factura' && !b.invoice) || (kind === 'presupuesto' && !b.quote)) return json(res, 404, { error: 'not_found' });
+      if (kind === 'presupuesto') {
+        const qb = pdf.quotePdf(b, issuerFull());
+        res.writeHead(200, { 'Content-Type': 'application/pdf', 'Content-Length': qb.length, 'Content-Disposition': 'inline; filename="' + b.quote.number + '.pdf"',
+          'Cache-Control': 'no-store, private', 'X-Robots-Tag': 'noindex, nofollow', 'X-Content-Type-Options': 'nosniff' });
+        return res.end(qb);
+      }
       const cfg0 = settings();
       const issuer = { name: cfg0.invoice.issuerName, email: cfg0.invoice.email, phone: cfg0.invoice.phone };
       const buf = kind === 'factura' ? pdf.invoicePdf(b) : kind === 'hoja' ? pdf.driverSheetPdf(b, issuer) : pdf.confirmationPdf(b, issuer);
@@ -1178,7 +1236,9 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       try { d = JSON.parse(await readBody(req, 4000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
       const trip = await readTrip(d, cfg);
       if (trip.error) return json(res, 400, trip);
-      return json(res, 200, trip);
+      const disc = discountFor(d);
+      if (disc.badCode) return json(res, 400, { error: 'bad_code' });
+      return json(res, 200, applyDiscount(trip, disc));
     }
 
     if (req.method === 'POST' && route === 'book') {
@@ -1191,8 +1251,10 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       const date = clean(d.date, 10), time = clean(d.time, 5);
       const when = madridMs(date, time);
       if (!when) return json(res, 400, { error: 'bad_date' });
+      const disc = discountFor(d);
+      if (disc.badCode) return json(res, 400, { error: 'bad_code' });
       const base = {
-        createdAt: new Date().toISOString(), lang, date, time, ...who,
+        createdAt: new Date().toISOString(), lang, date, time, ...who, partner: disc.partner,
         comments: cleanLong(d.comments, 1000),
         status: 'pendiente', driverName: '', driverPhone: '', driverPay: null, ministry: false, notes: '',
         payment: 'sin cobrar (pruebas)', source: 'web'
@@ -1215,6 +1277,7 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       if (when < Date.now() + cfg.minHoursAhead * 3600000) return json(res, 400, { error: 'too_soon', minHoursAhead: cfg.minHoursAhead });
       const trip = await readTrip(d, cfg);
       if (trip.error) return json(res, 400, trip);
+      applyDiscount(trip, disc);
       const opt = trip.options.find((o) => o.id === d.vehicle);
       if (!opt) return json(res, 400, { error: 'bad_vehicle' });
       if (!opt.fits) return json(res, 400, { error: 'too_many_passengers' });
@@ -1232,6 +1295,10 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
         passengers: trip.passengers, vehicle: opt.id, price: opt.price,
         flight: clean(d.flight, 12), bags: int(d.bags, 0, 20) || 0, childSeats: int(d.childSeats, 0, 6) || 0
       }, base);
+      if (trip.discount) {
+        b.discount = { pct: trip.discount.pct, code: trip.discount.code, amount: Math.round((opt.fullPrice - opt.price) * 100) / 100 };
+        if (trip.discount.code) { const cs = codes(), c = cs.find((x) => x.code === trip.discount.code); if (c) { c.uses = (c.uses || 0) + 1; writeJson(CODES, cs); } }
+      }
       ensureTokens(b);
       saveBooking(b);
       const acct = afterBooking(b);
@@ -1343,6 +1410,21 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
         saveMessages(all);
         notifyOwner('Cancelación de ' + b.ref, ['El cliente ' + c.name + ' (' + c.email + ') ha cancelado la reserva ' + b.ref + ' del ' + b.date + ' a las ' + b.time + '.', activeInvoice(b) ? 'Tiene la factura ' + b.invoice.number + ': hay que hacer la rectificativa (y devolver el dinero si lo pagó).' : '']);
         return json(res, 200, { ok: true, booking: custView(b, cfg), invoiced: activeInvoice(b) });
+      }
+      if (req.method === 'POST' && sub === 'quote') {
+        let d;
+        try { d = JSON.parse(await readBody(req, 1000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+        const b = mine(c).find((x) => x.ref === d.ref);
+        if (!b || !b.quote) return json(res, 404, { error: 'not_found' });
+        if (!custView(b, cfg).quote.canAnswer) return json(res, 400, { error: 'cannot_answer' });
+        if (d.action === 'accept') acceptQuote(b, 'cliente');
+        else if (d.action === 'reject') { b.quote.status = 'rechazado'; b.quote.rejectedAt = new Date().toISOString(); }
+        else return json(res, 400, { error: 'bad_action' });
+        saveBooking(b);
+        if (d.action === 'accept' && b.email) setImmediate(() => { sendBookingEmail(b.ref, { update: true }).catch(() => {}); });
+        notifyOwner('Presupuesto ' + b.quote.number + (d.action === 'accept' ? ' ACEPTADO' : ' rechazado') + ' (' + b.ref + ')',
+          [c.name + ' (' + c.email + ') ha ' + (d.action === 'accept' ? 'aceptado' : 'rechazado') + ' el presupuesto ' + b.quote.number + ' de ' + b.quote.price + ' € para el ' + b.date + ' a las ' + b.time + '.']);
+        return json(res, 200, { ok: true, booking: custView(b, cfg) });
       }
       if (req.method === 'POST' && sub === 'message') {
         if (over('cmsg:' + c.id, 30, 3600000, true)) return json(res, 429, { error: 'too_many' });
@@ -1456,7 +1538,7 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
         ref: nextRef(), kind, createdAt: new Date().toISOString(), lang: d.lang === 'en' ? 'en' : 'es', date, time, name, phone, email,
         comments: cleanLong(d.comments, 1000), status: 'pendiente', driverName: '', driverPhone: '', driverPay: null, ministry: false,
         notes: cleanLong(d.notes, 2000), payment: clean(d.payment, 60) || 'sin cobrar', source: SOURCES.includes(d.source) ? d.source : 'otro',
-        passengers, price, manual: true
+        passengers, price, manual: true, partner: partners().some((x) => x.code === String(d.partner || '')) ? String(d.partner) : ''
       };
       if (kind === 'group') Object.assign(b, { fromText, toText });
       else Object.assign(b, {
@@ -1467,6 +1549,100 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       saveBooking(b);
       const acct = afterBooking(b, { sendEmail: d.sendEmail === true });
       return json(res, 200, { ok: true, booking: JSON.parse(fs.readFileSync(bookingFile(b.ref), 'utf8')), newAccount: acct.newAccount });
+    }
+
+    // ---------- presupuestos ----------
+    if (req.method === 'POST' && (route === 'admin/quote' || route === 'admin/quote/status')) {
+      let d;
+      try { d = JSON.parse(await readBody(req, 4000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+      if (!/^BT-\d{4,6}$/.test(d.ref || '')) return json(res, 400, { error: 'bad_ref' });
+      let b;
+      try { b = JSON.parse(fs.readFileSync(bookingFile(d.ref), 'utf8')); } catch (e) { return json(res, 404, { error: 'not_found' }); }
+      if (activeInvoice(b)) return json(res, 409, { error: 'invoiced' });
+      if (route === 'admin/quote') {
+        const price = num(d.price, 1, 100000, 2);
+        if (price == null) return json(res, 400, { error: 'bad_price' });
+        const days = int(d.validDays, 1, 90) || 7;
+        if (b.quote) b.quotes = (b.quotes || []).concat([b.quote]);
+        b.quote = { number: nextInvoiceNumber(today().slice(0, 4), 'P'), date: today(), price, validUntil: addDays(today(), days), notes: cleanLong(d.notes, 600),
+          status: 'enviado', createdAt: new Date().toISOString() };
+        saveBooking(b);
+        let emailed = false;
+        if (d.sendEmail && isEmail(b.email) && mail.configured()) { const r = await sendQuoteEmail(b.ref); emailed = r.ok; }
+        return json(res, 200, { ok: true, booking: JSON.parse(fs.readFileSync(bookingFile(b.ref), 'utf8')), emailed });
+      }
+      if (!b.quote) return json(res, 404, { error: 'no_quote' });
+      if (d.status === 'aceptado') acceptQuote(b, 'Alberto');
+      else if (d.status === 'rechazado') { b.quote.status = 'rechazado'; b.quote.rejectedAt = new Date().toISOString(); }
+      else return json(res, 400, { error: 'bad_status' });
+      saveBooking(b);
+      return json(res, 200, { ok: true, booking: b });
+    }
+
+    // ---------- hoteles y agencias ----------
+    if (req.method === 'GET' && route === 'admin/partners') {
+      const all = allBookings(), month = today().slice(0, 7);
+      return json(res, 200, { partners: partners().map((p) => {
+        const mine2 = all.filter((b) => b.partner === p.code && b.status !== 'cancelada');
+        const now = mine2.filter((b) => b.date.slice(0, 7) === month);
+        return Object.assign({}, p, { total: mine2.length, thisMonth: now.length, thisMonthSum: Math.round(now.reduce((a, b) => a + (b.price || 0), 0) * 100) / 100 });
+      }) });
+    }
+    if (req.method === 'POST' && (route === 'admin/partners/save' || route === 'admin/partners/delete')) {
+      let d;
+      try { d = JSON.parse(await readBody(req, 4000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+      const list = partners();
+      if (route === 'admin/partners/delete') {
+        writeJson(PARTNERS, list.filter((x) => x.id !== d.id));
+        return json(res, 200, { ok: true });
+      }
+      const name = clean(d.name, 80);
+      if (name.length < 2) return json(res, 400, { error: 'bad_name' });
+      const code = String(d.code || '').trim().toLowerCase();
+      if (!/^[a-z0-9][a-z0-9-]{1,29}$/.test(code)) return json(res, 400, { error: 'bad_code' });
+      if (list.some((x) => x.code === code && x.id !== d.id)) return json(res, 400, { error: 'code_taken' });
+      if (d.email && !isEmail(d.email)) return json(res, 400, { error: 'bad_email' });
+      const commission = num(d.commission === '' || d.commission == null ? 0 : d.commission, 0, 50, 2), discount = num(d.discount === '' || d.discount == null ? 0 : d.discount, 0, 50, 2);
+      if (commission == null || discount == null) return json(res, 400, { error: 'bad_percent' });
+      let p = d.id ? list.find((x) => x.id === d.id) : null;
+      if (d.id && !p) return json(res, 404, { error: 'not_found' });
+      if (!p) { p = { id: crypto.randomBytes(4).toString('hex'), createdAt: new Date().toISOString() }; list.push(p); }
+      Object.assign(p, { name, code, type: ['hotel', 'agencia', 'empresa', 'otro'].includes(d.type) ? d.type : 'hotel', contact: clean(d.contact, 80), email: clean(d.email, 120),
+        phone: clean(d.phone, 25), taxId: clean(d.taxId, 30), commission, discount, notes: cleanLong(d.notes, 500), active: d.active !== false });
+      writeJson(PARTNERS, list);
+      return json(res, 200, { ok: true, partner: p });
+    }
+    if (req.method === 'GET' && route === 'admin/partners/statement.pdf') {
+      const sp = new URL(url, 'http://x').searchParams;
+      const p = partners().find((x) => x.id === sp.get('id')), month = sp.get('month') || '';
+      if (!p || !/^\d{4}-\d{2}$/.test(month)) return json(res, 404, { error: 'not_found' });
+      const rows = allBookings().filter((b) => b.partner === p.code && b.status !== 'cancelada' && b.date.slice(0, 7) === month)
+        .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
+        .map((b) => ({ date: b.date, ref: b.ref, name: b.name, route: b.kind === 'group' ? b.fromText + ' → ' + b.toText : ((b.from && b.from.label) || '') + (b.kind === 'hourly' ? ' (' + b.hours + ' h)' : ' → ' + ((b.to && b.to.label) || '')),
+          price: b.price || 0, commission: Math.round((b.price || 0) * (p.commission || 0)) / 100, invoice: activeInvoice(b) ? b.invoice.number : '' }));
+      const buf = pdf.partnerPdf(p, month, rows, issuerFull());
+      res.writeHead(200, { 'Content-Type': 'application/pdf', 'Content-Length': buf.length, 'Content-Disposition': 'inline; filename="' + p.code + '-' + month + '.pdf"',
+        'Cache-Control': 'no-store, private', 'X-Robots-Tag': 'noindex, nofollow', 'X-Content-Type-Options': 'nosniff' });
+      return res.end(buf);
+    }
+
+    // ---------- códigos de descuento ----------
+    if (req.method === 'GET' && route === 'admin/codes') return json(res, 200, { codes: codes() });
+    if (req.method === 'POST' && (route === 'admin/codes/save' || route === 'admin/codes/delete')) {
+      let d;
+      try { d = JSON.parse(await readBody(req, 2000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+      const code = String(d.code || '').trim().toUpperCase();
+      const list = codes();
+      if (route === 'admin/codes/delete') { writeJson(CODES, list.filter((x) => x.code !== code)); return json(res, 200, { ok: true, codes: codes() }); }
+      if (!/^[A-Z0-9][A-Z0-9-]{2,19}$/.test(code)) return json(res, 400, { error: 'bad_code' });
+      const percent = num(d.percent, 1, 50, 2);
+      if (percent == null) return json(res, 400, { error: 'bad_percent' });
+      if (d.validUntil && !isDay(d.validUntil)) return json(res, 400, { error: 'bad_date' });
+      let c = list.find((x) => x.code === code);
+      if (!c) { c = { code, uses: 0, createdAt: new Date().toISOString() }; list.push(c); }
+      Object.assign(c, { percent, validUntil: d.validUntil || '', maxUses: int(d.maxUses, 1, 100000) || 0, note: clean(d.note, 80), active: d.active !== false });
+      writeJson(CODES, list);
+      return json(res, 200, { ok: true, codes: list });
     }
 
     // ---------- incidencias de un viaje (retraso, queja, objeto perdido…) ----------

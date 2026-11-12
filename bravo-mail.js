@@ -250,4 +250,20 @@ function companyEmail(b, o) {
   return { subject: (tomorrow ? 'Mañana: servicio ' + b.ref + ' a las ' + b.time : 'Nuevo servicio ' + b.ref + ' · ' + dmy(b.date) + ' ' + b.time) + ' · Bravo Transfers', html: shell('es', html, o.base), text };
 }
 
-module.exports.templates = { bookingEmail, loginEmail, messageEmail, ownerEmail, paymentEmail, reminderEmail, reviewEmail, companyEmail };
+// El presupuesto, con un botón para aceptarlo en su cuenta
+function quoteEmail(b, o) {
+  const en = b.lang === 'en', q = b.quote;
+  const from = (b.from && b.from.label) || b.fromText || '', to = (b.to && b.to.label) || b.toText || '';
+  const rows = [[en ? 'Date and time' : 'Día y hora', dmy(b.date) + ' · ' + b.time], [en ? 'From' : 'Desde', from], [en ? 'To' : 'Hasta', b.kind === 'hourly' ? '' : to],
+    [en ? 'Passengers' : 'Personas', String(b.passengers)], [en ? 'Total (VAT included)' : 'Total (IVA incluido)', money(q.price)], [en ? 'Valid until' : 'Válido hasta', dmy(q.validUntil)]];
+  const intro = en ? 'Here is your quote ' + q.number + ' from Bravo Transfers:' : 'Aquí tienes tu presupuesto ' + q.number + ' de Bravo Transfers:';
+  const html = `<p style="font-size:16px;margin:0 0 6px">${esc(L[en ? 'en' : 'es'].hello)} ${esc(String(b.name || '').split(' ')[0])},</p><p>${esc(intro)}</p>` + rowsHtml(rows) +
+    (q.notes ? `<div style="background:#faf6ee;border-radius:10px;padding:12px 14px;white-space:pre-wrap">${esc(q.notes)}</div>` : '') +
+    `<p>${esc(en ? 'The quote is attached as a PDF. You can accept it in your account:' : 'Te adjuntamos el presupuesto en PDF. Puedes aceptarlo en tu cuenta:')}</p>` +
+    btn(o.areaUrl, en ? 'Accept or decline the quote' : 'Aceptar o rechazar el presupuesto') +
+    `<p style="margin:10px 0">${esc(en ? 'Best regards,' : 'Un saludo,')}<br>Bravo Transfers</p>`;
+  const text = [intro, ''].concat(rows.filter((r) => r[1]).map((r) => r[0] + ': ' + r[1]), [q.notes || '', '', o.areaUrl, '', 'Bravo Transfers']).join('\n');
+  return { subject: (en ? 'Your quote ' : 'Tu presupuesto ') + q.number + ' · Bravo Transfers', html: shell(en ? 'en' : 'es', html, o.base), text };
+}
+
+module.exports.templates = { bookingEmail, loginEmail, messageEmail, ownerEmail, paymentEmail, reminderEmail, reviewEmail, companyEmail, quoteEmail };

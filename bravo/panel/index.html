@@ -181,6 +181,7 @@
         <div><label for="nb-kind">Tipo</label><select id="nb-kind"><option value="transfer">Traslado</option><option value="hourly">Por horas</option><option value="group">Grupo / autobús</option></select></div>
         <div><label for="nb-source">Cómo llegó</label><select id="nb-source"><option value="teléfono">Teléfono</option><option value="whatsapp">WhatsApp</option><option value="correo">Correo</option><option value="hotel">Hotel</option><option value="agencia">Agencia</option><option value="otro">Otro</option></select></div>
       </div>
+      <label for="nb-partner">Hotel o agencia (si viene de uno)</label><select id="nb-partner"><option value="">—</option></select>
       <label for="nb-from">Desde (recogida)</label><input id="nb-from" placeholder="Ej.: Aeropuerto de Málaga">
       <div id="nb-to-box"><label for="nb-to">Hasta</label><input id="nb-to" placeholder="Hotel, dirección o ciudad"></div>
       <div id="nb-hours-box" hidden><label for="nb-hours">Horas</label><input id="nb-hours" type="number" min="1" max="24" step="1" inputmode="numeric" value="3"></div>
@@ -231,6 +232,12 @@
   <!-- CLIENTES: su ficha, sus reservas, llamarles o escribirles, y sus mensajes -->
   <section id="tab-messages" hidden>
     <h2>Clientes</h2>
+    <details class="card" id="partners-box">
+      <summary style="cursor: pointer"><b>🏨 Hoteles y agencias</b> <span class="l3" id="partners-count"></span></summary>
+      <p class="msg">Cada uno tiene su enlace a la web: las reservas que llegan por él quedan a su nombre, con el descuento que le pongas a sus clientes y la comisión que se le paga. A fin de mes, su liquidación en PDF.</p>
+      <div id="partners"></div>
+      <div class="btns"><button type="button" class="b" id="pt-add">＋ Añadir hotel o agencia</button></div>
+    </details>
     <input type="search" id="cl-search" placeholder="Buscar: nombre, correo, teléfono o reserva" style="margin-bottom:8px">
     <p class="msg" id="msgs-mail"></p>
     <div id="threads"></div>
@@ -413,6 +420,19 @@
     <button type="button" class="save" id="set-save">Guardar ajustes</button>
     <div class="msg" id="set-msg"></div>
     <p class="note">Las facturas ya hechas no cambian: guardan los datos que tenían al crearlas.</p>
+    <h3>Códigos de descuento</h3>
+    <p class="msg">El cliente lo escribe al reservar y se le descuenta del precio. No se suma al descuento de un hotel o agencia.</p>
+    <div id="codes"></div>
+    <div class="row3">
+      <div><label for="cd-code">Código</label><input id="cd-code" placeholder="VERANO10" style="text-transform: uppercase"></div>
+      <div><label for="cd-pct">Descuento (%)</label><input id="cd-pct" type="number" min="1" max="50" step="1" inputmode="numeric"></div>
+      <div><label for="cd-until">Vale hasta</label><input id="cd-until" type="date"></div>
+    </div>
+    <div class="row">
+      <div><label for="cd-max">Usos como máximo</label><input id="cd-max" type="number" min="0" step="1" inputmode="numeric" placeholder="Sin límite"></div>
+      <div><label for="cd-note">Nota</label><input id="cd-note" placeholder="Para quién es"></div>
+    </div>
+    <div class="btns"><button type="button" class="b dark" id="cd-add">＋ Añadir código</button></div><div class="msg" id="cd-msg"></div>
     <h3>Documentos de tu empresa</h3>
     <p class="msg">Licencias, escrituras, contratos… con su fecha de caducidad: «Hoy» te avisa 30 días antes. Quedan en el panel (privado), no en GitHub.</p>
     <div id="company-docs"></div>
@@ -453,7 +473,8 @@
     bad_hours_ahead: 'Antelación no válida (0 a 168 horas)', bad_cancel_hours: 'Horas para cancelar no válidas (0 a 168)', bad_review_url: 'El enlace de Google tiene que empezar por https://',
     bad_date: 'Día u hora no válidos', bad_email: 'El correo no es válido', bad_paid: 'Pon el día del pago',
     no_email: 'No tiene correo: ponlo y guarda antes', not_paid: 'Todavía no está pagado',
-    bad_name: 'Falta el nombre del cliente', bad_phone: 'Revisa el teléfono', need_contact: 'Pon el teléfono o el correo del cliente',
+    bad_code: 'Código no válido (letras, números y guiones)', code_taken: 'Ese código ya lo tiene otro', bad_percent: 'Porcentaje no válido (0 a 50)', no_quote: 'No hay presupuesto',
+    bad_name: 'Falta el nombre', bad_phone: 'Revisa el teléfono', need_contact: 'Pon el teléfono o el correo del cliente',
     bad_places: 'Falta desde dónde o hasta dónde', bad_passengers: 'Número de personas no válido', bad_hours: 'Horas no válidas', bad_return: 'La vuelta tiene que ser después de la ida', email_not_configured: 'Los correos no están activados (falta EMAIL_KEY en Railway)', empty: 'Escribe la respuesta'
   };
 
@@ -473,13 +494,13 @@
     tab = t;
     qsa('nav [data-tab]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-tab') === t); });
     ['trips', 'messages', 'billing', 'accounts', 'drivers', 'settings'].forEach(function (x) { $('tab-' + x).hidden = x !== t; });
-    if (t === 'messages') loadMessages();
+    if (t === 'messages') { loadMessages(); loadPartners(); }
     if (t === 'billing') renderBilling();
     if (t === 'accounts') setSub(accSub);
     if (t === 'drivers') renderDrivers();
     // Los papeles, al día: solo se redibujan sus recuadros (si no, se perdería lo que se esté escribiendo)
     if (t === 'settings' || t === 'drivers') api('admin/docs').then(function (d) { docs = d.docs || docs; refreshDocBoxes(); }).catch(function () {});
-    if (t === 'settings') renderSettings();
+    if (t === 'settings') { renderSettings(); loadCodes(); }
     window.scrollTo(0, 0);
   }
   qsa('nav [data-tab]').forEach(function (b) { b.addEventListener('click', function () { setTab(b.getAttribute('data-tab')); }); });
@@ -598,6 +619,96 @@
     } catch (e) { m.className = 'msg bad'; m.textContent = e.message; }
   });
 
+  // ---------- HOTELES Y AGENCIAS ----------
+  var partnersList = [];
+  function partnerName(code) { var p = partnersList.filter(function (x) { return x.code === code; })[0]; return p ? p.name : code; }
+  function slug(t) { return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30); }
+  async function loadPartners() {
+    try { partnersList = (await api('admin/partners')).partners || []; } catch (e) { partnersList = []; }
+    renderPartners();
+  }
+  function renderPartners() {
+    $('partners-count').textContent = partnersList.length ? '(' + partnersList.length + ')' : '';
+    var month = madridDay(0).slice(0, 7);
+    $('partners').innerHTML = partnersList.map(function (p) {
+      var link = location.origin + '/bravo/?p=' + p.code;
+      return '<div class="card" data-pt="' + esc(p.id) + '"><div class="l1"><span>' + esc(p.name) + (p.active === false ? ' <span class="badge st-cancelada">pausado</span>' : '') + '</span>' +
+        '<span class="l3">Este mes: ' + p.thisMonth + ' viaje' + (p.thisMonth === 1 ? '' : 's') + ' · ' + euro(p.thisMonthSum) + '</span></div>' + partnerFields(p) +
+        '<div class="msg">Su enlace: <b style="overflow-wrap: anywhere">' + esc(link) + '</b></div>' +
+        '<div class="btns"><button type="button" class="b" data-pt-copy="' + esc(link) + '">📋 Copiar enlace</button>' +
+        (p.phone ? '<a class="b wa" target="_blank" rel="noopener" href="' + esc(wa(p.phone, 'Hola ' + (p.contact || p.name) + ', este es vuestro enlace para reservar traslados con Bravo Transfers: ' + link)) + '">Mandar por WhatsApp</a>' : '') + '</div>' +
+        '<div class="row"><div><label>Liquidación del mes</label><input type="month" data-pt-month value="' + month + '"></div><div style="display: flex; align-items: flex-end"><button type="button" class="b dark" data-pt-pdf>📄 Ver PDF</button></div></div>' +
+        '<div class="btns"><button type="button" class="save" data-pt-save>Guardar</button></div><div class="btns"><button type="button" class="b red" data-pt-del>Borrar</button></div><div class="msg" data-pt-msg></div></div>';
+    }).join('') || '<p class="msg">Todavía no hay ninguno.</p>';
+  }
+  function partnerFields(p) {
+    var f = function (k, label, type, extra) { return '<div><label>' + label + '</label><input data-p="' + k + '"' + (type ? ' type="' + type + '"' : '') + ' value="' + esc(p[k] == null ? '' : p[k]) + '"' + (extra || '') + '></div>'; };
+    return '<div class="row">' + f('name', 'Nombre') + '<div><label>Tipo</label><select data-p="type">' + ['hotel', 'agencia', 'empresa', 'otro'].map(function (t) { return '<option' + (p.type === t ? ' selected' : '') + '>' + t + '</option>'; }).join('') + '</select></div></div>' +
+      '<div class="row">' + f('code', 'Código del enlace', '', ' placeholder="hotel-sol"') + f('contact', 'Persona de contacto') + '</div>' +
+      '<div class="row">' + f('phone', 'Teléfono', 'tel') + f('email', 'Correo', 'email') + '</div>' +
+      '<div class="row3">' + f('discount', 'Dto. clientes %', 'number', ' min="0" max="50" step="0.5"') + f('commission', 'Comisión %', 'number', ' min="0" max="50" step="0.5"') + f('taxId', 'NIF / CIF') + '</div>' +
+      '<label>Notas</label><input data-p="notes" value="' + esc(p.notes || '') + '">' +
+      '<label class="check"><input type="checkbox" data-p="active"' + (p.active === false ? '' : ' checked') + '> Activo (su enlace funciona)</label>';
+  }
+  $('pt-add').addEventListener('click', function () {
+    if ($('partners').querySelector('[data-pt=""]')) return;
+    var div = document.createElement('div');
+    div.innerHTML = '<div class="card" data-pt=""><b>Nuevo hotel o agencia</b>' + partnerFields({ type: 'hotel', discount: 0, commission: 10 }) +
+      '<div class="btns"><button type="button" class="save" data-pt-save>Guardar</button></div><div class="msg" data-pt-msg></div></div>';
+    $('partners').appendChild(div.firstChild);
+    var nameIn = $('partners').querySelector('[data-pt=""] [data-p="name"]'), codeIn = $('partners').querySelector('[data-pt=""] [data-p="code"]');
+    nameIn.addEventListener('input', function () { if (!codeIn.dataset.touched) codeIn.value = slug(nameIn.value); });
+    codeIn.addEventListener('input', function () { codeIn.dataset.touched = '1'; });
+    nameIn.focus();
+  });
+  $('partners').addEventListener('click', async function (ev) {
+    var card = ev.target.closest('[data-pt]'); if (!card) return;
+    var id = card.getAttribute('data-pt'), msg = card.querySelector('[data-pt-msg]');
+    if (ev.target.closest('[data-pt-copy]')) {
+      var t = ev.target.closest('[data-pt-copy]').getAttribute('data-pt-copy'), bt = ev.target.closest('[data-pt-copy]');
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function () { bt.textContent = '✓ Copiado'; }, function () { prompt('Copia el enlace:', t); });
+      else prompt('Copia el enlace:', t);
+    }
+    if (ev.target.closest('[data-pt-pdf]')) window.open('/api/bravo/admin/partners/statement.pdf?id=' + encodeURIComponent(id) + '&month=' + encodeURIComponent(card.querySelector('[data-pt-month]').value), '_blank');
+    if (ev.target.closest('[data-pt-del]')) {
+      if (!confirm('¿Borrar este hotel o agencia? Sus reservas siguen igual, pero su enlace deja de funcionar.')) return;
+      try { await api('admin/partners/delete', { id: id }); loadPartners(); } catch (e) { alert(e.message); }
+    }
+    if (ev.target.closest('[data-pt-save]')) {
+      var body = { id: id || undefined };
+      qsa('[data-p]', card).forEach(function (i) { body[i.getAttribute('data-p')] = i.type === 'checkbox' ? i.checked : i.value; });
+      msg.className = 'msg'; msg.textContent = 'Guardando…';
+      try { await api('admin/partners/save', body); await loadPartners(); }
+      catch (e) { msg.className = 'msg bad'; msg.textContent = 'No se ha guardado: ' + e.message; }
+    }
+  });
+
+  // ---------- CÓDIGOS DE DESCUENTO ----------
+  function renderCodes(list) {
+    $('codes').innerHTML = (list || []).map(function (c) {
+      return '<div class="doc"><b>' + esc(c.code) + '</b> · ' + esc(String(c.percent).replace('.', ',')) + ' %' + (c.active === false ? ' <span class="exp bad">pausado</span>' : '') +
+        '<div class="l3">' + esc(['usado ' + (c.uses || 0) + (c.maxUses ? ' de ' + c.maxUses : '') + ' vez' + ((c.uses || 0) === 1 ? '' : 'es'), c.validUntil ? 'vale hasta el ' + dmy(c.validUntil) : 'sin fecha de fin', c.note].filter(Boolean).join(' · ')) + '</div>' +
+        '<div class="btns"><button type="button" class="b" data-cd-toggle="' + esc(c.code) + '">' + (c.active === false ? 'Activar' : 'Pausar') + '</button><button type="button" class="b red" data-cd-del="' + esc(c.code) + '">Borrar</button></div></div>';
+    }).join('') || '<p class="msg">Todavía no hay códigos.</p>';
+    codesList = list || [];
+  }
+  var codesList = [];
+  function loadCodes() { api('admin/codes').then(function (d) { renderCodes(d.codes); }).catch(function () {}); }
+  $('cd-add').addEventListener('click', async function () {
+    var m = $('cd-msg'); m.className = 'msg'; m.textContent = 'Guardando…';
+    try {
+      var r = await api('admin/codes/save', { code: $('cd-code').value, percent: $('cd-pct').value, validUntil: $('cd-until').value, maxUses: $('cd-max').value, note: $('cd-note').value });
+      renderCodes(r.codes); ['cd-code', 'cd-pct', 'cd-until', 'cd-max', 'cd-note'].forEach(function (k) { $(k).value = ''; }); m.textContent = '';
+    } catch (e) { m.className = 'msg bad'; m.textContent = 'No se ha guardado: ' + e.message; }
+  });
+  $('codes').addEventListener('click', async function (ev) {
+    var tg = ev.target.closest('[data-cd-toggle]'), dl = ev.target.closest('[data-cd-del]');
+    try {
+      if (tg) { var c = codesList.filter(function (x) { return x.code === tg.getAttribute('data-cd-toggle'); })[0]; var r = await api('admin/codes/save', Object.assign({}, c, { active: c.active === false })); renderCodes(r.codes); }
+      if (dl && confirm('¿Borrar el código ' + dl.getAttribute('data-cd-del') + '?')) { var r2 = await api('admin/codes/delete', { code: dl.getAttribute('data-cd-del') }); renderCodes(r2.codes); }
+    } catch (e) { alert(e.message); }
+  });
+
   // ---------- PAPELES (empresas de transporte y la tuya) ----------
   function daysTo(d) { return Math.round((new Date(d + 'T12:00:00') - new Date(madridDay(0) + 'T12:00:00')) / 86400000); }
   function ownerName(o) { if (o === 'company') return 'Tu empresa'; var d = drivers.filter(function (x) { return x.id === o; })[0]; return d ? d.name : 'Empresa'; }
@@ -670,6 +781,7 @@
   $('nb-rt').addEventListener('change', nbKind);
   $('nb-open').addEventListener('click', function () {
     $('nb-form').hidden = false; $('nb-open').parentNode.hidden = true;
+    $('nb-partner').innerHTML = '<option value="">—</option>' + partnersList.filter(function (x) { return x.active !== false; }).map(function (x) { return '<option value="' + esc(x.code) + '">' + esc(x.name) + '</option>'; }).join('');
     if (!$('nb-date').value) $('nb-date').value = madridDay(1);
     nbKind(); $('nb-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
@@ -707,7 +819,7 @@
       passengers: $('nb-pax').value, vehicle: $('nb-veh').value, km: $('nb-km').value, price: $('nb-price').value,
       name: $('nb-name').value, phone: $('nb-phone').value, email: $('nb-email').value.trim(), lang: $('nb-lang').value,
       flight: $('nb-flight').value, bags: $('nb-bags').value, childSeats: $('nb-seats').value, comments: $('nb-comments').value, notes: $('nb-notes').value,
-      sendEmail: $('nb-mail').checked
+      sendEmail: $('nb-mail').checked, partner: $('nb-partner').value
     };
     btn.disabled = true; m.className = 'msg'; m.textContent = 'Guardando…';
     try {
@@ -803,7 +915,9 @@
       b.kind !== 'group' ? ['Maletas', esc(b.bags + ' · sillas de niño: ' + b.childSeats)] : null,
       b.comments ? ['Comentarios', esc(b.comments)] : null,
       ['Pago', esc(b.payment || '')],
-      b.source && b.source !== 'web' ? ['Llegó por', esc(b.source + (b.manual ? ' (apuntada a mano)' : ''))] : null
+      b.source && b.source !== 'web' ? ['Llegó por', esc(b.source + (b.manual ? ' (apuntada a mano)' : ''))] : null,
+      b.partner ? ['Hotel / agencia', esc(partnerName(b.partner))] : null,
+      b.discount ? ['Descuento', esc(b.discount.pct + ' %' + (b.discount.code ? ' (código ' + b.discount.code + ')' : ' (del hotel o agencia)') + ' · −' + euro(b.discount.amount))] : null
     ].filter(Boolean).map(function (r) { return '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>'; }).join('');
     var opts = ['pendiente', 'asignada', 'hecha', 'cancelada'].map(function (s) {
       return '<option value="' + s + '"' + (b.status === s ? ' selected' : '') + '>' + s.charAt(0).toUpperCase() + s.slice(1) + '</option>';
@@ -846,7 +960,7 @@
       (b.driverName || b.driverPhone ? contactRow('Empresa', b.driverName, b.driverPhone, driverMsg(b), b.driverEmail, 'Servicio ' + b.ref + ' – Bravo Transfers') : '') +
       (b.chauffeur || b.chauffeurPhone ? contactRow('Conductor que va', b.chauffeur, b.chauffeurPhone, chauffeurMsg(b)) : '') +
       '<div class="msg">El WhatsApp se abre con el mensaje ya escrito (con los datos guardados): tú solo le das a enviar.</div></div>' +
-      invoiceBox(b) + incidentBox(b) + ministryBox(b) +
+      quoteBox(b) + invoiceBox(b) + incidentBox(b) + ministryBox(b) +
       (allInv(b).length ? '' : '<div class="btns"><button type="button" class="b red" data-del>🗑 Borrar esta reserva</button></div>') +
       '</div></details>';
   }
@@ -894,6 +1008,35 @@
     var on = cfg && cfg.email && cfg.email.configured;
     return '<div class="mail-line">' + line + '</div><div class="btns"><button type="button" class="b dark" data-mail' + (on ? '' : ' aria-disabled="true"') + '>✉️ Enviar el correo de la reserva' +
       (activeInv(b) ? ' (con la factura)' : '') + '</button></div>' + (on ? '' : '<div class="msg">Se activa cuando esté la clave de Brevo en Railway.</div>');
+  }
+
+  // Presupuesto (grupos y reservas sin precio)
+  var Q_ST = { enviado: 'enviado, sin contestar', aceptado: 'ACEPTADO', rechazado: 'rechazado' };
+  function quoteMsg(b) {
+    var en = b.lang === 'en', q = b.quote;
+    return (en ? 'Hi ' + b.name + ', here is your quote ' + q.number + ' from Bravo Transfers: ' + euro(q.price) + ' (VAT included), valid until ' + dmy(q.validUntil) + '. ' :
+      'Hola ' + b.name + ', aquí tienes tu presupuesto ' + q.number + ' de Bravo Transfers: ' + euro(q.price) + ' (IVA incluido), válido hasta el ' + dmy(q.validUntil) + '. ') + docUrl(b, 'presupuesto');
+  }
+  function quoteBox(b) {
+    if (activeInv(b) || !(b.kind === 'group' || b.price == null || b.quote)) return '';
+    var q = b.quote, h = '<div class="box"><b>Presupuesto</b>';
+    if (q) {
+      h += '<p class="inv-line">' + esc(q.number) + ' · ' + euro(q.price) + ' · vale hasta el ' + esc(dmy(q.validUntil)) + '</p>' +
+        '<div class="' + (q.status === 'aceptado' ? 'ok-line' : 'mail-line') + '">Estado: ' + esc(Q_ST[q.status] || q.status) + (q.status === 'enviado' && q.validUntil < madridDay(0) ? ' (caducado)' : '') + '</div>' +
+        (q.notes ? '<div class="msg">' + esc(q.notes) + '</div>' : '') +
+        '<div class="btns"><a class="b" target="_blank" rel="noopener" href="' + esc(docUrl(b, 'presupuesto')) + '">📄 Ver PDF</a>' +
+        (b.phone ? '<a class="b wa" target="_blank" rel="noopener" href="' + esc(wa(b.phone, quoteMsg(b))) + '">WhatsApp</a>' : '') +
+        (q.status === 'enviado' ? '<button type="button" class="b dark" data-qst="aceptado">✓ Lo ha aceptado</button><button type="button" class="b red" data-qst="rechazado">Lo ha rechazado</button>' : '') + '</div>';
+      (b.quotes || []).forEach(function (o) { h += '<div class="l3">Antes: ' + esc(o.number + ' · ' + euro(o.price) + ' · ' + (Q_ST[o.status] || o.status)) + '</div>'; });
+    }
+    if (!q || q.status !== 'aceptado') {
+      h += '<div class="row"><div><label>Precio (€, IVA incluido)</label><input data-q="price" type="number" min="1" step="0.01" inputmode="decimal" value="' + esc(q ? q.price : (b.price || '')) + '"></div>' +
+        '<div><label>Vale (días)</label><input data-q="validDays" type="number" min="1" max="90" step="1" inputmode="numeric" value="7"></div></div>' +
+        '<label>Detalles (vehículo, paradas, qué incluye…)</label><textarea data-q="notes">' + esc(q ? q.notes : '') + '</textarea>' +
+        (b.email ? '<label class="check"><input type="checkbox" data-q="sendEmail" checked> Mandárselo por correo, con el PDF y un botón para aceptarlo</label>' : '') +
+        '<button type="button" class="save" data-q-make>' + (q ? 'Hacer un presupuesto nuevo' : 'Hacer el presupuesto') + '</button>';
+    }
+    return h + '<div class="msg" data-q-msg></div></div>';
   }
 
   // Incidencias del viaje
@@ -1020,6 +1163,24 @@
       if (!text) { el.querySelector('[data-inc-text]').focus(); return; }
       try { var data = await api('admin/incident', { ref: b.ref, action: 'add', kind: el.querySelector('[data-inc-kind]').value, text: text }); replace(data.booking); open[b.ref] = true; renderTrips(); }
       catch (e) { alert(e.message); }
+    });
+    var qm = el.querySelector('[data-q-make]');
+    if (qm) qm.addEventListener('click', async function () {
+      var msg = el.querySelector('[data-q-msg]'), g = function (k) { return el.querySelector('[data-q="' + k + '"]'); };
+      qm.disabled = true; msg.className = 'msg'; msg.textContent = 'Haciendo el presupuesto…';
+      try {
+        var r = await api('admin/quote', { ref: b.ref, price: g('price').value, validDays: g('validDays').value, notes: g('notes').value, sendEmail: Boolean(g('sendEmail') && g('sendEmail').checked) });
+        replace(r.booking); open[b.ref] = true; renderTrips();
+        flash(b.ref, '[data-q-msg]', '✓ Presupuesto ' + r.booking.quote.number + ' hecho' + (r.emailed ? ' y mandado por correo.' : '. Mándaselo por WhatsApp o desde el PDF.'));
+      } catch (e) { msg.className = 'msg bad'; msg.textContent = 'No se ha hecho: ' + e.message; qm.disabled = false; }
+    });
+    qsa('[data-qst]', el).forEach(function (bt) {
+      bt.addEventListener('click', async function () {
+        var st = bt.getAttribute('data-qst');
+        if (!confirm(st === 'aceptado' ? '¿Marcar el presupuesto como aceptado? Su precio pasa a la reserva' + (cfg && cfg.autoInvoice ? ' y se hace la factura.' : '.') : '¿Marcar el presupuesto como rechazado?')) return;
+        try { var r = await api('admin/quote/status', { ref: b.ref, status: st }); replace(r.booking); open[b.ref] = true; renderTrips(); }
+        catch (e) { alert(e.message); }
+      });
     });
     var tplSel = el.querySelector('[data-tpl]');
     if (tplSel) tplSel.addEventListener('change', function () {
@@ -1652,7 +1813,7 @@
       var r = await Promise.all([api('admin/bookings'), api('admin/drivers'), api('admin/settings'), api('admin/docs')]);
       list = r[0].bookings || []; drivers = r[1].drivers || []; cfg = r[2]; docs = r[3].docs || []; docKinds = r[3].kinds || [];
       fillDatalist(); renderTrips();
-      loadMessages();
+      loadMessages(); loadPartners();
       if (tab === 'billing') renderBilling();
       if (tab === 'accounts') reloadSub();
       if (tab === 'drivers') renderDrivers();

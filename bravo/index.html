@@ -220,6 +220,14 @@
         <button type="button" class="link-btn" data-back="search" data-i18n="back"></button>
         <div class="summary" id="opt-summary"></div>
         <div id="opt-list"></div>
+        <div class="code-box">
+          <button type="button" class="link-btn" id="code-open" data-i18n="haveCode"></button>
+          <div id="code-form" hidden style="display: flex; gap: 8px">
+            <input id="code-in" autocomplete="off" autocapitalize="characters" aria-label="Código" style="text-transform: uppercase; flex: 1; min-width: 0">
+            <button type="button" class="btn" id="code-apply" data-i18n="apply" style="width: auto; padding: 0 18px"></button>
+          </div>
+          <p class="found" id="code-ok" hidden></p>
+        </div>
       </div>
 
       <!-- Paso 3: los datos -->
@@ -371,6 +379,8 @@
       doneGroup: 'Te enviaremos el presupuesto por correo lo antes posible.',
       newBooking: 'Hacer otra reserva', downloadDoc: '📄 Descargar el justificante (PDF)', downloadInv: '🧾 Descargar la factura (PDF)',
       myAccount: 'Mi cuenta', goAccount: '👤 Ir a mi cuenta',
+      haveCode: '¿Tienes un código de descuento?', apply: 'Aplicar', codeOk: 'Código {c}: {p} % de descuento aplicado', partnerOk: 'Precio especial: {p} % de descuento aplicado',
+      err_bad_code: 'Ese código no vale o ha caducado.',
       mailSent: 'Te hemos enviado un correo a {email} con todos los datos{inv}.', mailInv: ', la factura y el justificante',
       mailNew: ' También hemos creado tu cuenta: la contraseña va en ese correo. Con ella ves tus reservas, descargas tus facturas y nos escribes.',
       mailOff: 'Te mandaremos a {email} los datos y la contraseña de «Mi cuenta», donde verás tus reservas y tus facturas.', return: 'Vuelta', price: 'Precio', vehicle: 'Vehículo',
@@ -439,6 +449,8 @@
       doneText: 'We will message you on WhatsApp with your driver’s name, the car and its number plate.',
       doneGroup: 'We will email you a quote as soon as possible.',
       downloadInv: '🧾 Download the invoice (PDF)', myAccount: 'My account', goAccount: '👤 Go to my account',
+      haveCode: 'Do you have a discount code?', apply: 'Apply', codeOk: 'Code {c}: {p}% discount applied', partnerOk: 'Special price: {p}% discount applied',
+      err_bad_code: 'That code is not valid or has expired.',
       mailSent: 'We have emailed {email} with all the details{inv}.', mailInv: ', the invoice and the booking confirmation',
       mailNew: ' We have also created your account: the password is in that email. Use it to see your bookings, download your invoices and message us.',
       mailOff: 'We will send the details and your “My account” password to {email}. There you will see your bookings and invoices.',
@@ -513,7 +525,20 @@
   function fmtMin(m) { if (m < 60) return m + ' min'; return Math.floor(m / 60) + ' h ' + (m % 60 ? (m % 60) + ' min' : ''); }
 
   // ---------- estado ----------
-  var state = { tab: 'transfer', step: 'search', trip: null, quote: null, vehicle: null, done: null };
+  var state = { tab: 'transfer', step: 'search', trip: null, quote: null, vehicle: null, done: null, code: '', qbody: null };
+  // El hotel o la agencia que manda al cliente (enlace ?p=código): se recuerda 30 días
+  var PARTNER = '';
+  try {
+    var pm = /[?&]p=([a-z0-9][a-z0-9-]{1,29})/.exec(location.search);
+    if (pm) localStorage.setItem('bravo_partner', JSON.stringify({ c: pm[1], t: Date.now() }));
+    var sp0 = JSON.parse(localStorage.getItem('bravo_partner') || 'null');
+    if (sp0 && Date.now() - sp0.t < 30 * 86400000) PARTNER = sp0.c;
+  } catch (e) { var pm2 = /[?&]p=([a-z0-9][a-z0-9-]{1,29})/.exec(location.search); if (pm2) PARTNER = pm2[1]; }
+  async function quote(body) {
+    body.partner = PARTNER; body.code = state.code;
+    state.qbody = body;
+    return api('quote', body);
+  }
   var fields = {};
 
   function fillSelect(id, from, to, def) {
@@ -655,7 +680,7 @@
         if (!trip.returnDate || !trip.returnTime) throw { code: 'needDate' };
         if (trip.returnDate + trip.returnTime <= trip.date + trip.time) throw { code: 'bad_return' };
       }
-      var q = await api('quote', { kind: 'transfer', from: trip.from, to: trip.to, passengers: trip.passengers, roundTrip: trip.roundTrip });
+      var q = await quote({ kind: 'transfer', from: trip.from, to: trip.to, passengers: trip.passengers, roundTrip: trip.roundTrip });
       state.trip = trip; state.quote = q; renderOptions(); show('options');
     } catch (e) { showErr(e); }
     finally { busy(this, false); }
@@ -670,7 +695,7 @@
       trip.from = await resolve(fields['h-from']);
       if (!trip.date || !trip.time) throw { code: 'needDate' };
       if (tooSoon(trip.date, trip.time)) throw { code: 'too_soon' };
-      var q = await api('quote', { kind: 'hourly', from: trip.from, hours: trip.hours, passengers: trip.passengers });
+      var q = await quote({ kind: 'hourly', from: trip.from, hours: trip.hours, passengers: trip.passengers });
       state.trip = trip; state.quote = q; renderOptions(); show('options');
     } catch (e) { showErr(e); }
     finally { busy(this, false); }
@@ -684,16 +709,32 @@
       html += '<div class="veh' + (o.fits ? '' : ' off') + '">' +
         '<div class="ico emoji">' + (o.id === 'van' ? '🚐' : '🚗') + '</div>' +
         '<div class="txt"><b>' + esc(t('veh_' + o.id)) + '</b><span>' + esc(t('upTo').replace('{n}', o.seats)) + '</span></div>' +
-        '<div class="price">' + esc(money(o.price)) + '</div>' +
+        '<div class="price">' + (o.fullPrice ? '<s style="font-size: .8rem; color: var(--muted); font-weight: 600">' + esc(money(o.fullPrice)) + '</s> ' : '') + esc(money(o.price)) + '</div>' +
         '<button type="button" class="btn" data-veh="' + esc(o.id) + '"' + (o.fits ? '' : ' disabled') + '>' + esc(o.fits ? t('choose') : t('tooManyPax')) + '</button></div>';
     });
     if (trip.roundTrip) html += '<p class="veh-note">' + esc(t('roundTripPrice')) + '</p>';
     $('opt-list').innerHTML = html;
+    var dsc = q.discount;
+    $('code-ok').hidden = !dsc;
+    if (dsc) $('code-ok').textContent = '✓ ' + t(dsc.code ? 'codeOk' : 'partnerOk').replace('{p}', String(dsc.pct).replace('.', ',')).replace('{c}', dsc.code || '');
+    $('code-open').hidden = Boolean(dsc && dsc.code);
     qsa('[data-veh]', $('opt-list')).forEach(function (b) {
       b.addEventListener('click', function () { state.vehicle = b.getAttribute('data-veh'); renderDetails(); show('details'); });
     });
   }
 
+  $('code-open').addEventListener('click', function () { $('code-form').hidden = false; $('code-open').hidden = true; $('code-in').focus(); });
+  $('code-apply').addEventListener('click', async function () {
+    clearErr();
+    var code = $('code-in').value.trim().toUpperCase();
+    if (!code || !state.qbody) return;
+    var before = state.code;
+    state.code = code;
+    this.disabled = true;
+    try { state.quote = await quote(Object.assign({}, state.qbody)); renderOptions(); $('code-form').hidden = true; }
+    catch (e) { state.code = before; showErr(e); }
+    finally { this.disabled = false; }
+  });
   function chosen() { return state.quote.options.filter(function (o) { return o.id === state.vehicle; })[0]; }
   function renderDetails() {
     var o = chosen();
@@ -707,7 +748,7 @@
     ev.preventDefault(); clearErr();
     var trip = state.trip;
     var body = {
-      kind: trip.kind, lang: lang, from: trip.from, to: trip.to || null, date: trip.date, time: trip.time,
+      kind: trip.kind, lang: lang, from: trip.from, to: trip.to || null, date: trip.date, time: trip.time, partner: PARTNER, code: state.code,
       passengers: trip.passengers, hours: trip.hours || null, roundTrip: Boolean(trip.roundTrip),
       returnDate: trip.returnDate || '', returnTime: trip.returnTime || '', vehicle: state.vehicle,
       name: $('d-name').value, phone: $('d-phone').value, email: $('d-email').value,
@@ -729,7 +770,7 @@
   $('f-group').addEventListener('submit', async function (ev) {
     ev.preventDefault(); clearErr();
     var body = {
-      kind: 'group', lang: lang, fromText: $('g-from').value, toText: $('g-to').value,
+      kind: 'group', lang: lang, partner: PARTNER, fromText: $('g-from').value, toText: $('g-to').value,
       date: $('g-date').value, time: $('g-time').value, passengers: Number($('g-pax').value),
       name: $('g-name').value, phone: $('g-phone').value, email: $('g-email').value, comments: $('g-comments').value
     };

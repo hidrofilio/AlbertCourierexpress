@@ -351,6 +351,95 @@ function paymentPdf(p, issuer) {
   return assemble(c.ops, 'Justificante de pago ' + p.id);
 }
 
+// ---------- PRESUPUESTO (grupos y reservas sin precio), en el idioma del cliente ----------
+function quotePdf(b, issuer) {
+  const en = b.lang === 'en', q = b.quote;
+  const c = canvas();
+  header(c, en ? 'QUOTE' : 'PRESUPUESTO', q.number);
+  c.text(40, 122, en ? 'FROM' : 'EMISOR', { size: 8, bold: true, color: C.muted });
+  c.text(40, 138, issuer.name || 'Bravo Transfers', { size: 12, bold: true });
+  let y = 154;
+  for (const l of [issuer.taxId ? 'NIF/CIF: ' + issuer.taxId : ''].concat(c.wrap(issuer.address || '', 10, false, 230), [issuer.email, issuer.phone])) {
+    if (!l) continue;
+    c.text(40, y, l, { size: 10 }); y += 13;
+  }
+  let my = 122;
+  for (const [k, v] of [[en ? 'Date' : 'Fecha', day(q.date)], [en ? 'Valid until' : 'Válido hasta', day(q.validUntil)], [en ? 'Booking' : 'Reserva', b.ref]]) {
+    c.text(330, my, k, { size: 8, bold: true, color: C.muted });
+    c.text(555, my, v, { size: 10, bold: true, align: 'right' });
+    my += 17;
+  }
+  y = Math.max(y, my) + 14;
+  c.text(40, y, en ? 'FOR' : 'PARA', { size: 8, bold: true, color: C.muted }); y += 16;
+  c.text(40, y, b.name || '', { size: 12, bold: true }); y += 15;
+  for (const l of [b.email, b.phone]) { if (l) { c.text(40, y, l, { size: 10 }); y += 13; } }
+  y += 16;
+  y = rows(c, 40, y, [
+    [en ? 'Date and time' : 'Día y hora', day(b.date) + ' · ' + b.time],
+    [en ? 'From' : 'Desde', placeFrom(b)],
+    [b.kind === 'hourly' ? (en ? 'Hours' : 'Horas') : (en ? 'To' : 'Hasta'), b.kind === 'hourly' ? String(b.hours) : placeTo(b)],
+    [en ? 'Return' : 'Vuelta', b.roundTrip ? day(b.returnDate) + ' · ' + b.returnTime : ''],
+    [en ? 'Passengers' : 'Personas', String(b.passengers)]
+  ], 140, 515);
+  if (q.notes) {
+    y += 6;
+    c.text(40, y, en ? 'DETAILS' : 'DETALLES', { size: 8, bold: true, color: C.muted }); y += 15;
+    for (const l of c.wrap(q.notes, 10, false, 515)) { c.text(40, y, l, { size: 10 }); y += 13; }
+  }
+  y += 18;
+  c.rect(40, y, 515, 40, C.ink);
+  c.text(56, y + 25, en ? 'TOTAL (VAT included)' : 'TOTAL (IVA incluido)', { size: 10, bold: true, color: C.gold });
+  c.text(540, y + 26, money(q.price), { size: 15, bold: true, color: C.white, align: 'right' });
+  y += 62;
+  for (const l of c.wrap(en ? 'To accept it, sign in to your account (My account) or reply to our email. This quote is valid until ' + day(q.validUntil) + '.'
+    : 'Para aceptarlo, entra en tu cuenta (Mi cuenta) o contesta a nuestro correo. Este presupuesto vale hasta el ' + day(q.validUntil) + '.', 9.5, false, 515)) {
+    c.text(40, y, l, { size: 9.5, color: C.muted }); y += 13;
+  }
+  footer(c, [(issuer.name || 'Bravo Transfers') + (issuer.email ? ' · ' + issuer.email : '') + (issuer.phone ? ' · ' + issuer.phone : '')]);
+  return assemble(c.ops, (en ? 'Quote ' : 'Presupuesto ') + q.number);
+}
+
+// ---------- LIQUIDACIÓN DEL MES de un hotel o agencia ----------
+function partnerPdf(p, month, list, issuer) {
+  const pages = [];
+  let c = null, y = 0;
+  const [yy, mm] = month.split('-');
+  function newPage() {
+    c = canvas(); pages.push(c.ops);
+    header(c, 'LIQUIDACIÓN', mm + '/' + yy);
+    c.text(40, 122, (p.type === 'agencia' ? 'AGENCIA' : p.type === 'hotel' ? 'HOTEL' : 'COLABORADOR'), { size: 8, bold: true, color: C.muted });
+    c.text(40, 138, p.name, { size: 12, bold: true });
+    c.text(555, 138, 'Comisión ' + String(p.commission || 0).replace('.', ',') + ' %', { size: 10, bold: true, align: 'right' });
+    y = 166;
+    c.rect(40, y, 515, 22, C.band);
+    for (const [x, t, al] of [[48, 'DÍA', 'left'], [100, 'RESERVA · CLIENTE · RUTA', 'left'], [470, 'PRECIO', 'right'], [547, 'COMISIÓN', 'right']]) c.text(x, y + 15, t, { size: 8, bold: true, color: C.muted, align: al });
+    y += 38;
+  }
+  newPage();
+  let tp = 0, tc = 0;
+  for (const r of list) {
+    const lines = c.wrap(r.ref + ' · ' + r.name + ' · ' + r.route + (r.invoice ? ' · ' + r.invoice : ''), 9.5, false, 330);
+    if (y + lines.length * 12 > 740) newPage();
+    c.text(48, y, day(r.date).slice(0, 5), { size: 9.5 });
+    lines.forEach((l, i) => c.text(100, y + i * 12, l, { size: 9.5 }));
+    c.text(470, y, money(r.price), { size: 9.5, align: 'right' });
+    c.text(547, y, money(r.commission), { size: 9.5, align: 'right' });
+    y += lines.length * 12 + 8;
+    tp += r.price; tc += r.commission;
+  }
+  if (!list.length) { c.text(48, y, 'No hay viajes en este mes.', { size: 10, color: C.muted }); y += 20; }
+  if (y > 700) newPage();
+  c.line(40, y, 555, y); y += 22;
+  c.text(400, y, 'Viajes: ' + list.length + ' · Total', { size: 10, color: C.muted, align: 'right' }); c.text(547, y, money(tp), { size: 10.5, align: 'right' }); y += 18;
+  c.rect(300, y - 4, 255, 28, C.ink);
+  c.text(400, y + 14, 'COMISIÓN', { size: 11, bold: true, color: C.gold, align: 'right' });
+  c.text(547, y + 14, money(Math.round(tc * 100) / 100), { size: 13, bold: true, color: C.white, align: 'right' });
+  y += 46;
+  c.text(40, y, 'Resumen para revisar juntos. No es una factura.', { size: 9.5, color: C.muted });
+  footer(c, [(issuer.name || 'Bravo Transfers') + (issuer.email ? ' · ' + issuer.email : '') + (issuer.phone ? ' · ' + issuer.phone : '')]);
+  return assemble(pages, 'Liquidación ' + p.name + ' ' + month);
+}
+
 // ---------- HOJA DE SERVICIO (para el conductor) ----------
 function driverSheetPdf(b, issuer) {
   const c = canvas();
@@ -536,4 +625,4 @@ function accountsPdf(rep, issuer) {
   return assemble(pages, title);
 }
 
-module.exports = { invoicePdf, confirmationPdf, driverSheetPdf, paymentPdf, accountsPdf, concept, _test: { W, WB, winAnsi, textWidth } };
+module.exports = { invoicePdf, confirmationPdf, driverSheetPdf, paymentPdf, quotePdf, partnerPdf, accountsPdf, concept, _test: { W, WB, winAnsi, textWidth } };
