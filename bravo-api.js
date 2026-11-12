@@ -38,6 +38,8 @@ const DEFAULTS = {
 };
 const SPAIN_BOX = { latMin: 35.8, latMax: 43.9, lonMin: -9.5, lonMax: 4.5 };
 const STATUSES = ['pendiente', 'asignada', 'hecha', 'cancelada'];
+// Equipaje especial que se puede pedir al reservar
+const SPECIAL = { golf: 'Palos de golf', bike: 'Bicicleta', surf: 'Tabla de surf', ski: 'Esquís', wheelchair: 'Silla de ruedas', pram: 'Carrito de bebé', pet: 'Mascota', other: 'Otro (ver comentarios)' };
 const COOKIE = 'bravo_pass';
 
 module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
@@ -237,6 +239,32 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
   setTimeout(autoBackup, 4000).unref();
   setInterval(autoBackup, 3600000).unref();
 
+  // ---------- rutas de la portada: «desde X €» desde el aeropuerto ----------
+  const AGP = { lat: 36.6749, lon: -4.4991, label: 'Aeropuerto de Málaga (AGP)' };
+  const ROUTES = [
+    ['marbella', 'Marbella', 'Costa del Sol', 36.5101, -4.8825], ['torremolinos', 'Torremolinos', 'Costa del Sol', 36.6203, -4.4998],
+    ['benalmadena', 'Benalmádena', 'Costa del Sol', 36.5988, -4.5167], ['fuengirola', 'Fuengirola', 'Costa del Sol', 36.5398, -4.6247],
+    ['estepona', 'Estepona', 'Costa del Sol', 36.4256, -5.1466], ['nerja', 'Nerja', 'Axarquía', 36.7577, -3.8752],
+    ['ronda', 'Ronda', 'Pueblos blancos', 36.7423, -5.1671], ['granada', 'Granada', 'La Alhambra', 37.1773, -3.5986],
+    ['sevilla', 'Sevilla', 'La Giralda', 37.3891, -5.9845], ['centro', 'Málaga centro', 'Ciudad', 36.7213, -4.4214]
+  ];
+  let routesCache = { key: '', at: 0, list: [] };
+  async function routePrices() {
+    const cfg = settings(), key = JSON.stringify(cfg.vehicles);
+    if (routesCache.key === key && Date.now() - routesCache.at < 12 * 3600000 && routesCache.list.length) return routesCache.list;
+    const list = [];
+    for (const [id, name, sub, lat, lon] of ROUTES) {
+      try {
+        const r = await drive(AGP, { lat, lon });
+        if (!r) continue;
+        const prices = priceOptions(cfg, 'transfer', r.km, 0, 1, false).map((o) => o.price);
+        list.push({ id, name, sub, lat, lon, km: r.km, minutes: r.minutes, from: Math.min.apply(null, prices) });
+      } catch (e) { /* esa ruta, sin precio */ }
+    }
+    routesCache = { key, at: Date.now(), list };
+    return list;
+  }
+
   // ---------- hoteles y agencias (cada uno con su enlace) y códigos de descuento ----------
   const PARTNERS = path.join(DIR, 'partners.json');
   const CODES = path.join(DIR, 'codes.json');
@@ -432,6 +460,9 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
       ref: b.ref, kind: b.kind, date: b.date, time: b.time, hours: b.hours || null,
       from: b.kind === 'group' ? b.fromText : (b.from && b.from.label) || '', to: b.kind === 'group' ? b.toText : (b.to && b.to.label) || '',
       roundTrip: Boolean(b.roundTrip), returnDate: b.returnDate || '', returnTime: b.returnTime || '', passengers: b.passengers, vehicle: b.vehicle || '',
+      via: (b.via && b.via.label) || '', meetSign: Boolean(b.meetSign), special: b.special || '',
+      fromPt: b.from && Number.isFinite(b.from.lat) ? { lat: b.from.lat, lon: b.from.lon, label: b.from.label } : null,
+      toPt: b.to && Number.isFinite(b.to.lat) ? { lat: b.to.lat, lon: b.to.lon, label: b.to.label } : null,
       km: b.km || null, price: b.price, status: b.status, payment: b.payment || '', flight: b.flight || '', bags: b.bags, childSeats: b.childSeats, comments: b.comments || '',
       driver: assigned && (b.chauffeur || b.driverName) ? { name: b.chauffeur || b.driverName, phone: (b.chauffeur ? b.chauffeurPhone || b.driverPhone : b.driverPhone) || '', car: b.driverCar || '' } : null,
       docs: {
@@ -1106,13 +1137,21 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
     }
     const to = point(d.to, SPAIN_BOX);
     if (!to) return { error: 'bad_to' };
+    // Parada en el camino: los km pasan por ella
+    const via = d.via ? point(d.via, SPAIN_BOX) : null;
+    if (d.via && !via) return { error: 'bad_via' };
     let route;
-    try { route = await drive(from, to); } catch (e) { return { error: 'route_unavailable' }; }
+    try {
+      if (via) {
+        const a = await drive(from, via), b = await drive(via, to);
+        route = a && b ? { km: Math.round((a.km + b.km) * 10) / 10, minutes: a.minutes + b.minutes } : null;
+      } else route = await drive(from, to);
+    } catch (e) { return { error: 'route_unavailable' }; }
     if (!route) return { error: 'no_route' };
     if (route.km < 0.5) return { error: 'same_place' };
     const roundTrip = Boolean(d.roundTrip);
     return {
-      kind, passengers, from, to, roundTrip, km: route.km, minutes: route.minutes,
+      kind, passengers, from, to, via, roundTrip, km: route.km, minutes: route.minutes,
       options: priceOptions(cfg, kind, route.km, 0, passengers, roundTrip)
     };
   }
@@ -1171,11 +1210,11 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
     }
 
     // El logo y los iconos: públicos (la pantalla de la contraseña y el icono del iPhone los necesitan)
-    const IMG = { 'logo.png': 'logo.png', 'icon-180.png': 'apple-touch-icon.png', 'icon-64.png': 'icon-64.png' };
+    const IMG = { 'logo.png': 'logo.png', 'icon-180.png': 'apple-touch-icon.png', 'icon-64.png': 'icon-64.png', 'hero.jpg': 'hero.jpg' };
     if (req.method === 'GET' && IMG[route]) {
       let buf;
       try { buf = fs.readFileSync(path.join(__dirname, 'bravo', IMG[route])); } catch (e) { return json(res, 404, { error: 'not_found' }); }
-      res.writeHead(200, { 'Content-Type': 'image/png', 'Content-Length': buf.length, 'Cache-Control': 'public, max-age=86400', 'X-Robots-Tag': 'noindex, nofollow', 'X-Content-Type-Options': 'nosniff' });
+      res.writeHead(200, { 'Content-Type': /\.jpg$/.test(IMG[route]) ? 'image/jpeg' : 'image/png', 'Content-Length': buf.length, 'Cache-Control': 'public, max-age=86400', 'X-Robots-Tag': 'noindex, nofollow', 'X-Content-Type-Options': 'nosniff' });
       return res.end(buf);
     }
 
@@ -1228,6 +1267,11 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
         vehicles: Object.fromEntries(Object.entries(cfg.vehicles).map(([id, v]) => [id, { seats: v.seats }])),
         minHoursAhead: cfg.minHoursAhead, hourly: cfg.hourly
       });
+    }
+
+    if (req.method === 'GET' && route === 'routes') {
+      if (over('routes:' + ip, 60, 3600000, true)) return json(res, 429, { error: 'too_many' });
+      return json(res, 200, { from: AGP, routes: await routePrices() });
     }
 
     if (req.method === 'POST' && route === 'quote') {
@@ -1293,7 +1337,8 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
         roundTrip: Boolean(trip.roundTrip), returnDate, returnTime,
         hours: trip.hours || null, km: trip.km || null, minutes: trip.minutes || null,
         passengers: trip.passengers, vehicle: opt.id, price: opt.price,
-        flight: clean(d.flight, 12), bags: int(d.bags, 0, 20) || 0, childSeats: int(d.childSeats, 0, 6) || 0
+        flight: clean(d.flight, 12), bags: int(d.bags, 0, 20) || 0, childSeats: int(d.childSeats, 0, 6) || 0,
+        via: trip.via || null, meetSign: Boolean(d.meetSign), special: SPECIAL[d.special] ? d.special : ''
       }, base);
       if (trip.discount) {
         b.discount = { pct: trip.discount.pct, code: trip.discount.code, amount: Math.round((opt.fullPrice - opt.price) * 100) / 100 };
@@ -1543,7 +1588,8 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
       if (kind === 'group') Object.assign(b, { fromText, toText });
       else Object.assign(b, {
         from: { label: fromText }, to: kind === 'hourly' ? null : { label: toText }, roundTrip, returnDate, returnTime, hours, km, minutes: null,
-        vehicle: ['car', 'van'].includes(d.vehicle) ? d.vehicle : '', flight: clean(d.flight, 12), bags: int(d.bags, 0, 20) || 0, childSeats: int(d.childSeats, 0, 6) || 0
+        vehicle: ['car', 'van'].includes(d.vehicle) ? d.vehicle : '', flight: clean(d.flight, 12), bags: int(d.bags, 0, 20) || 0, childSeats: int(d.childSeats, 0, 6) || 0,
+        via: clean(d.viaText, 160) ? { label: clean(d.viaText, 160) } : null, meetSign: Boolean(d.meetSign), special: SPECIAL[d.special] ? d.special : ''
       });
       ensureTokens(b);
       saveBooking(b);

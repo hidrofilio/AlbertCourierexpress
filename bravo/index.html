@@ -41,10 +41,89 @@
   .done-mail { background: #eef6f0; color: #1f5b37; border-radius: 10px; padding: 10px 12px; font-size: .9rem; margin: 0 0 12px; text-align: left; }
   .wa { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 50%; background: #25d366; }
 
-  .hero { background: radial-gradient(120% 90% at 85% 0%, #3a2a17 0%, var(--ink) 55%); color: #f6efe3; padding: 28px 0 40px; position: relative; overflow: hidden; }
-  .hero::before { content: ""; position: absolute; width: 360px; height: 360px; right: -120px; top: -150px; border-radius: 50%; background: radial-gradient(circle, rgba(229,180,75,.55), rgba(223,122,44,.15) 60%, transparent 70%); pointer-events: none; }
-  .hero h1 { font-family: Georgia, 'Times New Roman', serif; font-weight: 700; font-size: clamp(1.7rem, 6vw, 2.6rem); line-height: 1.15; margin: 0 0 10px; position: relative; }
-  .hero p.sub { color: #d9cbb0; margin: 0 0 22px; max-width: 560px; position: relative; }
+  /* Portada: atardecer en la Costa del Sol, dibujado (o la foto de la IA, si existe /api/bravo/hero.jpg) */
+  .hero { background: var(--ink); color: #f6efe3; padding: 0 0 40px; position: relative; overflow: hidden; }
+  .hero .intro { position: relative; padding-top: 26px; min-height: 360px; box-sizing: border-box; }
+  .eyebrow { display: block; font-size: .7rem; font-weight: 700; letter-spacing: .2em; color: #f3cf7a; margin-bottom: 8px; }
+  .hero h1 { font-family: Georgia, 'Times New Roman', serif; font-weight: 700; font-size: clamp(1.9rem, 8.4vw, 2.8rem); line-height: 1.1; margin: 0 0 10px; position: relative; color: #fff; max-width: 15ch; text-shadow: 0 2px 16px rgba(0,0,0,.35); }
+  .hero p.sub { color: #f6e7cc; margin: 0 0 22px; max-width: 30ch; position: relative; text-shadow: 0 1px 10px rgba(0,0,0,.45); }
+  .scene { position: absolute; left: 0; right: 0; top: 0; height: 430px; overflow: hidden; pointer-events: none; }
+  .s-sky { position: absolute; inset: 0; background: linear-gradient(180deg, #1c120c 0%, #4a2015 30%, #a8481f 55%, #e08a35 72%, #f2c261 86%, #f7dc9a 100%); background-size: cover; background-position: center; }
+  .s-rays { position: absolute; left: calc(17% - 185px); top: 2px; width: 520px; height: 520px; border-radius: 50%; background: repeating-conic-gradient(from 0deg, rgba(255,220,140,.18) 0deg 5deg, rgba(255,220,140,0) 5deg 15deg); -webkit-mask-image: radial-gradient(circle, #000 18%, transparent 66%); mask-image: radial-gradient(circle, #000 18%, transparent 66%); animation: spin 160s linear infinite; }
+  .s-sun { position: absolute; left: 17%; top: 187px; width: 150px; height: 150px; border-radius: 50%; background: radial-gradient(circle at 50% 45%, #fff6cf 0%, #ffd76a 45%, #f2a23a 100%); box-shadow: 0 0 70px 26px rgba(255,205,110,.45); animation: rise 7s ease-out both, glow 5s ease-in-out 7s infinite alternate; }
+  .s-sea { position: absolute; left: 0; right: 0; top: 300px; height: 86px; background: linear-gradient(180deg, #cf6f2e 0%, #8c4423 55%, #5e2c19 100%); }
+  .s-glint { position: absolute; height: 3px; border-radius: 2px; background: rgba(255,228,160,.9); animation: shimmer 2.6s ease-in-out infinite alternate; }
+  .s-sierra { position: absolute; left: 38%; right: 0; top: 226px; height: 76px; background: #5c2618; clip-path: polygon(0 100%, 14% 70%, 26% 82%, 40% 40%, 52% 58%, 66% 18%, 80% 46%, 92% 28%, 100% 36%, 100% 100%); }
+  .s-hill { position: absolute; left: 38%; right: -20px; top: 286px; height: 100px; background: #231209; clip-path: polygon(0 100%, 10% 80%, 24% 62%, 40% 40%, 58% 24%, 76% 16%, 100% 10%, 100% 100%); }
+  .s-town { position: absolute; right: 4px; top: 0; width: 140px; height: 430px; }
+  .s-house { position: absolute; background: #f4e6cf; box-shadow: inset -4px 0 0 rgba(120,60,30,.25); }
+  .s-win { position: absolute; width: 3px; height: 4px; background: #ffcf73; animation: twinkle 3.4s ease-in-out infinite alternate; }
+  .s-trunk { position: absolute; left: 34px; top: 252px; width: 5px; height: 134px; background: #0a0604; transform: rotate(4deg); transform-origin: 50% 100%; }
+  .s-crown { position: absolute; left: 27px; top: 252px; width: 0; height: 0; animation: sway 6s ease-in-out infinite alternate; }
+  .s-frond { position: absolute; left: 0; top: -5px; width: 58px; height: 10px; background: #0a0604; border-radius: 0 100% 0 100%; transform-origin: 0 50%; }
+  .s-road { position: absolute; left: 0; right: 0; top: 384px; height: 46px; background: #0f0a07; border-top: 1px solid #4a3523; }
+  .s-dash { position: absolute; left: 0; right: 0; top: 406px; height: 2px; opacity: .85; background: repeating-linear-gradient(90deg, #e5b44b 0 16px, transparent 16px 38px); }
+  .s-car { position: absolute; left: 0; top: 356px; width: 150px; height: 30px; animation: drive 17s linear infinite; }
+  .s-car i { position: absolute; display: block; }
+  .c-body { left: 6px; top: 12px; width: 78px; height: 12px; border-radius: 6px 9px 4px 4px; background: #050302; border-top: 1px solid rgba(255,200,120,.75); }
+  .c-cab { left: 24px; top: 2px; width: 36px; height: 12px; border-radius: 10px 14px 0 0; background: #050302; border-top: 1px solid rgba(255,200,120,.75); }
+  .c-glass { left: 29px; top: 5px; width: 26px; height: 7px; border-radius: 6px 9px 0 0; background: #8a5a34; }
+  .c-wheel { top: 18px; width: 12px; height: 12px; border-radius: 50%; background: #050302; border: 2px solid #3a2a1c; box-sizing: border-box; }
+  .c-beam { left: 83px; top: 9px; width: 66px; height: 16px; background: linear-gradient(90deg, rgba(255,232,160,.8), rgba(255,232,160,0)); clip-path: polygon(0 36%, 100% 0, 100% 100%, 0 64%); }
+  .c-tail { left: 5px; top: 15px; width: 3px; height: 3px; border-radius: 1px; background: #ff5a36; }
+  .hero.photo .scene > :not(.s-sky) { display: none; }
+  .azulejo { height: 30px; border-top: 2px solid #1f4f99; border-bottom: 2px solid #1f4f99; background-color: #fffaf2; position: relative; overflow: hidden;
+    background-image: radial-gradient(circle at 0 0, #1f4f99 0 9px, transparent 9.5px), radial-gradient(circle at 100% 0, #1f4f99 0 9px, transparent 9.5px),
+      radial-gradient(circle at 0 100%, #1f4f99 0 9px, transparent 9.5px), radial-gradient(circle at 100% 100%, #1f4f99 0 9px, transparent 9.5px),
+      radial-gradient(circle at 50% 50%, #e5b44b 0 5px, transparent 5.5px);
+    background-size: 30px 30px; }
+  .azulejo::after { content: ""; position: absolute; top: 0; bottom: 0; left: -30%; width: 26%; background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,236,170,.85), rgba(255,255,255,0)); animation: pass 6s ease-in-out infinite; }
+  .steps { position: relative; display: flex; flex-direction: column; gap: 22px; padding-left: 52px; }
+  .steps .flow { position: absolute; left: 15px; top: 10px; bottom: 30px; width: 2px; background: repeating-linear-gradient(180deg, var(--gold) 0 6px, transparent 6px 14px); background-size: 2px 14px; animation: flowdown 1s linear infinite; }
+  .step { position: relative; }
+  .step .num { position: absolute; left: -52px; top: 0; width: 32px; height: 32px; }
+  .step h3 { margin: 4px 0 2px; font-size: 1.05rem; }
+  .step p { margin: 0; color: var(--muted); }
+  .dest { display: flex; gap: 12px; overflow-x: auto; padding: 4px 2px 10px; -webkit-overflow-scrolling: touch; scroll-snap-type: x mandatory; }
+  .dcard { flex: none; width: 158px; scroll-snap-align: start; text-align: left; border: 1px solid var(--line); background: var(--card); border-radius: 14px; padding: 0; overflow: hidden; cursor: pointer; font: inherit; color: var(--ink); }
+  .dcard .dimg { display: block; height: 92px; position: relative; overflow: hidden; }
+  .dcard .dimg::after { content: ""; position: absolute; right: 14px; top: 14px; width: 34px; height: 34px; border-radius: 50%; background: rgba(255,240,190,.9); box-shadow: 0 0 22px 8px rgba(255,220,140,.5); }
+  .dcard .dimg::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 36%; background: rgba(23,18,13,.35); clip-path: polygon(0 100%, 0 55%, 22% 30%, 45% 60%, 70% 20%, 100% 50%, 100% 100%); }
+  .dcard b { display: block; font-family: Georgia, serif; font-size: 1.1rem; padding: 10px 12px 0; }
+  .dcard span { display: block; font-size: .8rem; color: var(--muted); padding: 0 12px; }
+  .dcard em { display: block; font-style: normal; font-weight: 800; color: #a8501a; padding: 6px 12px 12px; }
+  .wa-float { position: fixed; right: 16px; bottom: 16px; z-index: 20; width: 56px; height: 56px; border-radius: 50%; background: #1f9e4f; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(0,0,0,.25); }
+  .wa-float::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: #1f9e4f; animation: ringout 1.8s ease-out infinite; z-index: -1; }
+  .js .reveal { opacity: 0; transform: translateY(24px); transition: opacity .7s ease-out, transform .7s ease-out; }
+  .js .reveal.in { opacity: 1; transform: none; }
+  .btn.shiny { position: relative; overflow: hidden; }
+  .btn.shiny::after { content: ""; position: absolute; top: 0; left: -60%; width: 40%; height: 100%; background: linear-gradient(100deg, rgba(255,255,255,0), rgba(255,255,255,.55), rgba(255,255,255,0)); transform: skewX(-18deg); animation: sweep 3.6s ease-in-out infinite; }
+  .route-anim { position: relative; height: 3px; border-radius: 2px; background: var(--line); margin: 2px 4px 16px; }
+  .route-anim .ra-line { position: absolute; left: 0; top: 0; height: 3px; border-radius: 2px; background: var(--gold); animation: draw 1.4s ease-in-out both; }
+  .route-anim .ra-dot { position: absolute; top: -5px; width: 13px; height: 13px; margin-left: -6px; border-radius: 50%; background: var(--orange); box-shadow: 0 0 10px 3px rgba(223,122,44,.5); animation: go 1.4s ease-in-out both; }
+  .brand { position: relative; }
+  .brand::before { content: ""; position: absolute; left: -8px; top: 50%; width: 84px; height: 84px; margin-top: -42px; border-radius: 50%; background: repeating-conic-gradient(from 0deg, rgba(229,180,75,.38) 0deg 6deg, rgba(229,180,75,0) 6deg 18deg); -webkit-mask-image: radial-gradient(circle, #000 25%, transparent 70%); mask-image: radial-gradient(circle, #000 25%, transparent 70%); animation: spin 60s linear infinite, fadein 1.2s ease-out both; }
+  .brand img { position: relative; animation: logoup .9s ease-out both; }
+  .brand .word { position: relative; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes rise { from { transform: translateY(70px); } to { transform: translateY(0); } }
+  @keyframes glow { from { box-shadow: 0 0 60px 20px rgba(255,205,110,.38); } to { box-shadow: 0 0 90px 36px rgba(255,205,110,.6); } }
+  @keyframes shimmer { from { transform: scaleX(.6); opacity: .45; } to { transform: scaleX(1); opacity: 1; } }
+  @keyframes twinkle { from { opacity: .25; } to { opacity: 1; } }
+  @keyframes drive { from { transform: translateX(-160px); } to { transform: translateX(110vw); } }
+  @keyframes sway { from { transform: rotate(-3deg); } to { transform: rotate(3deg); } }
+  @keyframes pass { 0% { left: -30%; } 65% { left: 110%; } 100% { left: 110%; } }
+  @keyframes flowdown { from { background-position: 0 0; } to { background-position: 0 14px; } }
+  @keyframes ringout { from { transform: scale(1); opacity: .55; } to { transform: scale(1.9); opacity: 0; } }
+  @keyframes sweep { 0% { left: -60%; } 55% { left: 130%; } 100% { left: 130%; } }
+  @keyframes draw { from { width: 0; } to { width: 100%; } }
+  @keyframes go { from { left: 0; } to { left: 100%; } }
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes logoup { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    .s-rays, .s-sun, .s-glint, .s-win, .s-car, .s-crown, .azulejo::after, .steps .flow, .wa-float::before, .btn.shiny::after, .route-anim span, .brand::before, .brand img { animation: none !important; }
+    .js .reveal { opacity: 1; transform: none; transition: none; }
+  }
 
   .booker { background: var(--card); color: var(--ink); border-radius: 16px; padding: 16px; box-shadow: 0 18px 40px rgba(0,0,0,.35); position: relative; max-width: 640px; }
   .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: #f3ece0; padding: 4px; border-radius: 12px; margin-bottom: 14px; }
@@ -104,7 +183,10 @@
 
   @media (max-width: 440px) { .acct span { display: none; } .acct { padding: 9px; } .brand img { height: 42px; } }
   @media (min-width: 720px) {
-    .hero { padding: 48px 0 60px; }
+    .hero { padding: 0 0 60px; }
+    .hero .intro { padding-top: 40px; }
+    .dest { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); overflow: visible; }
+    .dcard { width: auto; }
     .booker { padding: 22px; }
     .grid.g3 { grid-template-columns: repeat(3, 1fr); }
     .grid.g4 { grid-template-columns: repeat(2, 1fr); }
@@ -134,9 +216,50 @@
 </header>
 
 <section class="hero">
+  <div class="scene" aria-hidden="true">
+    <div class="s-sky"></div>
+    <div class="s-rays"></div>
+    <div class="s-sun"></div>
+    <div class="s-sea"></div>
+    <div class="s-glint" style="left: calc(17% + 27px); top: 309px; width: 96px"></div>
+    <div class="s-glint" style="left: calc(17% + 40px); top: 322px; width: 70px; animation-delay: .5s"></div>
+    <div class="s-glint" style="left: calc(17% + 49px); top: 336px; width: 52px; animation-delay: 1s"></div>
+    <div class="s-glint" style="left: calc(17% + 58px); top: 351px; width: 34px; animation-delay: 1.5s"></div>
+    <div class="s-sierra"></div>
+    <div class="s-hill"></div>
+    <div class="s-town">
+      <div class="s-house" style="left: 2px; top: 332px; width: 22px; height: 16px"></div>
+      <div class="s-house" style="left: 22px; top: 321px; width: 18px; height: 20px"></div>
+      <div class="s-house" style="left: 38px; top: 313px; width: 24px; height: 18px"></div>
+      <div class="s-house" style="left: 60px; top: 304px; width: 18px; height: 22px"></div>
+      <div class="s-house" style="left: 76px; top: 298px; width: 26px; height: 18px"></div>
+      <div class="s-house" style="left: 100px; top: 281px; width: 12px; height: 34px"></div>
+      <div style="position: absolute; left: 100px; top: 274px; width: 12px; height: 8px; border-radius: 6px 6px 0 0; background: #b5532a"></div>
+      <div class="s-house" style="left: 112px; top: 300px; width: 24px; height: 16px"></div>
+      <div class="s-win" style="left: 9px; top: 338px"></div>
+      <div class="s-win" style="left: 28px; top: 328px; animation-delay: .8s"></div>
+      <div class="s-win" style="left: 47px; top: 320px; animation-delay: 1.6s"></div>
+      <div class="s-win" style="left: 66px; top: 312px; animation-delay: .4s"></div>
+      <div class="s-win" style="left: 86px; top: 305px; animation-delay: 2.1s"></div>
+      <div class="s-win" style="left: 120px; top: 306px; animation-delay: 1.2s"></div>
+    </div>
+    <div class="s-trunk"></div>
+    <div class="s-crown">
+      <div class="s-frond" style="transform: rotate(-24deg)"></div><div class="s-frond" style="transform: rotate(14deg)"></div>
+      <div class="s-frond" style="transform: rotate(52deg)"></div><div class="s-frond" style="transform: rotate(-64deg)"></div>
+      <div class="s-frond" style="transform: rotate(-118deg)"></div><div class="s-frond" style="transform: rotate(-158deg)"></div>
+      <div class="s-frond" style="transform: rotate(166deg)"></div><div class="s-frond" style="transform: rotate(128deg)"></div>
+    </div>
+    <div class="s-road"></div>
+    <div class="s-dash"></div>
+    <div class="s-car"><i class="c-beam"></i><i class="c-cab"></i><i class="c-glass"></i><i class="c-body"></i><i class="c-tail"></i><i class="c-wheel" style="left: 16px"></i><i class="c-wheel" style="left: 62px"></i></div>
+  </div>
   <div class="wrap">
-    <h1 data-i18n="heroTitle"></h1>
-    <p class="sub" data-i18n="heroSub"></p>
+    <div class="intro">
+      <span class="eyebrow" data-i18n="heroEyebrow"></span>
+      <h1 data-i18n="heroTitle"></h1>
+      <p class="sub" data-i18n="heroSub"></p>
+    </div>
 
     <div class="booker" id="booker">
       <div class="err" id="err" role="alert" hidden></div>
@@ -162,6 +285,12 @@
             <div class="chips" data-chips="t-to" data-places="agp,centro,marbella"></div>
             <div class="found" data-found="t-to"></div>
           </div>
+          <button type="button" class="link-btn" id="t-via-open" data-i18n="addStop" style="margin: -6px 0 6px"></button>
+          <div class="field" id="t-via-box" hidden>
+            <label for="t-via" data-i18n="stop"></label>
+            <input id="t-via" autocomplete="off" data-i18n-ph="phPlace">
+            <div class="found" data-found="t-via"></div>
+          </div>
           <div class="row">
             <div class="field"><label for="t-date" data-i18n="date"></label><input type="date" id="t-date"></div>
             <div class="field"><label for="t-time" data-i18n="time"></label><input type="time" id="t-time" step="300"></div>
@@ -175,7 +304,7 @@
             <div class="field"><label for="t-rdate" data-i18n="returnDate"></label><input type="date" id="t-rdate"></div>
             <div class="field"><label for="t-rtime" data-i18n="returnTime"></label><input type="time" id="t-rtime" step="300"></div>
           </div>
-          <button class="btn" type="submit" data-i18n="seePrice"></button>
+          <button class="btn shiny" type="submit" data-i18n="seePrice"></button>
           <p class="hint"><span data-i18n="moreThan7"></span> <button type="button" data-goto-tab="group" data-i18n="groupLink"></button></p>
         </form>
 
@@ -194,7 +323,7 @@
             <div class="field"><label for="h-hours" data-i18n="hours"></label><select id="h-hours"></select></div>
             <div class="field"><label for="h-pax" data-i18n="passengers"></label><select id="h-pax"></select></div>
           </div>
-          <button class="btn" type="submit" data-i18n="seePrice"></button>
+          <button class="btn shiny" type="submit" data-i18n="seePrice"></button>
         </form>
 
         <form id="f-group" novalidate hidden>
@@ -243,6 +372,8 @@
           <div class="field"><label for="d-bags" data-i18n="bags"></label><select id="d-bags"></select></div>
           <div class="field"><label for="d-seats" data-i18n="childSeats"></label><select id="d-seats"></select></div>
         </div>
+        <div class="field"><label for="d-special" data-i18n="special"></label><select id="d-special"></select></div>
+        <label class="check"><input type="checkbox" id="d-sign"> <span data-i18n="meetSign"></span></label>
         <div class="field"><label for="d-comments" data-i18n="comments"></label><textarea id="d-comments"></textarea></div>
         <button class="btn" type="submit" data-i18n="confirm"></button>
         <p class="test-note" data-i18n="testNote"></p>
@@ -265,18 +396,29 @@
   </div>
 </section>
 
-<section class="band">
+<div class="azulejo" aria-hidden="true"></div>
+
+<section class="band alt reveal" id="dest-band" hidden>
+  <div class="wrap">
+    <h2 class="sec" data-i18n="dest_t"></h2>
+    <p class="hint" style="margin: -10px 0 14px" data-i18n="dest_sub"></p>
+    <div class="dest" id="dest"></div>
+  </div>
+</section>
+
+<section class="band reveal">
   <div class="wrap">
     <h2 class="sec" data-i18n="how_t"></h2>
-    <div class="grid g3">
-      <div class="card"><div class="num">1</div><h3 data-i18n="how1_t"></h3><p data-i18n="how1"></p></div>
-      <div class="card"><div class="num">2</div><h3 data-i18n="how2_t"></h3><p data-i18n="how2"></p></div>
-      <div class="card"><div class="num">3</div><h3 data-i18n="how3_t"></h3><p data-i18n="how3"></p></div>
+    <div class="steps">
+      <div class="flow" aria-hidden="true"></div>
+      <div class="step"><div class="num">1</div><h3 data-i18n="how1_t"></h3><p data-i18n="how1"></p></div>
+      <div class="step"><div class="num">2</div><h3 data-i18n="how2_t"></h3><p data-i18n="how2"></p></div>
+      <div class="step"><div class="num">3</div><h3 data-i18n="how3_t"></h3><p data-i18n="how3"></p></div>
     </div>
   </div>
 </section>
 
-<section class="band alt">
+<section class="band alt reveal">
   <div class="wrap">
     <h2 class="sec" data-i18n="svc_t"></h2>
     <div class="grid g4">
@@ -288,7 +430,8 @@
   </div>
 </section>
 
-<section class="band">
+<div class="azulejo" aria-hidden="true"></div>
+<section class="band reveal">
   <div class="wrap">
     <h2 class="sec" data-i18n="why_t"></h2>
     <div class="grid g4">
@@ -300,7 +443,7 @@
   </div>
 </section>
 
-<section class="band alt">
+<section class="band alt reveal">
   <div class="wrap">
     <h2 class="sec" data-i18n="fleet_t"></h2>
     <div class="grid g3">
@@ -335,6 +478,11 @@
   </div>
 </section>
 
+<a class="wa-float" href="https://wa.me/353874592308" target="_blank" rel="noopener" aria-label="WhatsApp">
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.8-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.8 11.9 11.9 0 0 0 4.6 4c1.7.7 2.4.8 3.2.7a2.8 2.8 0 0 0 1.8-1.3 2.3 2.3 0 0 0 .2-1.3c-.1-.1-.2-.2-.5-.3z"/></svg>
+</a>
+
+<div class="azulejo" aria-hidden="true"></div>
 <footer>
   <div class="wrap">
     <p><b style="color:#f6efe3">Bravo Transfers</b> · Málaga</p>
@@ -345,6 +493,7 @@
 <script>
 (function () {
   'use strict';
+  document.documentElement.classList.add('js');
 
   // Aviso a Alberto por correo (el mismo servicio y el mismo correo que la web de mensajería).
   var NOTIFY_KEY = '51f8ca24-f99c-4869-827a-3d13671053e9';
@@ -379,6 +528,10 @@
       doneGroup: 'Te enviaremos el presupuesto por correo lo antes posible.',
       newBooking: 'Hacer otra reserva', downloadDoc: '📄 Descargar el justificante (PDF)', downloadInv: '🧾 Descargar la factura (PDF)',
       myAccount: 'Mi cuenta', goAccount: '👤 Ir a mi cuenta',
+      heroEyebrow: 'MÁLAGA · COSTA DEL SOL', addStop: '＋ Añadir una parada en el camino', stop: 'Parada en el camino', stopLine: ' · parada: {s}',
+      meetSign: 'Que me esperen con un cartel con mi nombre (gratis)', special: 'Equipaje especial',
+      sp_none: 'Ninguno', sp_golf: 'Palos de golf', sp_bike: 'Bicicleta', sp_surf: 'Tabla de surf', sp_ski: 'Esquís', sp_wheelchair: 'Silla de ruedas', sp_pram: 'Carrito de bebé', sp_pet: 'Mascota', sp_other: 'Otro (cuéntanoslo en comentarios)',
+      dest_t: 'Desde Málaga a…', dest_sub: 'Precios desde el aeropuerto, en coche. Toca uno para reservarlo.', fromPrice: 'desde {p}', err_bad_via: 'No encontramos la parada.',
       haveCode: '¿Tienes un código de descuento?', apply: 'Aplicar', codeOk: 'Código {c}: {p} % de descuento aplicado', partnerOk: 'Precio especial: {p} % de descuento aplicado',
       err_bad_code: 'Ese código no vale o ha caducado.',
       mailSent: 'Te hemos enviado un correo a {email} con todos los datos{inv}.', mailInv: ', la factura y el justificante',
@@ -449,6 +602,10 @@
       doneText: 'We will message you on WhatsApp with your driver’s name, the car and its number plate.',
       doneGroup: 'We will email you a quote as soon as possible.',
       downloadInv: '🧾 Download the invoice (PDF)', myAccount: 'My account', goAccount: '👤 Go to my account',
+      heroEyebrow: 'MÁLAGA · COSTA DEL SOL', addStop: '＋ Add a stop on the way', stop: 'Stop on the way', stopLine: ' · stop: {s}',
+      meetSign: 'Meet me with a sign with my name (free)', special: 'Special luggage',
+      sp_none: 'None', sp_golf: 'Golf clubs', sp_bike: 'Bicycle', sp_surf: 'Surfboard', sp_ski: 'Skis', sp_wheelchair: 'Wheelchair', sp_pram: 'Pushchair', sp_pet: 'Pet', sp_other: 'Other (tell us in the comments)',
+      dest_t: 'From Málaga to…', dest_sub: 'Prices from the airport, by car. Tap one to book it.', fromPrice: 'from {p}', err_bad_via: 'We could not find the stop.',
       haveCode: 'Do you have a discount code?', apply: 'Apply', codeOk: 'Code {c}: {p}% discount applied', partnerOk: 'Special price: {p}% discount applied',
       err_bad_code: 'That code is not valid or has expired.',
       mailSent: 'We have emailed {email} with all the details{inv}.', mailInv: ', the invoice and the booking confirmation',
@@ -564,6 +721,15 @@
     });
     input.addEventListener('input', function () { f.place = null; f.chip = null; f.found.textContent = ''; markChips(f); });
   });
+  // Parada en el camino (sin botones rápidos)
+  fields['t-via'] = { input: $('t-via'), box: document.createElement('div'), found: document.querySelector('[data-found="t-via"]'), place: null, chip: null };
+  $('t-via').addEventListener('input', function () { var f = fields['t-via']; f.place = null; f.found.textContent = ''; });
+  $('t-via-open').addEventListener('click', function () { $('t-via-box').hidden = false; $('t-via-open').hidden = true; $('t-via').focus(); });
+  function setPlace(f, p) {
+    f.chip = null; markChips(f);
+    f.place = { lat: p.lat, lon: p.lon, label: p.label, airport: /aeropuerto|airport|\bAGP\b/i.test(p.label) };
+    f.input.value = p.label; f.found.textContent = '📍 ' + t('found') + ': ' + p.label;
+  }
   function pickChip(f, key) {
     var p = PLACES[key];
     f.chip = key;
@@ -656,7 +822,7 @@
 
   function tripLine(trip, quote) {
     if (trip.kind === 'hourly') return '<b>' + esc(trip.from.label) + '</b>' + esc(t('hourlyLine').replace('{h}', trip.hours));
-    return '<b>' + esc(trip.from.label) + ' → ' + esc(trip.to.label) + '</b>' +
+    return '<b>' + esc(trip.from.label) + ' → ' + esc(trip.to.label) + '</b>' + (trip.via ? esc(t('stopLine').replace('{s}', trip.via.label)) + '<br>' : '') +
       esc(quote.km + ' km · ~' + fmtMin(quote.minutes));
   }
   function whenLine(trip) {
@@ -674,13 +840,14 @@
     try {
       trip.from = await resolve(fields['t-from']);
       trip.to = await resolve(fields['t-to']);
+      if (!$('t-via-box').hidden && $('t-via').value.trim()) trip.via = await resolve(fields['t-via']);
       if (!trip.date || !trip.time) throw { code: 'needDate' };
       if (tooSoon(trip.date, trip.time)) throw { code: 'too_soon' };
       if (trip.roundTrip) {
         if (!trip.returnDate || !trip.returnTime) throw { code: 'needDate' };
         if (trip.returnDate + trip.returnTime <= trip.date + trip.time) throw { code: 'bad_return' };
       }
-      var q = await quote({ kind: 'transfer', from: trip.from, to: trip.to, passengers: trip.passengers, roundTrip: trip.roundTrip });
+      var q = await quote({ kind: 'transfer', from: trip.from, to: trip.to, via: trip.via || null, passengers: trip.passengers, roundTrip: trip.roundTrip });
       state.trip = trip; state.quote = q; renderOptions(); show('options');
     } catch (e) { showErr(e); }
     finally { busy(this, false); }
@@ -704,7 +871,7 @@
   function renderOptions() {
     var trip = state.trip, q = state.quote;
     $('opt-summary').innerHTML = tripLine(trip, q) + '<br>' + whenLine(trip);
-    var html = '';
+    var html = '<div class="route-anim" aria-hidden="true"><span class="ra-line"></span><span class="ra-dot"></span></div>';
     q.options.forEach(function (o) {
       html += '<div class="veh' + (o.fits ? '' : ' off') + '">' +
         '<div class="ico emoji">' + (o.id === 'van' ? '🚐' : '🚗') + '</div>' +
@@ -753,7 +920,8 @@
       returnDate: trip.returnDate || '', returnTime: trip.returnTime || '', vehicle: state.vehicle,
       name: $('d-name').value, phone: $('d-phone').value, email: $('d-email').value,
       flight: $('d-flight-field').hidden ? '' : $('d-flight').value,
-      bags: Number($('d-bags').value), childSeats: Number($('d-seats').value), comments: $('d-comments').value
+      bags: Number($('d-bags').value), childSeats: Number($('d-seats').value), comments: $('d-comments').value,
+      via: trip.via || null, special: $('d-special').value, meetSign: $('d-sign').checked
     };
     busy(this, true);
     try {
@@ -811,6 +979,7 @@
     ['f-transfer', 'f-hourly', 'f-group', 'step-details'].forEach(function (id) { $(id).reset(); });
     Object.keys(fields).forEach(function (k) { var f = fields[k]; f.place = null; f.chip = null; f.found.textContent = ''; markChips(f); });
     $('t-return').hidden = true;
+    $('t-via-box').hidden = true; $('t-via-open').hidden = false;
     state.trip = state.quote = state.vehicle = state.done = null;
     show('search');
     $('booker').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -850,6 +1019,10 @@
     qsa('[data-i18n-ph]').forEach(function (el) { el.placeholder = t(el.getAttribute('data-i18n-ph')); });
     qsa('[data-lang]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-lang') === lang); });
     qsa('.chip').forEach(function (b) { b.textContent = PLACES[b.getAttribute('data-place')][lang]; });
+    var sp = $('d-special'), spv = sp.value;
+    sp.innerHTML = ['', 'golf', 'bike', 'surf', 'ski', 'wheelchair', 'pram', 'pet', 'other'].map(function (k) { return '<option value="' + k + '">' + esc(t('sp_' + (k || 'none'))) + '</option>'; }).join('');
+    sp.value = spv;
+    renderDest();
     Object.keys(fields).forEach(function (k) { var f = fields[k]; if (f.chip) pickChip(f, f.chip); });
     if (state.step === 'options') renderOptions();
     if (state.step === 'details') renderDetails();
@@ -864,8 +1037,65 @@
     });
   });
 
+  // ---------- destinos con su precio «desde» ----------
+  var routes = [];
+  var DEST_BG = ['linear-gradient(160deg, #f2c261, #df7a2c 60%, #8c4423)', 'linear-gradient(160deg, #7cc4e6, #1f4f99)', 'linear-gradient(160deg, #e7b98a, #b5532a)',
+    'linear-gradient(160deg, #c9d6a3, #5f7a3a)', 'linear-gradient(160deg, #f7dc9a, #c8922f 70%, #6e3b2a)'];
+  function renderDest() {
+    if (!routes.length) return;
+    $('dest').innerHTML = routes.map(function (r, i) {
+      return '<button type="button" class="dcard" data-dest="' + esc(r.id) + '"><span class="dimg" style="background: ' + DEST_BG[i % DEST_BG.length] + '"></span>' +
+        '<b>' + esc(r.name) + '</b><span>' + esc(r.km + ' km · ~' + fmtMin(r.minutes)) + '</span><em>' + esc(t('fromPrice').replace('{p}', money(r.from))) + '</em></button>';
+    }).join('');
+    $('dest-band').hidden = false;
+  }
+  $('dest').addEventListener('click', function (ev) {
+    var c = ev.target.closest('[data-dest]'); if (!c) return;
+    var r = routes.filter(function (x) { return x.id === c.getAttribute('data-dest'); })[0];
+    show('search'); setTab('transfer');
+    pickChip(fields['t-from'], 'agp');
+    setPlace(fields['t-to'], { lat: r.lat, lon: r.lon, label: r.name });
+    $('booker').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(function () { $('t-date').focus(); }, 400);
+  });
+  fetch('/api/bravo/routes').then(function (res) { return res.ok ? res.json() : null; }).then(function (d) {
+    if (d && d.routes) { routes = d.routes; renderDest(); }
+  }).catch(function () {});
+
+  // ---------- «Reservar otra vez» o «la vuelta» desde Mi cuenta: ?from=lat,lon,sitio&to=… ----------
+  function placeParam(name) {
+    var m = new RegExp('[?&]' + name + '=([^&]+)').exec(location.search);
+    if (!m) return null;
+    var v; try { v = decodeURIComponent(m[1].replace(/\+/g, ' ')); } catch (e) { return null; }
+    var parts = v.split(','), lat = Number(parts[0]), lon = Number(parts[1]), label = parts.slice(2).join(',').trim().slice(0, 160);
+    return isFinite(lat) && isFinite(lon) && label ? { lat: lat, lon: lon, label: label } : null;
+  }
+
+  // ---------- la foto de portada hecha con IA, si existe ----------
+  var hp = new Image();
+  hp.onload = function () {
+    document.querySelector('.hero').classList.add('photo');
+    document.querySelector('.s-sky').style.backgroundImage = 'linear-gradient(180deg, rgba(23,18,13,.55), rgba(23,18,13,.12) 45%, rgba(23,18,13,.85)), url(/api/bravo/hero.jpg)';
+  };
+  hp.src = '/api/bravo/hero.jpg';
+
+  // ---------- las secciones aparecen al bajar ----------
+  // Aparece todo lo que ya está en pantalla o se ha pasado (también si se baja de golpe)
+  var revealQueued = false;
+  function revealCheck() {
+    revealQueued = false;
+    var limit = window.innerHeight * 0.92;
+    qsa('.reveal:not(.in)').forEach(function (el) { if (el.getBoundingClientRect().top < limit) el.classList.add('in'); });
+  }
+  window.addEventListener('scroll', function () { if (!revealQueued) { revealQueued = true; requestAnimationFrame(revealCheck); } }, { passive: true });
+  window.addEventListener('resize', revealCheck);
+  revealCheck();
+
   setTab('transfer');
   applyLang();
+  var pf = placeParam('from'), pt = placeParam('to');
+  if (pf) setPlace(fields['t-from'], pf);
+  if (pt) setPlace(fields['t-to'], pt);
 })();
 </script>
 </body>

@@ -217,6 +217,8 @@
       quoteT: 'Presupuesto', quoteValid: 'Válido hasta el {d}', qAccept: '✓ Aceptar', qReject: 'Rechazar el presupuesto', qAsk: '¿Aceptas el presupuesto {n} de {p}?',
       qst_enviado: 'Pendiente de tu respuesta', qst_aceptado: 'Aceptado ✓', qst_rechazado: 'Rechazado', qDone: 'Presupuesto aceptado: te mandamos la confirmación.', qNo: 'Presupuesto rechazado. Si quieres otro, escríbenos.',
       err_cannot_answer: 'Este presupuesto ya no se puede contestar. Escríbenos.',
+      stop: 'Parada', sign: 'Con cartel con tu nombre', special: 'Equipaje especial', again: '🔁 Reservar otra vez', back: '↩️ Reservar la vuelta',
+      sp_golf: 'Palos de golf', sp_bike: 'Bicicleta', sp_surf: 'Tabla de surf', sp_ski: 'Esquís', sp_wheelchair: 'Silla de ruedas', sp_pram: 'Carrito de bebé', sp_pet: 'Mascota', sp_other: 'Otro',
       driver: 'Tu conductor', car: 'Coche', call: 'Llamar', waDriver: 'Hola, soy el cliente de la reserva {ref} de Bravo Transfers. ',
       docConf: '📄 Justificante', docInv: '🧾 Factura', docRect: '🧾 Rectificativa', docVoid: '(anulada)', ics: '📅 A mi calendario',
       change: '✏️ Pedir un cambio', cancel: '✖ Cancelar', cancelAsk: '¿Seguro que quieres cancelar la reserva {ref} del {when}?',
@@ -256,6 +258,8 @@
       quoteT: 'Quote', quoteValid: 'Valid until {d}', qAccept: '✓ Accept', qReject: 'Decline the quote', qAsk: 'Do you accept quote {n} for {p}?',
       qst_enviado: 'Waiting for your answer', qst_aceptado: 'Accepted ✓', qst_rechazado: 'Declined', qDone: 'Quote accepted: we are sending you the confirmation.', qNo: 'Quote declined. If you would like another one, message us.',
       err_cannot_answer: 'This quote can no longer be answered. Please message us.',
+      stop: 'Stop', sign: 'With a sign with your name', special: 'Special luggage', again: '🔁 Book again', back: '↩️ Book the return',
+      sp_golf: 'Golf clubs', sp_bike: 'Bicycle', sp_surf: 'Surfboard', sp_ski: 'Skis', sp_wheelchair: 'Wheelchair', sp_pram: 'Pushchair', sp_pet: 'Pet', sp_other: 'Other',
       driver: 'Your driver', car: 'Car', call: 'Call', waDriver: 'Hello, I am the customer of Bravo Transfers booking {ref}. ',
       docConf: '📄 Confirmation', docInv: '🧾 Invoice', docRect: '🧾 Credit note', docVoid: '(cancelled)', ics: '📅 Add to calendar',
       change: '✏️ Request a change', cancel: '✖ Cancel', cancelAsk: 'Are you sure you want to cancel booking {ref} on {when}?',
@@ -407,7 +411,10 @@
     if (b.roundTrip) f.push(esc(t('ret')) + ': <b>' + esc(b.returnDate.split('-').reverse().join('/') + ' · ' + b.returnTime) + '</b>');
     f.push(esc(t('pax')) + ': <b>' + esc(b.passengers) + '</b>');
     if (b.vehicle) f.push('<b>' + esc(t('veh_' + b.vehicle)) + '</b>');
+    if (b.via) f.push(esc(t('stop')) + ': <b>' + esc(b.via) + '</b>');
     if (b.flight) f.push(esc(t('flight')) + ': <b>' + esc(b.flight) + '</b>');
+    if (b.meetSign) f.push('<b>' + esc(t('sign')) + '</b>');
+    if (b.special) f.push(esc(t('special')) + ': <b>' + esc(t('sp_' + b.special)) + '</b>');
     if (b.bags) f.push(esc(t('bags')) + ': <b>' + esc(b.bags) + '</b>');
     if (b.childSeats) f.push(esc(t('seats')) + ': <b>' + esc(b.childSeats) + '</b>');
     h += '<div class="facts">' + f.map(function (x) { return '<span>' + x + '</span>'; }).join('') + '</div>';
@@ -437,6 +444,11 @@
       h += '<button type="button" class="btn ghost" data-ics="' + esc(b.ref) + '">' + esc(t('ics')) + '</button>';
       h += '<button type="button" class="btn ghost" data-change="' + esc(b.ref) + '">' + esc(t('change')) + '</button>';
       if (b.canCancel) h += '<button type="button" class="btn ghost full" style="color:var(--err)" data-cancel="' + esc(b.ref) + '">' + esc(t('cancel')) + '</button>';
+    }
+    if (b.fromPt && b.toPt) {
+      var pp = function (x) { return encodeURIComponent(x.lat + ',' + x.lon + ',' + x.label); };
+      h += '<a class="btn ghost" href="/bravo/?from=' + pp(b.fromPt) + '&to=' + pp(b.toPt) + '">' + esc(t('again')) + '</a>';
+      h += '<a class="btn ghost" href="/bravo/?from=' + pp(b.toPt) + '&to=' + pp(b.fromPt) + '">' + esc(t('back')) + '</a>';
     }
     h += '</div>';
     if (!isPast && !b.canCancel && (b.status === 'pendiente' || b.status === 'asignada')) h += '<p class="warn">' + esc(t('tooLate').replace('{h}', state.me.cancelHours)) + '</p>';

@@ -238,7 +238,10 @@ function companyEmail(b, o) {
   const tomorrow = o.kind === 'tomorrow';
   const from = (b.from && b.from.label) || b.fromText || '', to = (b.to && b.to.label) || b.toText || '';
   const rows = [['Día y hora', dmy(b.date) + ' · ' + b.time], ['Recogida', from], [b.kind === 'hourly' ? 'Horas' : 'Destino', b.kind === 'hourly' ? String(b.hours) : to],
+    ['Parada', (b.via && b.via.label) || ''],
     ['Vuelta', b.roundTrip ? dmy(b.returnDate) + ' · ' + b.returnTime : ''], ['Pasajeros', String(b.passengers)], ['Vuelo', b.flight],
+    ['Cartel', b.meetSign ? 'Esperar con un cartel con el nombre del cliente' : ''],
+    ['Equipaje especial', { golf: 'Palos de golf', bike: 'Bicicleta', surf: 'Tabla de surf', ski: 'Esquís', wheelchair: 'Silla de ruedas', pram: 'Carrito de bebé', pet: 'Mascota', other: 'Otro (ver comentarios)' }[b.special] || ''],
     ['Maletas', b.kind === 'group' ? '' : String(b.bags || 0) + (b.childSeats ? ' · sillas de niño: ' + b.childSeats : '')],
     ['Cliente', b.name + (b.phone ? ' · ' + b.phone : '')], ['Conductor', b.chauffeur || ''], ['Nota', b.driverNote], ['Se te paga', b.driverPay != null ? money(b.driverPay) : '']];
   const intro = tomorrow ? 'Te recordamos el servicio de mañana:' : 'Te asignamos este servicio de Bravo Transfers:';

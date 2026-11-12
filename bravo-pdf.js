@@ -186,7 +186,7 @@ function concept(b) {
   const when = day(b.date) + ' ' + b.time;
   if (b.kind === 'hourly') return `Servicio de coche con conductor por horas / Chauffeur service by the hour: ${b.hours} h, ${placeFrom(b)}, ${when}`;
   if (b.kind === 'group') return `Transporte de grupo / Group transport: ${placeFrom(b)} → ${placeTo(b)}, ${when}, ${b.passengers} pers.`;
-  return `Traslado privado / Private transfer${b.roundTrip ? ' (ida y vuelta / return)' : ''}: ${placeFrom(b)} → ${placeTo(b)}, ${when}` +
+  return `Traslado privado / Private transfer${b.roundTrip ? ' (ida y vuelta / return)' : ''}: ${placeFrom(b)} → ${b.via && b.via.label ? b.via.label + ' → ' : ''}${placeTo(b)}, ${when}` +
     (b.km ? `, ${b.km} km` : '') + (b.vehicle ? `, ${vehicleName(b.vehicle, 'en')}` : '');
 }
 
@@ -256,8 +256,8 @@ function invoicePdf(b, which) {
 
 // ---------- JUSTIFICANTE (para el cliente, en su idioma) ----------
 const J = {
-  es: { title: 'JUSTIFICANTE DE RESERVA', ref: 'Reserva', when: 'Día y hora', from: 'Desde', to: 'Hasta', pickup: 'Recogida', hours: 'Horas', ret: 'Vuelta', pax: 'Pasajeros', veh: 'Vehículo', flight: 'Vuelo', bags: 'Maletas', seats: 'Sillas de niño', driver: 'Conductor', car: 'Coche', total: 'PRECIO TOTAL (IVA incluido)', quote: 'Presupuesto pendiente', note: 'Este documento confirma la reserva. No es una factura.', name: 'Cliente' },
-  en: { title: 'BOOKING CONFIRMATION', ref: 'Booking', when: 'Date and time', from: 'From', to: 'To', pickup: 'Pick-up', hours: 'Hours', ret: 'Return', pax: 'Passengers', veh: 'Vehicle', flight: 'Flight', bags: 'Suitcases', seats: 'Child seats', driver: 'Driver', car: 'Car', total: 'TOTAL PRICE (VAT included)', quote: 'Quote pending', note: 'This document confirms your booking. It is not an invoice.', name: 'Customer' }
+  es: { stop: 'Parada', sign: 'Cartel', signYes: 'Te esperamos con un cartel con tu nombre', special: 'Equipaje especial', title: 'JUSTIFICANTE DE RESERVA', ref: 'Reserva', when: 'Día y hora', from: 'Desde', to: 'Hasta', pickup: 'Recogida', hours: 'Horas', ret: 'Vuelta', pax: 'Pasajeros', veh: 'Vehículo', flight: 'Vuelo', bags: 'Maletas', seats: 'Sillas de niño', driver: 'Conductor', car: 'Coche', total: 'PRECIO TOTAL (IVA incluido)', quote: 'Presupuesto pendiente', note: 'Este documento confirma la reserva. No es una factura.', name: 'Cliente' },
+  en: { stop: 'Stop', sign: 'Sign', signYes: 'We will wait for you with a sign with your name', special: 'Special luggage', title: 'BOOKING CONFIRMATION', ref: 'Booking', when: 'Date and time', from: 'From', to: 'To', pickup: 'Pick-up', hours: 'Hours', ret: 'Return', pax: 'Passengers', veh: 'Vehicle', flight: 'Flight', bags: 'Suitcases', seats: 'Child seats', driver: 'Driver', car: 'Car', total: 'TOTAL PRICE (VAT included)', quote: 'Quote pending', note: 'This document confirms your booking. It is not an invoice.', name: 'Customer' }
 };
 function confirmationPdf(b, issuer) {
   const t = J[b.lang === 'en' ? 'en' : 'es'];
@@ -269,9 +269,12 @@ function confirmationPdf(b, issuer) {
     [t.when, day(b.date) + ' · ' + b.time],
     [b.kind === 'hourly' ? t.pickup : t.from, placeFrom(b)],
     [b.kind === 'hourly' ? t.hours : t.to, b.kind === 'hourly' ? String(b.hours) : placeTo(b)],
+    [t.stop, b.via && b.via.label ? b.via.label : ''],
     [t.ret, b.roundTrip ? day(b.returnDate) + ' · ' + b.returnTime : ''],
     [t.pax, String(b.passengers)],
     [t.veh, vehicleName(b.vehicle, b.lang)],
+    [t.sign, b.meetSign ? t.signYes : ''],
+    [t.special, b.special ? (b.lang === 'en' ? { golf: 'Golf clubs', bike: 'Bicycle', surf: 'Surfboard', ski: 'Skis', wheelchair: 'Wheelchair', pram: 'Pushchair', pet: 'Pet', other: 'Other (see comments)' }[b.special] : SPECIAL_ES[b.special]) || '' : ''],
     [t.flight, b.flight],
     [t.bags, b.kind === 'group' ? '' : String(b.bags || 0)],
     [t.seats, b.childSeats ? String(b.childSeats) : ''],
@@ -440,6 +443,8 @@ function partnerPdf(p, month, list, issuer) {
   return assemble(pages, 'Liquidación ' + p.name + ' ' + month);
 }
 
+const SPECIAL_ES = { golf: 'Palos de golf', bike: 'Bicicleta', surf: 'Tabla de surf', ski: 'Esquís', wheelchair: 'Silla de ruedas', pram: 'Carrito de bebé', pet: 'Mascota', other: 'Otro (ver comentarios)' };
+
 // ---------- HOJA DE SERVICIO (para el conductor) ----------
 function driverSheetPdf(b, issuer) {
   const c = canvas();
@@ -452,7 +457,10 @@ function driverSheetPdf(b, issuer) {
     ['Día y hora', day(b.date) + ' · ' + b.time],
     [b.kind === 'hourly' ? 'Recogida' : 'Recogida', placeFrom(b)],
     [b.kind === 'hourly' ? 'Horas' : 'Destino', b.kind === 'hourly' ? String(b.hours) : placeTo(b)],
-    ['Distancia', b.km ? b.km + ' km · ~' + b.minutes + ' min' : ''],
+    ['Parada', b.via && b.via.label ? b.via.label : ''],
+    ['Distancia', b.km ? b.km + ' km' + (b.minutes ? ' · ~' + b.minutes + ' min' : '') : ''],
+    ['Cartel', b.meetSign ? 'Esperar con un cartel con el nombre del cliente' : ''],
+    ['Equipaje especial', SPECIAL_ES[b.special] || ''],
     ['Vuelta', b.roundTrip ? day(b.returnDate) + ' · ' + b.returnTime : ''],
     ['Pasajeros', String(b.passengers)],
     ['Vehículo', vehicleName(b.vehicle, 'es')],
