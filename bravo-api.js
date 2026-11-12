@@ -349,6 +349,18 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
     return null;
   }
   const jobUrl = (o) => BASE + '/api/bravo/job/' + o.token;
+  // La empresa asignada (a mano o con «Asignar directamente») tiene también su enlace: cierra lo pendiente
+  function directOffer(b, by, now) {
+    now = now || new Date().toISOString();
+    (b.offers = b.offers || []).forEach((x) => {
+      if (x.status === 'pendiente') { x.status = 'cerrada'; x.answeredAt = now; }
+      if (x.status === 'aceptada' && x.name !== b.driverName) { x.status = 'retirada'; x.answeredAt = now; }
+    });
+    let o = b.offers.find((x) => x.status === 'aceptada' && x.name === b.driverName);
+    if (!o) { o = { token: token(), name: b.driverName, phone: b.driverPhone || '', email: b.driverEmail || '', at: now, status: 'aceptada', direct: true, answeredAt: now, by }; b.offers.push(o); }
+    return o;
+  }
+  const companyLink = (b) => { const o = (b.offers || []).find((x) => x.status === 'aceptada' && x.name === b.driverName); return o ? jobUrl(o) : ''; };
   // Lo que ve la empresa: el viaje y lo que se le paga; el cliente, solo si el viaje es suyo
   function jobView(b, o) {
     const mine = o.status === 'aceptada';
@@ -358,7 +370,7 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
       via: (b.via && b.via.label) || '', roundTrip: Boolean(b.roundTrip), returnDate: b.returnDate || '', returnTime: b.returnTime || '',
       passengers: b.passengers, vehicle: b.vehicle || '', bags: b.bags || 0, childSeats: b.childSeats || 0, special: b.special || '', meetSign: Boolean(b.meetSign),
       flight: b.flight || '', driverNote: b.driverNote || '', pay: b.driverPay != null ? b.driverPay : null,
-      company: o.name, status: o.status, taken: !mine && Boolean(b.driverName), cancelled: b.status === 'cancelada',
+      company: o.name, status: o.status, direct: Boolean(o.direct), taken: !mine && Boolean(b.driverName), cancelled: b.status === 'cancelada',
       pickedUp: mine ? b.pickedUpAt || null : null, done: mine && b.status === 'hecha' ? b.doneAt || true : null,
       client: mine ? { name: b.name || '', phone: b.phone || '' } : null, comments: mine ? b.comments || '' : '',
       sheet: mine && b.driverToken ? '/api/bravo/doc/' + b.driverToken + '/hoja.pdf' : null
@@ -373,7 +385,7 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
   function companyNotice(b, kind) {
     const to = companyAddr(b);
     if (!to) return null;
-    const m = TPL.companyEmail(b, { kind, base: BASE });
+    const m = TPL.companyEmail(b, { kind, base: BASE, link: companyLink(b) });
     const mark = kind === 'tomorrow' ? { companyTomorrow: new Date().toISOString() } : { companyNewFor: b.driverName + '|' + b.date + '|' + b.time };
     return { to, toName: b.driverName, subject: m.subject, html: m.html, text: m.text, mark, attachments: [{ name: 'hoja-' + b.ref + '.pdf', buf: pdf.driverSheetPdf(b, issuerOf(settings())) }] };
   }
@@ -1140,7 +1152,7 @@ var SP={golf:'Palos de golf',bike:'Bicicleta',surf:'Tabla de surf',ski:'Esquís'
 async function load(){var r=await fetch('/api/bravo/job/'+TOK+'/data');if(!r.ok){document.getElementById('app').innerHTML='<div class="card">Este enlace no vale o ha caducado. Si crees que es un error, escríbenos.</div>';return;}draw(await r.json());}
 function row(k,v){return v?'<dt>'+esc(k)+'</dt><dd>'+esc(v)+'</dd>':'';}
 function draw(v){
- var st=v.cancelled?['no','Viaje cancelado']:v.status==='aceptada'?(v.done?['ok','Terminado']:v.pickedUp?['ok','Cliente recogido']:['ok','Es tuyo']):v.status==='rechazada'?['no','Has dicho que no puedes']:v.taken||v.status==='cerrada'?['no','Lo ha cogido otra empresa']:v.status==='retirada'?['no','Ya no está disponible']:['','Pendiente de respuesta'];
+ var st=v.cancelled?['no','Viaje cancelado']:v.status==='aceptada'?(v.done?['ok','Terminado']:v.pickedUp?['ok','Cliente recogido']:['ok',v.direct?'Te lo hemos asignado':'Es tuyo']):v.status==='rechazada'?['no','Has dicho que no puedes']:v.taken||v.status==='cerrada'?['no','Lo ha cogido otra empresa']:v.status==='retirada'?['no','Ya no está disponible']:['','Pendiente de respuesta'];
  var h='<div class="card"><h1>Viaje '+esc(v.ref)+'</h1><span class="st '+st[0]+'">'+esc(st[1])+'</span><dl>'+
   row('Día y hora',dmy(v.date)+' · '+v.time)+row('Recogida',v.from)+row(v.kind==='hourly'?'Horas':'Destino',v.kind==='hourly'?String(v.hours):v.to)+row('Parada',v.via)+
   row('Vuelta',v.roundTrip?dmy(v.returnDate)+' · '+v.returnTime:'')+row('Pasajeros',String(v.passengers))+row('Vehículo',v.vehicle==='van'?'Monovolumen (hasta 7)':v.vehicle==='car'?'Coche (hasta 4)':'')+
@@ -2106,8 +2118,28 @@ load();</script></body></html>`;
       }
       if (b.status === 'cancelada') return json(res, 409, { error: 'cancelled' });
       if (b.driverName) return json(res, 409, { error: 'assigned' });
-      if (!(b.driverPay > 0)) return json(res, 400, { error: 'need_pay' });
       const list = drivers(), names = Array.isArray(d.companies) ? d.companies.map(String) : [];
+      // Asignar directamente, sin preguntar: el viaje es suyo al momento y le llega su enlace
+      if (d.direct === true) {
+        if (names.length !== 1) return json(res, 400, { error: 'one_company' });
+        const drv = list.find((x) => x.name === names[0]);
+        if (!drv) return json(res, 400, { error: 'no_companies' });
+        b.driverName = drv.name; b.driverPhone = drv.phone || ''; b.driverEmail = drv.email || '';
+        if (!b.driverCar) b.driverCar = [drv.car, drv.plate].filter(Boolean).join(' · ');
+        b.status = 'asignada';
+        ensureTokens(b);
+        directOffer(b, me.name, now);
+        b.history = (b.history || []).concat([{ at: now, who: me.name, fields: ['asignado directamente a ' + drv.name] }]).slice(-30);
+        saveBooking(b);
+        const key = b.driverName + '|' + b.date + '|' + b.time;
+        let emailed = 0;
+        if (b.date >= today() && settings().notifyCompany && mail.configured() && companyAddr(b) && (b.reminders || {}).companyNewFor !== key) {
+          emailed = 1;
+          setImmediate(() => { sendNotice(b.ref, 'empresa: nuevo servicio', (x) => companyNotice(x, 'new')).catch(() => {}); });
+        }
+        return json(res, 200, { ok: true, booking: b, emailed, direct: true });
+      }
+      if (!(b.driverPay > 0)) return json(res, 400, { error: 'need_pay' });
       b.offers = b.offers || [];
       const created = [];
       for (const nm of names) {
@@ -2292,11 +2324,10 @@ load();</script></body></html>`;
         b.history = (b.history || []).concat([{ at: new Date().toISOString(), who: me.name, fields: changed }]).slice(-30);
         audit(me, 'cambia la reserva', { ref: b.ref, fields: changed });
       }
-      // Asignado a mano: las ofertas sin contestar se cierran; si se quita la empresa que aceptó, su oferta queda retirada
-      (b.offers || []).forEach((x) => {
-        if (b.driverName && x.status === 'pendiente') { x.status = 'cerrada'; x.answeredAt = new Date().toISOString(); }
-        if (x.status === 'aceptada' && b.driverName !== x.name) { x.status = 'retirada'; x.answeredAt = new Date().toISOString(); }
-      });
+      // Asignado a mano: la empresa tiene su enlace (y se cierran las ofertas sin contestar);
+      // si se quita la empresa, su enlace queda retirado
+      if (b.driverName && b.status !== 'cancelada') { ensureTokens(b); directOffer(b, me.name); }
+      else (b.offers || []).forEach((x) => { if (x.status === 'aceptada') { x.status = 'retirada'; x.answeredAt = new Date().toISOString(); } });
       saveBooking(b);
       if (newlyPaid) autoPayEmail('driver', b.ref);
       // La empresa recibe el servicio (con su hoja) al asignárselo, o si cambia el día o la hora

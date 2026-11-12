@@ -99,7 +99,9 @@ Web de una empresa de transporte urgente dedicado (vehículo exclusivo punto a p
     - **El primero que acepta se lo queda:** se asigna solo, con conductor y coche si los pone, y las demás ofertas pasan a `cerrada`. A Alberto le llega un aviso y la empresa recibe su hoja de servicio.
     - Después marca «Cliente recogido» (`pickedUpAt`) y «Viaje terminado» (`status: 'hecha'`, `doneAt`).
     - Una oferta se puede retirar (`admin/offer/withdraw`). Si todas dicen que no, se avisa a Alberto.
-    - Al asignar a mano se cierran las pendientes. Las ofertas están en `b.offers`, y el operador no las ve.
+    - **«Asignar directamente»** (`admin/offer` con `direct: true`, una sola empresa; no hace falta `driverPay`): el viaje es suyo al momento. Se crea una oferta `aceptada` con `direct`, y la empresa recibe la hoja y su enlace (`companyLink()` en el correo `companyEmail`).
+    - **Al asignar a mano** con la casilla de la ficha (`admin/update`), `directOffer()` crea también su enlace y cierra las pendientes. Si se quita la empresa, su enlace pasa a `retirada`.
+    - Las ofertas están en `b.offers`, y el operador no las ve.
   - **El embudo** (12/11): la web manda cada paso (`POST /api/bravo/ev`: `visit`, `quote`, `details`, `book`, `group`, `planb`), una vez por visita (`sessionStorage`), **sin datos personales**.
     - Se guarda en `funnel.json`: contadores por día y las rutas con precio vistas (`quotes`; `booked` si acabaron en reserva).
     - Sale en Cuentas → 📈 Números (`GET admin/funnel`), con los precios no reservados y las direcciones no encontradas.

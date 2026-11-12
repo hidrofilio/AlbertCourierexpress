@@ -505,7 +505,7 @@
     already_invoiced: 'Esta reserva ya tiene factura', invoiced: 'Tiene factura: para cambiar el precio, anúlala antes',
     has_invoice: 'Tiene o tuvo factura: no se puede borrar', bad_price: 'Precio no válido', bad_pay: 'Pago no válido',
     bad_hours_ahead: 'Antelación no válida (0 a 168 horas)', bad_cancel_hours: 'Horas para cancelar no válidas (0 a 168)', bad_review_url: 'El enlace de Google tiene que empezar por https://',
-    bad_date: 'Día u hora no válidos', bad_email: 'El correo no es válido', bad_paid: 'Pon el día del pago', cancelled: 'La reserva está cancelada', need_pay: 'Pon antes lo que se le paga a la empresa y guarda', assigned: 'Ya tiene empresa asignada', no_companies: 'No hay empresas nuevas a las que ofrecerlo',
+    bad_date: 'Día u hora no válidos', bad_email: 'El correo no es válido', bad_paid: 'Pon el día del pago', cancelled: 'La reserva está cancelada', need_pay: 'Pon antes lo que se le paga a la empresa y guarda', assigned: 'Ya tiene empresa asignada', no_companies: 'No hay empresas nuevas a las que ofrecerlo', one_company: 'Para asignar directamente, marca una sola empresa',
     no_email: 'No tiene correo: ponlo y guarda antes', not_paid: 'Todavía no está pagado',
     bad_user: 'Usuario no válido (3 a 30 letras o números, sin espacios)', user_taken: 'Ese usuario ya existe', short_password: 'La contraseña tiene que tener 10 letras o más', forbidden: 'Eso solo lo puede hacer Alberto',
     bad_code: 'Código no válido (letras, números y guiones)', code_taken: 'Ese código ya lo tiene otro', bad_percent: 'Porcentaje no válido (0 a 50)', no_quote: 'No hay presupuesto',
@@ -1314,26 +1314,34 @@
   function hm(iso) { try { return new Date(iso).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } }
   function offerBox(b) {
     var offers = b.offers || [];
-    if (b.status === 'cancelada' && !offers.length) return '';
-    var h = '<div class="box"><b>Ofrecer a empresas</b>';
+    if ((b.status === 'cancelada' || b.driverName) && !offers.length) return '';
+    var h = '<div class="box"><b>Empresa del viaje</b>';
     offers.forEach(function (o) {
       var link = location.origin + '/api/bravo/job/' + o.token;
-      var msg = 'Hola ' + String(o.name).split(' ')[0] + ', ¿puedes hacer este viaje de Bravo Transfers? ' + dmy(b.date) + ' ' + b.time + ' · ' + fromOf(b) +
-        (b.kind === 'hourly' ? ' (' + b.hours + ' h)' : ' → ' + toOf(b)) + ' · ' + b.passengers + ' pers. Se te paga ' + euro(b.driverPay) + '. Para verlo y aceptarlo: ' + link;
-      h += '<div class="offer"><div>' + esc(o.name) + ' · <b>' + esc(OFFER_ST[o.status] || o.status) + '</b>' + (o.answeredAt ? ' <span class="l3">' + esc(hm(o.answeredAt)) + '</span>' : '') + '</div>' +
-        (o.status === 'pendiente' ? '<div class="btns">' + (o.phone ? '<a class="b wa" target="_blank" rel="noopener" href="' + esc(wa(o.phone, msg)) + '">WhatsApp</a>' : '') +
-          '<button type="button" class="b" data-offer-copy="' + esc(link) + '">📋 Copiar enlace</button><button type="button" class="b" data-offer-wd="' + esc(o.token) + '">Retirar</button></div>' : '') + '</div>';
+      var trip = dmy(b.date) + ' ' + b.time + ' · ' + fromOf(b) + (b.kind === 'hourly' ? ' (' + b.hours + ' h)' : ' → ' + toOf(b)) + ' · ' + b.passengers + ' pers.';
+      var first = String(o.name).split(' ')[0];
+      var msg = o.status === 'aceptada'
+        ? 'Hola ' + first + ', te he asignado este viaje de Bravo Transfers: ' + trip + (b.driverPay > 0 ? ' Se te paga ' + euro(b.driverPay) + '.' : '') + ' Aquí tienes los datos del cliente, la hoja de servicio y los botones de «recogido» y «terminado»: ' + link
+        : 'Hola ' + first + ', ¿puedes hacer este viaje de Bravo Transfers? ' + trip + ' Se te paga ' + euro(b.driverPay) + '. Para verlo y aceptarlo: ' + link;
+      var st = o.status === 'aceptada' && o.direct ? '✅ asignado directamente' : (OFFER_ST[o.status] || o.status);
+      var live = o.status === 'pendiente' || o.status === 'aceptada';
+      h += '<div class="offer"><div>' + esc(o.name) + ' · <b>' + esc(st) + '</b>' + (o.answeredAt ? ' <span class="l3">' + esc(hm(o.answeredAt)) + '</span>' : '') + '</div>' +
+        (live ? '<div class="btns">' + (o.phone ? '<a class="b wa" target="_blank" rel="noopener" href="' + esc(wa(o.phone, msg)) + '">WhatsApp</a>' : '') +
+          '<button type="button" class="b" data-offer-copy="' + esc(link) + '">📋 Copiar su enlace</button>' +
+          (o.status === 'pendiente' ? '<button type="button" class="b" data-offer-wd="' + esc(o.token) + '">Retirar</button>' : '') + '</div>' : '') + '</div>';
     });
     if (b.pickedUpAt || b.doneAt) h += '<p class="pos">' + (b.doneAt ? '🏁 Terminado: ' + esc(hm(b.doneAt)) : '🚗 Cliente recogido: ' + esc(hm(b.pickedUpAt))) + '</p>';
     if (!b.driverName && b.status !== 'cancelada') {
       var pending = offers.filter(function (o) { return o.status === 'pendiente' || o.status === 'aceptada'; }).map(function (o) { return o.name; });
       var free = drivers.filter(function (d) { return d.name && pending.indexOf(d.name) < 0; });
-      if (!(b.driverPay > 0)) h += '<p class="msg">Para ofrecerlo, pon antes lo que se le paga a la empresa y guarda.</p>';
-      else if (!free.length) h += '<p class="msg">' + (drivers.length ? 'Ya se ha ofrecido a todas las empresas.' : 'Añade antes las empresas en la pestaña Empresas.') + '</p>';
+      if (!free.length) h += '<p class="msg">' + (drivers.length ? 'Ya se ha ofrecido a todas las empresas.' : 'Añade antes las empresas en la pestaña Empresas.') + '</p>';
       else {
-        h += '<p class="msg">Les llega un enlace con el viaje y lo que se les paga (sin los datos del cliente). El primero que acepta se lo queda y el viaje se asigna solo.</p>' +
-          free.map(function (d) { return '<label class="check"><input type="checkbox" data-offer-to="' + esc(d.name) + '"> ' + esc(d.name) + (d.email ? '' : ' <span class="l3">(sin correo: mándaselo por WhatsApp)</span>') + '</label>'; }).join('') +
-          '<button type="button" class="save" data-offer>Ofrecer el viaje</button>';
+        h += free.map(function (d) { return '<label class="check"><input type="checkbox" data-offer-to="' + esc(d.name) + '"> ' + esc(d.name) + (d.email ? '' : ' <span class="l3">(sin correo: mándaselo por WhatsApp)</span>') + '</label>'; }).join('') +
+          '<button type="button" class="save" data-offer-direct>✅ Asignar directamente</button>' +
+          '<p class="msg">Marca una empresa: el viaje es suyo al momento y le llega su enlace con el cliente, la hoja y los botones de «recogido» y «terminado».</p>' +
+          (b.driverPay > 0
+            ? '<button type="button" class="b" data-offer style="width:100%;margin-top:6px">📨 Ofrecer y que acepten</button><p class="msg">Marca una o varias: les llega el viaje y lo que se les paga (sin el cliente) y la primera que acepta se lo queda.</p>'
+            : '<p class="msg">Para ofrecerlo y que acepten, pon antes lo que se le paga a la empresa y guarda.</p>');
       }
     }
     return h + '<div class="msg" data-offer-msg></div></div>';
@@ -1513,6 +1521,18 @@
         catch (e) { msg.className = 'msg bad'; msg.textContent = e.message; btn.disabled = false; }
       });
     }
+    var odb = el.querySelector('[data-offer-direct]');
+    if (odb) odb.addEventListener('click', async function () {
+      var msg = el.querySelector('[data-offer-msg]'), btn = this;
+      var names = qsa('[data-offer-to]', el).filter(function (c) { return c.checked; }).map(function (c) { return c.getAttribute('data-offer-to'); });
+      if (names.length !== 1) { msg.className = 'msg bad'; msg.textContent = 'Para asignar directamente, marca una sola empresa.'; return; }
+      btn.disabled = true; msg.className = 'msg'; msg.textContent = 'Asignando…';
+      try {
+        var data = await api('admin/offer', { ref: b.ref, companies: names, direct: true });
+        replace(data.booking); open[b.ref] = true; renderTrips();
+        flash(b.ref, '[data-offer-msg]', '✓ Asignado a ' + names[0] + (data.emailed ? ' · le ha llegado por correo con su enlace' : ' · mándale su enlace con el botón de WhatsApp'));
+      } catch (e) { msg.className = 'msg bad'; msg.textContent = e.message; btn.disabled = false; }
+    });
     var ofb = el.querySelector('[data-offer]');
     if (ofb) ofb.addEventListener('click', async function () {
       var msg = el.querySelector('[data-offer-msg]'), btn = this;

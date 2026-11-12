@@ -248,10 +248,11 @@ function companyEmail(b, o) {
     ['Cliente', b.name + (b.phone ? ' · ' + b.phone : '')], ['Conductor', b.chauffeur || ''], ['Nota', b.driverNote], ['Se te paga', b.driverPay != null ? money(b.driverPay) : '']];
   const intro = tomorrow ? 'Te recordamos el servicio de mañana:' : 'Te asignamos este servicio de Bravo Transfers:';
   const html = `<p style="font-size:16px;margin:0 0 6px">Hola ${esc(String(b.driverName || '').split(' ')[0])},</p><p>${esc(intro)}</p>` + rowsHtml(rows) +
-    '<p>Te adjuntamos la hoja de servicio en PDF.</p><p style="color:#a8501a"><b>Recuerda comunicar el servicio al registro del Ministerio antes de empezar.</b></p>' +
+    '<p>Te adjuntamos la hoja de servicio en PDF.</p>' + (o.link ? btn(o.link, 'Ver el viaje y marcar «recogido» y «terminado»') : '') +
+    '<p style="color:#a8501a"><b>Recuerda comunicar el servicio al registro del Ministerio antes de empezar.</b></p>' +
     (tomorrow ? '' : '<p>Si no puedes hacerlo, avísanos cuanto antes.</p>') + '<p style="margin:10px 0">Gracias,<br>Bravo Transfers</p>';
   const text = ['Hola ' + String(b.driverName || '').split(' ')[0] + ',', '', intro, ''].concat(rows.filter((r) => r[1]).map((r) => r[0] + ': ' + r[1]),
-    ['', 'Te adjuntamos la hoja de servicio en PDF.', 'Recuerda comunicar el servicio al registro del Ministerio antes de empezar.', '', 'Gracias,', 'Bravo Transfers']).join('\n');
+    ['', 'Te adjuntamos la hoja de servicio en PDF.'].concat(o.link ? ['Ver el viaje y marcar «recogido» y «terminado»: ' + o.link] : [], ['Recuerda comunicar el servicio al registro del Ministerio antes de empezar.', '', 'Gracias,', 'Bravo Transfers'])).join('\n');
   return { subject: (tomorrow ? 'Mañana: servicio ' + b.ref + ' a las ' + b.time : 'Nuevo servicio ' + b.ref + ' · ' + dmy(b.date) + ' ' + b.time) + ' · Bravo Transfers', html: shell('es', html, o.base), text };
 }
 
