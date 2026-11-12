@@ -142,6 +142,11 @@
   .inc .kind { font-size: .68rem; font-weight: 800; text-transform: uppercase; background: #fff1d6; color: #8a5a00; border-radius: 4px; padding: 1px 5px; margin-right: 4px; }
   .inc.done .kind { background: #e2f3e8; color: var(--ok); }
   pre.min { white-space: pre-wrap; font: .82rem/1.45 ui-monospace, Menlo, monospace; background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 8px; margin: 8px 0 0; }
+  .doc { border-top: 1px dashed var(--line); padding: 7px 0; font-size: .88rem; }
+  .doc .exp { font-size: .72rem; font-weight: 800; border-radius: 4px; padding: 1px 5px; margin-left: 4px; white-space: nowrap; }
+  .doc .exp.bad { background: #fdecea; color: var(--err); }
+  .doc .exp.soon { background: #fff1d6; color: #8a5a00; }
+  .doc .exp.ok { background: #e2f3e8; color: var(--ok); }
   .warn { background: #fff1d6; color: #8a5a00; border-radius: 9px; padding: 8px 10px; margin-top: 8px; font-size: .85rem; }
 </style>
 </head>
@@ -401,9 +406,14 @@
     <button type="button" class="save" id="set-save">Guardar ajustes</button>
     <div class="msg" id="set-msg"></div>
     <p class="note">Las facturas ya hechas no cambian: guardan los datos que tenían al crearlas.</p>
+    <h3>Documentos de tu empresa</h3>
+    <p class="msg">Licencias, escrituras, contratos… con su fecha de caducidad: «Hoy» te avisa 30 días antes. Quedan en el panel (privado), no en GitHub.</p>
+    <div id="company-docs"></div>
     <h3>Copia de seguridad</h3>
-    <p class="msg">Descarga todos los datos (reservas, facturas, cuentas, banco, empresas de transporte y ajustes) en un archivo. Guárdalo de vez en cuando en el ordenador, en Albert-Privado.</p>
-    <div class="btns"><a class="b dark" href="/api/bravo/admin/backup.json">⬇︎ Descargar copia de seguridad</a></div>
+    <p class="msg">El servidor guarda <b>una copia cada día</b> (las últimas 30). Descárgala de vez en cuando y guárdala en el ordenador, en Albert-Privado: si el servidor se perdiera, solo quedaría la tuya.</p>
+    <div class="btns"><a class="b dark" href="/api/bravo/admin/backup.json">⬇︎ Descargar la copia de ahora</a></div>
+    <label class="check"><input type="checkbox" data-s="backupEmail"> Mandarme la copia por correo cada lunes (lleva datos de clientes: no la reenvíes)</label>
+    <div id="backups" style="margin-top: 8px"></div>
   </section>
 </div>
 
@@ -418,7 +428,7 @@
   function euro(n) { return n == null || n === '' ? '—' : (Math.round(Number(n) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 }) + ' €'; }
   function r2(n) { return Math.round(n * 100) / 100; }
 
-  var list = [], drivers = [], cfg = null;
+  var list = [], drivers = [], cfg = null, docs = [], docKinds = [];
   var current = 'week', tab = 'trips', open = {};
 
   async function api(route, body) {
@@ -460,6 +470,7 @@
     if (t === 'billing') renderBilling();
     if (t === 'accounts') setSub(accSub);
     if (t === 'drivers') renderDrivers();
+    if (t === 'settings' || t === 'drivers') api('admin/docs').then(function (d) { docs = d.docs || docs; if (tab === 'settings') $('company-docs').innerHTML = docsBox('company'); if (tab === 'drivers') renderDrivers(); }).catch(function () {});
     if (t === 'settings') renderSettings();
     window.scrollTo(0, 0);
   }
@@ -568,6 +579,59 @@
       });
     });
   }
+
+  // ---------- PAPELES (empresas de transporte y la tuya) ----------
+  function daysTo(d) { return Math.round((new Date(d + 'T12:00:00') - new Date(madridDay(0) + 'T12:00:00')) / 86400000); }
+  function ownerName(o) { if (o === 'company') return 'Tu empresa'; var d = drivers.filter(function (x) { return x.id === o; })[0]; return d ? d.name : 'Empresa'; }
+  function expiringDocs() {
+    return docs.filter(function (x) { return x.expires && daysTo(x.expires) <= 30; }).sort(function (a, c) { return a.expires.localeCompare(c.expires); }).map(function (x) {
+      var n = daysTo(x.expires);
+      return { who: ownerName(x.owner), kind: x.kind + (x.title ? ' (' + x.title + ')' : ''), when: n < 0 ? 'caducó el ' + dmy(x.expires) : n === 0 ? 'caduca hoy' : 'caduca el ' + dmy(x.expires) + ' (en ' + n + ' día' + (n === 1 ? '' : 's') + ')' };
+    });
+  }
+  function docsBox(owner) {
+    var mine = docs.filter(function (x) { return x.owner === owner; }).sort(function (a, c) { return (a.expires || '9999').localeCompare(c.expires || '9999'); });
+    var h = '<div class="box" data-docs="' + esc(owner) + '"><b>Papeles</b>';
+    if (!mine.length) h += '<div class="msg">Todavía no hay papeles.</div>';
+    mine.forEach(function (x) {
+      var n = x.expires ? daysTo(x.expires) : null;
+      var tag = n == null ? '' : '<span class="exp ' + (n < 0 ? 'bad' : n <= 30 ? 'soon' : 'ok') + '">' + (n < 0 ? 'caducado' : n <= 30 ? 'caduca en ' + n + ' d' : 'hasta ' + dmy(x.expires)) + '</span>';
+      h += '<div class="doc"><b>' + esc(x.kind) + '</b>' + (x.title ? ' · ' + esc(x.title) : '') + tag +
+        '<div class="l3">' + esc([x.number ? 'Nº ' + x.number : '', x.expires ? 'Caduca el ' + dmy(x.expires) : 'Sin caducidad'].filter(Boolean).join(' · ')) + '</div>' +
+        '<div class="btns">' + (x.file ? '<a class="b" target="_blank" rel="noopener" href="/api/bravo/admin/docs/file?id=' + encodeURIComponent(x.id) + '">📄 Ver</a>' : '') +
+        '<button type="button" class="b red" data-doc-del="' + esc(x.id) + '">Borrar</button></div></div>';
+    });
+    return h + '<div class="row"><div><label>Qué papel</label><select data-doc="kind">' + docKinds.map(function (k) { return '<option>' + esc(k) + '</option>'; }).join('') + '</select></div>' +
+      '<div><label>Caduca el</label><input data-doc="expires" type="date"></div></div>' +
+      '<div class="row"><div><label>Número</label><input data-doc="number"></div><div><label>Nota</label><input data-doc="title" placeholder="Ej.: furgoneta 1234 ABC"></div></div>' +
+      '<label>Foto o PDF (opcional)</label><input data-doc="file" type="file" accept="image/*,application/pdf">' +
+      '<div class="btns"><button type="button" class="b dark" data-doc-add>＋ Añadir papel</button></div><div class="msg" data-doc-msg></div></div>';
+  }
+  function afterDocs(newDocs) {
+    docs = newDocs;
+    if (tab === 'drivers') { readDrivers(); renderDrivers(); }
+    if (tab === 'settings') $('company-docs').innerHTML = docsBox('company');
+    renderToday();
+  }
+  document.addEventListener('click', async function (ev) {
+    var add = ev.target.closest('[data-doc-add]'), del = ev.target.closest('[data-doc-del]');
+    if (add) {
+      var box = add.closest('[data-docs]'), msg = box.querySelector('[data-doc-msg]');
+      var get = function (k) { return box.querySelector('[data-doc="' + k + '"]'); };
+      var body = { owner: box.getAttribute('data-docs'), kind: get('kind').value, expires: get('expires').value, number: get('number').value, title: get('title').value };
+      add.disabled = true; msg.className = 'msg'; msg.textContent = 'Guardando…';
+      try {
+        var f = get('file').files[0];
+        if (f) body.file = await readReceipt(f);
+        var r = await api('admin/docs/save', body);
+        afterDocs(r.docs);
+      } catch (e) { msg.className = 'msg bad'; msg.textContent = 'No se ha guardado: ' + (e.message === 'empty_doc' ? 'pon la caducidad, el número o la foto' : e.message); add.disabled = false; }
+    }
+    if (del) {
+      if (!confirm('¿Borrar este papel? No se puede deshacer.')) return;
+      try { var r2 = await api('admin/docs/delete', { id: del.getAttribute('data-doc-del') }); afterDocs(r2.docs); } catch (e) { alert(e.message); }
+    }
+  });
 
   // ---------- NUEVA RESERVA (a mano) ----------
   function nbKind() {
@@ -1033,7 +1097,8 @@
         (t.messages.length ? '<div class="chat">' + bubbles + '</div>' : '') +
         '<div class="body"><label>Sobre la reserva</label><select data-r="ref"><option value="">—</option>' + refs + '</select>' +
         '<label>' + (t.messages.length ? 'Tu respuesta' : 'Escribirle (lo verá en su cuenta)') + '</label><textarea data-r="text" maxlength="2000"></textarea>' +
-        '<button type="button" class="save" data-r="send">' + (t.messages.length ? 'Responder' : 'Enviar') + '</button><div class="msg" data-r="msg"></div></div></details>';
+        '<button type="button" class="save" data-r="send">' + (t.messages.length ? 'Responder' : 'Enviar') + '</button><div class="msg" data-r="msg"></div>' +
+        '<div class="btns" style="margin-top: 14px"><button type="button" class="b red" data-cdel="' + esc(c.id) + '">🗑 Borrar sus datos (si lo pide)</button></div></div></details>';
     }).join('');
     filterClients();
     qsa('[data-goto]', $('threads')).forEach(function (bt) {
@@ -1041,6 +1106,17 @@
         var ref = bt.getAttribute('data-goto');
         setTab('trips'); current = 'all'; open[ref] = true; renderTrips();
         var el = $('bk-' + ref); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+    qsa('[data-cdel]', $('threads')).forEach(function (bt) {
+      bt.addEventListener('click', async function () {
+        var id = bt.getAttribute('data-cdel'), t = threads.filter(function (x) { return x.customer.id === id; })[0];
+        if (!confirm('¿Borrar los datos de ' + t.customer.name + '?\n\nSe borran su cuenta, sus mensajes, su teléfono y su correo. Las facturas se guardan (lo pide la ley), con su nombre. No se puede deshacer.')) return;
+        try {
+          var r = await api('admin/customers/delete', { customerId: id });
+          alert('Hecho: datos borrados en ' + r.bookings + ' reserva' + (r.bookings === 1 ? '' : 's') + (r.keptForInvoices ? ' (en ' + r.keptForInvoices + ' queda el nombre por la factura).' : '.'));
+          await loadMessages(); var d = await api('admin/bookings'); list = d.bookings || list; renderTrips();
+        } catch (e) { alert(e.message === 'has_upcoming' ? 'Tiene viajes pendientes: cancélalos antes.' : e.message); }
       });
     });
     qsa('[data-th]', $('threads')).forEach(function (el) {
@@ -1473,6 +1549,7 @@
         '<div><label>Por hora (€)</label><input data-d="rateHour" type="number" min="0" step="0.01" inputmode="decimal" value="' + esc(d.rateHour || '') + '"></div>' +
         '<div><label>Mínimo (€)</label><input data-d="rateMin" type="number" min="0" step="0.01" inputmode="decimal" value="' + esc(d.rateMin || '') + '"></div></div>' +
         (d.phone || d.email ? contactRow('Contactar', '', d.phone, 'Hola ' + (d.name || '') + ', ', d.email, 'Bravo Transfers') : '') +
+        (d.id ? docsBox(d.id) : '<div class="msg">Guarda la empresa para poder añadir sus papeles.</div>') +
         '<div class="btns"><button type="button" class="b red" data-drv-del="' + i + '">Quitar</button></div></div>';
     }).join('');
     qsa('[data-drv-del]').forEach(function (b) { b.addEventListener('click', function () { readDrivers(); drivers.splice(Number(b.getAttribute('data-drv-del')), 1); renderDrivers(); }); });
@@ -1497,6 +1574,12 @@
   function setPath(o, p, v) { var ks = p.split('.'), last = ks.pop(); ks.forEach(function (k) { o = o[k] = o[k] || {}; }); o[last] = v; }
   function renderSettings() {
     if (!cfg) return;
+    $('company-docs').innerHTML = docsBox('company');
+    api('admin/backups').then(function (d) {
+      $('backups').innerHTML = (d.backups || []).length ? '<div class="msg">Copias guardadas en el servidor:</div><div class="btns">' + d.backups.slice(0, 7).map(function (x) {
+        return '<a class="b" href="/api/bravo/admin/backups/file?name=' + encodeURIComponent(x.name) + '">⬇︎ ' + esc(dmy(x.name.slice(6, 16))) + '</a>';
+      }).join('') + '</div>' : '<div class="msg">Todavía no hay copias guardadas (se hace la primera al arrancar el servidor).</div>';
+    }).catch(function () {});
     qsa('[data-s]').forEach(function (i) { var v = getPath(cfg, i.getAttribute('data-s')); if (i.type === 'checkbox') i.checked = Boolean(v); else i.value = v == null ? '' : v; });
     var on = cfg.email && cfg.email.configured;
     $('mail-state').innerHTML = on
@@ -1514,8 +1597,8 @@
   // ---------- carga ----------
   async function load() {
     try {
-      var r = await Promise.all([api('admin/bookings'), api('admin/drivers'), api('admin/settings')]);
-      list = r[0].bookings || []; drivers = r[1].drivers || []; cfg = r[2];
+      var r = await Promise.all([api('admin/bookings'), api('admin/drivers'), api('admin/settings'), api('admin/docs')]);
+      list = r[0].bookings || []; drivers = r[1].drivers || []; cfg = r[2]; docs = r[3].docs || []; docKinds = r[3].kinds || [];
       fillDatalist(); renderTrips();
       loadMessages();
       if (tab === 'billing') renderBilling();

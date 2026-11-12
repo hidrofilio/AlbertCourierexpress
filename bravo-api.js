@@ -24,6 +24,7 @@ const DEFAULTS = {
   hourly: { min: 2, max: 12 },
   autoInvoice: true, // factura automática al reservar (con el IVA por defecto)
   cancelHours: 24, // el cliente cancela solo hasta estas horas antes
+  backupEmail: false, // mandar a Alberto la copia de seguridad por correo cada lunes
   payEmail: true, // al marcar un pago (empresa de transporte o proveedor), mandarle el justificante por correo
   // Provisional: solo salidas desde la provincia de Málaga (caja aproximada)
   originBox: { latMin: 36.28, latMax: 37.32, lonMin: -5.65, lonMax: -3.75 },
@@ -94,6 +95,7 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
     if (typeof s.autoInvoice === 'boolean') out.autoInvoice = s.autoInvoice;
     if (Number.isFinite(s.cancelHours)) out.cancelHours = s.cancelHours;
     if (typeof s.payEmail === 'boolean') out.payEmail = s.payEmail;
+    if (typeof s.backupEmail === 'boolean') out.backupEmail = s.backupEmail;
     return out;
   }
   function num(v, min, max, decimals) {
@@ -105,7 +107,8 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
   // Ajustes que manda el panel: se comprueba todo antes de guardar
   function readSettings(d) {
     const cur = settings();
-    const out = { vehicles: {}, minHoursAhead: cur.minHoursAhead, invoice: {}, autoInvoice: cur.autoInvoice, cancelHours: cur.cancelHours, payEmail: cur.payEmail };
+    const out = { vehicles: {}, minHoursAhead: cur.minHoursAhead, invoice: {}, autoInvoice: cur.autoInvoice, cancelHours: cur.cancelHours, payEmail: cur.payEmail, backupEmail: cur.backupEmail };
+    if (d.backupEmail !== undefined) out.backupEmail = d.backupEmail === true || d.backupEmail === 'true';
     if (d.autoInvoice !== undefined) out.autoInvoice = d.autoInvoice === true || d.autoInvoice === 'true';
     if (d.payEmail !== undefined) out.payEmail = d.payEmail === true || d.payEmail === 'true';
     if (d.cancelHours !== undefined) {
@@ -178,6 +181,48 @@ module.exports = function createBravo({ DATA_DIR, readBody, getClientIp }) {
     if (previous.length) b.previousInvoices = previous;
     ensureTokens(b);
   }
+
+  // ---------- papeles: de cada empresa de transporte y de la propia empresa, con su caducidad ----------
+  const DOCS_DIR = path.join(DIR, 'docs');
+  fs.mkdirSync(DOCS_DIR, { recursive: true });
+  const DOCS_LIST = path.join(DIR, 'docs.json');
+  const DOC_KINDS = ['Licencia VTC', 'Tarjeta de transporte', 'ITV', 'Seguro del vehículo', 'Permiso de circulación', 'Carné de conducir',
+    'Alta de autónomo o escrituras', 'Contrato', 'Certificado de Hacienda o Seguridad Social', 'Otro'];
+  function docsList() { try { return JSON.parse(fs.readFileSync(DOCS_LIST, 'utf8')); } catch (e) { return []; } }
+  function removeDocFile(x) { if (x && x.file) { try { fs.unlinkSync(path.join(DOCS_DIR, x.file)); } catch (e) { /* ya no estaba */ } } }
+
+  // ---------- copia de seguridad: una al día en el servidor (se guardan 30) ----------
+  const BACKUPS = path.join(DIR, 'backups');
+  fs.mkdirSync(BACKUPS, { recursive: true });
+  function backupData() {
+    let counters = {};
+    try { counters = JSON.parse(fs.readFileSync(path.join(DIR, 'invoice-counter.json'), 'utf8')); } catch (e) { /* ninguno */ }
+    return { exportedAt: new Date().toISOString(), settings: settings(), drivers: drivers(), bookings: allBookings(), ledger: ledger(), bank: bank(), inbox: inbox(), invoiceCounters: counters,
+      customers: customers().map((c) => ({ id: c.id, email: c.email, name: c.name, phone: c.phone, lang: c.lang, createdAt: c.createdAt, lastLogin: c.lastLogin || null })),
+      messages: messages(), docs: docsList() };
+  }
+  function autoBackup() {
+    try {
+      const day = today(), name = 'bravo-' + day + '.json', file = path.join(BACKUPS, name);
+      if (!fs.existsSync(file)) {
+        writeJson(file, backupData());
+        const all = fs.readdirSync(BACKUPS).filter((n) => /^bravo-\d{4}-\d{2}-\d{2}\.json$/.test(n)).sort();
+        for (const n of all.slice(0, Math.max(0, all.length - 30))) fs.unlinkSync(path.join(BACKUPS, n));
+      }
+      // Los lunes, si Alberto lo pide en Ajustes, la copia le llega por correo
+      const sent = path.join(BACKUPS, 'emailed.json');
+      let last = '';
+      try { last = JSON.parse(fs.readFileSync(sent, 'utf8')).day || ''; } catch (e) { /* nunca */ }
+      if (settings().backupEmail && mail.configured() && new Date(day + 'T12:00:00Z').getUTCDay() === 1 && last !== day) {
+        writeJson(sent, { day });
+        const buf = fs.readFileSync(file);
+        const m = TPL.ownerEmail('Copia de seguridad del ' + day, ['Te adjuntamos la copia de seguridad de Bravo Transfers (reservas, facturas, cuentas, banco, empresas y ajustes).', 'Guárdala en el ordenador, en Albert-Privado. No la reenvíes: lleva datos de clientes.'], { url: BASE + '/bravo/panel/', base: BASE });
+        mail.send({ to: mail.owner, subject: m.subject, html: m.html, text: m.text, attachments: [{ name, buf }] }).catch(() => {});
+      }
+    } catch (e) { /* la próxima vez */ }
+  }
+  setTimeout(autoBackup, 4000).unref();
+  setInterval(autoBackup, 3600000).unref();
 
   // ---------- clientes: su cuenta, contraseña, sesiones y mensajes ----------
   const CUSTOMERS = path.join(DIR, 'customers.json');
@@ -1357,7 +1402,7 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
     if (route === 'admin/settings') {
       if (req.method === 'GET') {
         const s = settings();
-        return json(res, 200, { vehicles: s.vehicles, minHoursAhead: s.minHoursAhead, invoice: s.invoice, autoInvoice: s.autoInvoice, cancelHours: s.cancelHours, payEmail: s.payEmail,
+        return json(res, 200, { vehicles: s.vehicles, minHoursAhead: s.minHoursAhead, invoice: s.invoice, autoInvoice: s.autoInvoice, cancelHours: s.cancelHours, payEmail: s.payEmail, backupEmail: s.backupEmail,
           email: { configured: mail.configured(), provider: mail.provider }, weakKey: !process.env.BRAVO_KEY || KEY.length < 10 });
       }
       if (req.method === 'POST') {
@@ -1369,7 +1414,7 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
         fs.writeFileSync(file + '.tmp', JSON.stringify(r.settings, null, 1));
         fs.renameSync(file + '.tmp', file);
         const s = settings();
-        return json(res, 200, { ok: true, vehicles: s.vehicles, minHoursAhead: s.minHoursAhead, invoice: s.invoice, autoInvoice: s.autoInvoice, cancelHours: s.cancelHours, payEmail: s.payEmail,
+        return json(res, 200, { ok: true, vehicles: s.vehicles, minHoursAhead: s.minHoursAhead, invoice: s.invoice, autoInvoice: s.autoInvoice, cancelHours: s.cancelHours, payEmail: s.payEmail, backupEmail: s.backupEmail,
           email: { configured: mail.configured(), provider: mail.provider }, weakKey: !process.env.BRAVO_KEY || KEY.length < 10 });
       }
     }
@@ -1391,6 +1436,9 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
         })).filter((x) => x.name);
         fs.writeFileSync(DRIVERS + '.tmp', JSON.stringify(list, null, 1));
         fs.renameSync(DRIVERS + '.tmp', DRIVERS);
+        const ids = new Set(list.map((x) => x.id)), ds = docsList();
+        const keep = ds.filter((x) => x.owner === 'company' || ids.has(x.owner));
+        if (keep.length !== ds.length) { ds.filter((x) => !keep.includes(x)).forEach(removeDocFile); writeJson(DOCS_LIST, keep); }
         return json(res, 200, { ok: true, drivers: list });
       }
     }
@@ -1858,6 +1906,91 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
     }
 
     // ---------- copia de seguridad de todos los datos (sin los archivos) ----------
+    // ---------- papeles ----------
+    if (req.method === 'GET' && route === 'admin/docs') return json(res, 200, { docs: docsList(), kinds: DOC_KINDS });
+    if (req.method === 'POST' && route === 'admin/docs/save') {
+      let d;
+      try { d = JSON.parse(await readBody(req, 9000000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+      const owner = String(d.owner || '');
+      if (owner !== 'company' && !drivers().some((x) => x.id === owner)) return json(res, 400, { error: 'bad_owner' });
+      if (d.expires && !isDay(d.expires)) return json(res, 400, { error: 'bad_date' });
+      const kind = DOC_KINDS.includes(d.kind) ? d.kind : 'Otro';
+      const list = docsList();
+      let x = d.id ? list.find((y) => y.id === d.id) : null;
+      if (d.id && !x) return json(res, 404, { error: 'not_found' });
+      if (!x) { x = { id: crypto.randomBytes(5).toString('hex'), owner, createdAt: new Date().toISOString(), file: null }; list.push(x); }
+      Object.assign(x, { kind, title: clean(d.title, 80), number: clean(d.number, 40), expires: d.expires || '', notes: cleanLong(d.notes, 300), updatedAt: new Date().toISOString() });
+      if (d.file && typeof d.file.data === 'string') {
+        const buf = Buffer.from(d.file.data, 'base64');
+        if (buf.length > 6 * 1024 * 1024) return json(res, 400, { error: 'receipt_too_big' });
+        const ext = sniff(buf);
+        if (!ext) return json(res, 400, { error: 'receipt_type' });
+        removeDocFile(x);
+        x.file = x.id + '.' + ext; x.name = clean(d.file.name, 80) || x.file; x.size = buf.length;
+        fs.writeFileSync(path.join(DOCS_DIR, x.file), buf);
+      }
+      if (!x.file && !x.expires && !x.number) return json(res, 400, { error: 'empty_doc' });
+      writeJson(DOCS_LIST, list);
+      return json(res, 200, { ok: true, doc: x, docs: list });
+    }
+    if (req.method === 'POST' && route === 'admin/docs/delete') {
+      let d;
+      try { d = JSON.parse(await readBody(req, 1000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+      const list = docsList(), x = list.find((y) => y.id === d.id);
+      if (!x) return json(res, 404, { error: 'not_found' });
+      removeDocFile(x);
+      const rest = list.filter((y) => y !== x);
+      writeJson(DOCS_LIST, rest);
+      return json(res, 200, { ok: true, docs: rest });
+    }
+    if (req.method === 'GET' && route === 'admin/docs/file') {
+      const x = docsList().find((y) => y.id === new URL(url, 'http://x').searchParams.get('id'));
+      if (!x || !x.file) return json(res, 404, { error: 'not_found' });
+      let buf;
+      try { buf = fs.readFileSync(path.join(DOCS_DIR, x.file)); } catch (e) { return json(res, 404, { error: 'not_found' }); }
+      res.writeHead(200, { 'Content-Type': RECEIPT_TYPES[x.file.split('.').pop()] || 'application/octet-stream', 'Content-Length': buf.length,
+        'Content-Disposition': 'inline; filename="' + x.file + '"', 'Cache-Control': 'no-store, private', 'X-Robots-Tag': 'noindex, nofollow', 'X-Content-Type-Options': 'nosniff' });
+      return res.end(buf);
+    }
+
+    // ---------- copias de seguridad guardadas ----------
+    if (req.method === 'GET' && route === 'admin/backups') {
+      const files = fs.readdirSync(BACKUPS).filter((n) => /^bravo-\d{4}-\d{2}-\d{2}\.json$/.test(n)).sort().reverse()
+        .map((n) => ({ name: n, size: fs.statSync(path.join(BACKUPS, n)).size }));
+      return json(res, 200, { backups: files });
+    }
+    if (req.method === 'GET' && route === 'admin/backups/file') {
+      const n = new URL(url, 'http://x').searchParams.get('name') || '';
+      if (!/^bravo-\d{4}-\d{2}-\d{2}\.json$/.test(n)) return json(res, 400, { error: 'bad_name' });
+      let buf;
+      try { buf = fs.readFileSync(path.join(BACKUPS, n)); } catch (e) { return json(res, 404, { error: 'not_found' }); }
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Content-Length': buf.length, 'Content-Disposition': 'attachment; filename="' + n + '"',
+        'Cache-Control': 'no-store, private', 'X-Robots-Tag': 'noindex, nofollow' });
+      return res.end(buf);
+    }
+
+    // ---------- borrar los datos de un cliente (protección de datos) ----------
+    // Las facturas se guardan (lo pide la ley): en esas reservas queda solo el nombre.
+    if (req.method === 'POST' && route === 'admin/customers/delete') {
+      let d;
+      try { d = JSON.parse(await readBody(req, 1000)); } catch (e) { return json(res, 400, { error: 'bad_json' }); }
+      const cl = customers(), c = cl.find((x) => x.id === d.customerId);
+      if (!c) return json(res, 404, { error: 'not_found' });
+      const bks = mine(c);
+      if (bks.some((b) => ['pendiente', 'asignada'].includes(b.status) && b.date >= today())) return json(res, 409, { error: 'has_upcoming' });
+      let kept = 0;
+      for (const b of bks) {
+        const invoiced = allInvoices(b).length > 0;
+        if (invoiced) kept++;
+        Object.assign(b, { phone: '', email: '', comments: '', flight: '', clientDoc: '', customerId: null, anonymizedAt: new Date().toISOString() });
+        if (!invoiced) b.name = 'Cliente borrado';
+        saveBooking(b);
+      }
+      saveMessages(messages().filter((m) => m.customerId !== c.id));
+      saveCustomers(cl.filter((x) => x !== c));
+      return json(res, 200, { ok: true, bookings: bks.length, keptForInvoices: kept });
+    }
+
     if (req.method === 'GET' && route === 'admin/backup.json') {
       let counters = {};
       try { counters = JSON.parse(fs.readFileSync(path.join(DIR, 'invoice-counter.json'), 'utf8')); } catch (e) { /* ninguno */ }
@@ -1865,8 +1998,8 @@ catch(x){e.textContent='Sin conexión.';}});</script></body></html>`;
         'Content-Type': 'application/json; charset=utf-8', 'Content-Disposition': 'attachment; filename="bravo-copia-' + today() + '.json"',
         'Cache-Control': 'no-store, private', 'X-Robots-Tag': 'noindex, nofollow'
       });
-      return res.end(JSON.stringify({ exportedAt: new Date().toISOString(), settings: settings(), drivers: drivers(), bookings: allBookings(), ledger: ledger(), bank: bank(), inbox: inbox(), invoiceCounters: counters,
-        customers: customers().map((c) => ({ id: c.id, email: c.email, name: c.name, phone: c.phone, lang: c.lang, createdAt: c.createdAt, lastLogin: c.lastLogin || null })), messages: messages() }, null, 1));
+      void counters;
+      return res.end(JSON.stringify(backupData(), null, 1));
     }
 
     return json(res, 404, { error: 'not_found' });
