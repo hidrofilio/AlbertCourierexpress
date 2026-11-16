@@ -4,7 +4,7 @@
   "private": true,
   "description": "Albert Courier Express website + lightweight self-hosted analytics",
   "scripts": {
-    "start": "node server.js"
+    "start": "node web/server.js"
   },
   "engines": {
     "node": ">=18"

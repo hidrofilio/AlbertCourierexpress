@@ -1,12 +1,12 @@
-// Adds the mock exams in tools/cpc-en/mocks/*.json to cpc/data.js (Spanish explanations, for the
-// owner's app) and their English explanations to tools/cpc-en/tr/mocks.json (for the classmates' site).
+// Adds the mock exams in web/cpc/herramientas/mocks/*.json to mis-tests/data.js (Spanish explanations, for the
+// owner's app) and their English explanations to web/cpc/herramientas/tr/mocks.json (for the classmates' site).
 // Each question: {q, options, correct, es, en}. A mock already in data.js is left as it is.
-// Then run build.js to regenerate cpc/data-en.js.
+// Then run build.js to regenerate mis-tests/data-en.js.
 const fs = require('fs');
 const path = require('path');
 const { ROOT, hash } = require('./lib');
 
-const DATA = path.join(ROOT, 'cpc', 'data.js');
+const DATA = path.join(ROOT, 'mis-tests', 'data.js');
 const TR = path.join(__dirname, 'tr', 'mocks.json');
 let src = fs.readFileSync(DATA, 'utf8');
 const tr = fs.existsSync(TR) ? JSON.parse(fs.readFileSync(TR, 'utf8')) : {};

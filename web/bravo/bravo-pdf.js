@@ -8,7 +8,7 @@ const path = require('path');
 // El logo (un JPG normal) se mete tal cual en los PDF. Si falta, se dibuja un sol.
 const LOGO = (function () {
   try {
-    const buf = fs.readFileSync(path.join(__dirname, 'bravo', 'logo-pdf.jpg'));
+    const buf = fs.readFileSync(path.join(__dirname, 'paginas', 'logo-pdf.jpg'));
     if (buf[0] !== 0xff || buf[1] !== 0xd8) return null;
     let i = 2;
     while (i + 9 < buf.length) {

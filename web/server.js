@@ -4,8 +4,11 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const ROOT = __dirname;
-const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
+// Este archivo vive en web/. Los datos siguen en la carpeta principal (data/), como antes de ordenar
+// las carpetas: en Railway es el volumen montado en /app/data.
+const WEB = __dirname;
+const REPO = path.join(WEB, '..');
+const DATA_DIR = process.env.DATA_DIR || path.join(REPO, 'data');
 const EVENTS_FILE = path.join(DATA_DIR, 'events.jsonl');
 // Inbox for notes written from the phone. Claude files them into the private
 // NEGOCIO repo when working; this is the drop point, not the archive.
@@ -456,36 +459,56 @@ const SECURITY_HEADERS = {
   'X-XSS-Protection': '1; mode=block'
 };
 
-// Only these extensions are ever served to the public. Anything else (.js at
-// the root, .md, .jsonl, .json...) is invisible, so source and data files
-// cannot be downloaded even if they sit next to the site.
+// Only these extensions are ever served to the public. Anything else (.js
+// outside the CPC app, .md, .jsonl, .json...) is invisible, so source and data
+// files cannot be downloaded even if they sit next to the site.
 const PUBLIC_EXTENSIONS = new Set(['.html', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.webp', '.woff', '.woff2', '.txt', '.xml']);
 
 // Paths that hold source, docs or collected data — never public.
 const BLOCKED_PREFIXES = ['data', 'CAMBIOS', 'CPC-tests', 'CPC course', 'node_modules', '.git'];
 
-function isPublicPath(relPath) {
+// Qué carpeta sirve cada dirección. Las direcciones de la web NO cambiaron al ordenar las carpetas
+// (16/11/2026): solo dónde están los archivos. Lo que no esté aquí no se sirve nunca (el servidor, los
+// programas de Bravo, las herramientas del CPC, la carpeta de YouTube…).
+const MOUNTS = [
+  { base: '/cpc-study', dir: path.join(WEB, 'cpc', 'companeros') },
+  { base: '/cpc', dir: path.join(WEB, 'cpc', 'mis-tests'), js: true }, // el banco de preguntas va en .js
+  { base: '/bravo', dir: path.join(WEB, 'bravo', 'paginas') },
+  { base: '', dir: path.join(WEB, 'negocio'), images: path.join(WEB, 'negocio', 'imagenes') }
+];
+
+// La dirección, ya decodificada y sin «..» ni «//», y la carpeta que la sirve.
+function resolveUrl(urlPath) {
+  let p = decodeURIComponent(urlPath.split('?')[0]); // puede lanzar: lo recoge quien llama
+  const norm = path.posix.normalize('/' + p.replace(/\\/g, '/'));
+  const mount = MOUNTS.find((m) => m.base === '' || norm === m.base || norm.startsWith(m.base + '/'));
+  return { norm, mount, rest: norm.slice(mount.base.length) || '/' };
+}
+
+function isPublicPath(relPath, mount) {
   const segments = relPath.split(/[\\/]+/).filter(Boolean);
   if (segments.some((s) => s.startsWith('.'))) return false;
   if (BLOCKED_PREFIXES.some((p) => segments[0] === p)) return false;
 
   const ext = path.extname(relPath).toLowerCase();
   // The quiz app ships its question bank as JS; that is the only public script.
-  if (ext === '.js') return segments[0] === 'cpc';
+  if (ext === '.js') return Boolean(mount.js);
   return PUBLIC_EXTENSIONS.has(ext);
 }
 
 function serveStatic(req, res, urlPath) {
-  let filePath;
+  let r;
   try {
-    filePath = decodeURIComponent(urlPath.split('?')[0]);
+    r = resolveUrl(urlPath);
   } catch (e) {
     res.writeHead(400);
     res.end('Bad request');
     return;
   }
+  const { mount } = r;
+  const ROOT = mount.dir;
+  let filePath = r.rest;
   if (filePath.endsWith('/')) filePath += 'index.html';
-  if (filePath === '/') filePath = '/index.html';
   let fullPath = path.join(ROOT, filePath);
 
   // ROOT + separator, so a sibling directory sharing the prefix cannot escape.
@@ -497,10 +520,17 @@ function serveStatic(req, res, urlPath) {
 
   const relInitial = path.relative(ROOT, fullPath);
   // A bare directory request is resolved to its index.html below, so allow it through here.
-  if (path.extname(relInitial) && !isPublicPath(relInitial)) {
+  if (path.extname(relInitial) && !isPublicPath(relInitial, mount)) {
     res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('Not found');
     return;
+  }
+
+  // Las imágenes de la mensajería están en negocio/imagenes/, pero se siguen pidiendo en la raíz
+  // (/favicon.png, /signature-v5.gif de la firma de correo, /og-image.jpg…)
+  if (mount.images && !relInitial.includes(path.sep) && !fs.existsSync(fullPath)) {
+    const alt = path.join(mount.images, relInitial);
+    if (fs.existsSync(alt)) fullPath = alt;
   }
 
   fs.stat(fullPath, (err, stats) => {
@@ -508,7 +538,7 @@ function serveStatic(req, res, urlPath) {
       fullPath = path.join(fullPath, 'index.html');
     }
     // Re-check after a directory was resolved to its index.html.
-    if (!isPublicPath(path.relative(ROOT, fullPath))) {
+    if (!isPublicPath(path.relative(ROOT, fullPath), mount)) {
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
       res.end('Not found');
       return;
@@ -758,14 +788,11 @@ async function handleStudy(req, res, url) {
 // between two addresses. Only page loads are redirected: a POST to /api/*
 // would lose its body on a 301.
 // Bravo Transfers (traslados en Málaga), escondido tras contraseña: ver bravo-api.js
-const bravo = require('./bravo-api')({ DATA_DIR, readBody, getClientIp });
+const bravo = require('./bravo/bravo-api')({ DATA_DIR, readBody, getClientIp });
 
 // Resuelve la ruta igual que serveStatic, para que /%62ravo/ o //bravo/ no se salten la contraseña.
 function isBravoPath(url) {
-  let p = url.split('?')[0];
-  try { p = decodeURIComponent(p); } catch (e) { return false; }
-  const rel = path.relative(ROOT, path.join(ROOT, p));
-  return rel === 'bravo' || rel.startsWith('bravo' + path.sep);
+  try { return resolveUrl(url).mount.base === '/bravo'; } catch (e) { return false; }
 }
 
 const CANONICAL_HOST = 'albertcourierexpress.com';

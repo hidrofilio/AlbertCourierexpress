@@ -3,14 +3,14 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const ROOT = path.join(__dirname, '..', '..');
+const ROOT = path.join(__dirname, '..'); // web/cpc
 const TR_DIR = path.join(__dirname, 'tr');
 
 const hash = (s) => crypto.createHash('sha1').update(s).digest('hex').slice(0, 12);
 
 function loadBank() {
   const sandbox = { window: {} };
-  const src = fs.readFileSync(path.join(ROOT, 'cpc', 'data.js'), 'utf8');
+  const src = fs.readFileSync(path.join(ROOT, 'mis-tests', 'data.js'), 'utf8');
   new Function('window', src)(sandbox.window);
   return sandbox.window.CPC_TEMAS;
 }

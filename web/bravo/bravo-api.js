@@ -1370,7 +1370,7 @@ load();</script></body></html>`;
     const IMG = { 'logo.png': 'logo.png', 'icon-180.png': 'apple-touch-icon.png', 'icon-64.png': 'icon-64.png', 'hero.jpg': 'hero.jpg' };
     if (req.method === 'GET' && IMG[route]) {
       let buf;
-      try { buf = fs.readFileSync(path.join(__dirname, 'bravo', IMG[route])); } catch (e) { return json(res, 404, { error: 'not_found' }); }
+      try { buf = fs.readFileSync(path.join(__dirname, 'paginas', IMG[route])); } catch (e) { return json(res, 404, { error: 'not_found' }); }
       res.writeHead(200, { 'Content-Type': /\.jpg$/.test(IMG[route]) ? 'image/jpeg' : 'image/png', 'Content-Length': buf.length, 'Cache-Control': 'public, max-age=86400', 'X-Robots-Tag': 'noindex, nofollow', 'X-Content-Type-Options': 'nosniff' });
       return res.end(buf);
     }
@@ -1553,7 +1553,7 @@ load();</script></body></html>`;
     if (req.method === 'GET' && route === 'routes') {
       if (over('routes:' + ip, 60, 3600000, true)) return json(res, 429, { error: 'too_many' });
       // hero: si hay foto de portada (bravo/hero.jpg), para no pedirla en balde
-      return json(res, 200, { from: AGP, routes: await routePrices(), hero: fs.existsSync(path.join(__dirname, 'bravo', 'hero.jpg')) });
+      return json(res, 200, { from: AGP, routes: await routePrices(), hero: fs.existsSync(path.join(__dirname, 'paginas', 'hero.jpg')) });
     }
 
     if (req.method === 'POST' && route === 'quote') {

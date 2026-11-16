@@ -108,28 +108,27 @@
 
 ## 📈 Estructura del Proyecto
 
+> **16/11/2026: carpetas ordenadas.** Las direcciones de la web no cambiaron: el servidor sabe qué
+> carpeta sirve cada una (`MOUNTS` en `web/server.js`).
+
 ```
 AlbertoCourierExpress/
-├── index.html               (Archivo único: HTML + CSS + JS de la web principal)
-├── server.js                (Servidor Node: entrega la web, analíticas, notas, redirección de www)
-├── package.json             (Solo el `npm start` que usa Railway)
-├── stats/, notas/           (Panel de analíticas y buzón de notas, con clave)
-├── robots.txt, sitemap.xml
+├── package.json              (Solo el `npm start` que usa Railway: node web/server.js)
+├── CLAUDE.md, README.md
+├── web/
+│   ├── server.js             (Servidor Node: entrega la web, analíticas, notas, redirección de www)
+│   ├── negocio/              (albertcourierexpress.com)
+│   │   ├── index.html        (Archivo único: HTML + CSS + JS de la web principal)
+│   │   ├── imagenes/         (Fondos, logos, favicon, QR, firma de email: se piden en la raíz, /favicon.png…)
+│   │   ├── stats/, notas/    (Panel de analíticas y buzón de notas, con clave)
+│   │   ├── robots.txt, sitemap.xml, email-signature.html
+│   │   └── CAMBIOS/          (Esta documentación; nunca se sirve)
+│   ├── cpc/                  (mis-tests/ = /cpc/, companeros/ = /cpc-study/, herramientas/)
+│   ├── bravo/                (paginas/ = /bravo/, y los programas de Bravo Transfers)
+│   └── pruebas/              (node web/pruebas/direcciones.js)
 ├── data/                     (Registro de visitas y notas — volumen de Railway, NO está en git)
-├── favicon.png               (Icono de pestaña)
-├── whatsapp-qr.png            (QR de WhatsApp Business, usado en la firma de email)
-├── signature-vN.gif           (Firma de email animada — N = versión más reciente)
-├── email-signature.html      (HTML de la firma, para copiar/pegar en Gmail; no es una página pública)
-├── *.jpg                      (Fotos de fondo, logos)
-├── cpc/                       (App privada de tests CPC del dueño, con PIN — no relacionada con el negocio)
-├── CPC-tests/, CPC course/    (Material de estudio personal — NO están en git)
-├── .git/
-└── CAMBIOS/
-    ├── README.md        (Este archivo — resumen del estado actual)
-    ├── CHANGELOG.md     (Historial manual — discontinuado el 2026-09-09, ver git log después)
-    ├── FEATURES.md      (Detalle técnico actual)
-    ├── DATOS_WEB_REFERENCIA.md (Ficha de lo que dice la web)
-    └── COMO_AGREGAR_CAMBIOS.md
+├── NEGOCIO/, CPC-tests/, CPC course/  (Privado — NO están en git)
+└── .git/
 ```
 
 **Nota:** ya no existe `netlify.toml` — se eliminó al migrar a Railway.

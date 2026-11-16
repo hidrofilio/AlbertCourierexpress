@@ -10,19 +10,33 @@ Web de una empresa de transporte urgente dedicado (vehículo exclusivo punto a p
 
 - Producción: https://albertcourierexpress.com (dominio canónico **sin `www`**)
 - Repo: `hidrofilio/AlbertCourierexpress`
-- Los datos publicados (precios, zonas, flota, tiempos) están en **[CAMBIOS/DATOS_WEB_REFERENCIA.md](CAMBIOS/DATOS_WEB_REFERENCIA.md)** — consúltalo antes de afirmar cifras.
+- Los datos publicados (precios, zonas, flota, tiempos) están en **[web/negocio/CAMBIOS/DATOS_WEB_REFERENCIA.md](web/negocio/CAMBIOS/DATOS_WEB_REFERENCIA.md)** — consúltalo antes de afirmar cifras.
 
 ## Arquitectura
 
-- **`index.html`** — toda la web (HTML + CSS + JS en un solo archivo)
-- **`server.js`** — servidor Node sin dependencias. Sirve los archivos estáticos **y** las analíticas propias. No es un sitio estático: Railway lo arranca con `npm start`.
-- **`cpc/`** — app de tests del dueño, sin relación con el negocio
-- **`cpc-study/`** — los mismos tests en inglés para sus ~25 compañeros de clase (mercancías o viajeros). Cada uno elige un apodo y recibe un código en pantalla, sin correo. El progreso se guarda en el servidor (`data/cpc-study/`, solo el hash del código). Lo que reportan se lee en `/api/cpc-study/admin?key=` con la clave de `STATS_KEY` (si dice "mira las sugerencias del CPC"). El banco inglés `cpc/data-en.js` se genera con `node tools/cpc-en/build.js` desde `cpc/data.js`. Si cambias una explicación en español, tradúcela en `tools/cpc-en/tr/` (`pending.js` dice cuáles faltan) y vuelve a generarlo.
-  - **Buscar en el libro** (tests para el case study): los de Alberto están en `cpc/buscar.js` (títulos sin temas, a propósito: el ejercicio es encontrar el tema). La versión inglesa `cpc/buscar-en.js` sale de `node tools/cpc-en/build-buscar.js` (`… pending 80` lista lo que falta traducir). A los de mercancías se les quitan las preguntas de módulos solo de autobús.
-  - **Simulacros nuevos:** se escriben en `tools/cpc-en/mocks/1xx.json` (pregunta en inglés, explicación `es` para la app de Alberto y `en` para los compañeros, cada una con su 📍 del libro) y se añaden con `node tools/cpc-en/add-mocks.js` y luego `build.js`. **Los títulos no dicen de qué temas son** («Simulacro 16»), por petición de Alberto.
+**Las carpetas (ordenadas el 16/11/2026; las direcciones de la web no cambiaron):**
+
+```
+package.json         → "start": "node web/server.js" (Railway arranca desde la carpeta principal)
+CLAUDE.md, README.md
+web/
+  server.js          → el servidor; MOUNTS dice qué carpeta sirve cada dirección
+  negocio/           → albertcourierexpress.com (/, /stats/, /notas/); imagenes/ y CAMBIOS/
+  cpc/mis-tests/     → /cpc/        cpc/companeros/ → /cpc-study/     cpc/herramientas/ (generadores)
+  bravo/paginas/     → /bravo/      bravo/bravo-*.js (la API, los PDF, el correo, el buscador)
+  pruebas/direcciones.js → node web/pruebas/direcciones.js comprueba que todo se sirve (y nada más)
+data/                → los datos (volumen de Railway en /app/data; no está en git)
+```
+
+- **`web/negocio/index.html`** — toda la web de la mensajería (HTML + CSS + JS en un solo archivo). Sus imágenes están en `web/negocio/imagenes/`, pero se piden en la raíz (`/favicon.png`, `/signature-v5.gif` de la firma de correo, `/og-image.jpg`…): el servidor las busca allí si no están en `negocio/`.
+- **`web/server.js`** — servidor Node sin dependencias. Sirve los archivos estáticos **y** las analíticas propias. No es un sitio estático: Railway lo arranca con `npm start`. `DATA_DIR` por defecto es `data/` en la carpeta principal (no en `web/`).
+- **`web/cpc/mis-tests/`** (dirección `/cpc/`) — app de tests del dueño, sin relación con el negocio
+- **`web/cpc/companeros/`** (dirección `/cpc-study/`) — los mismos tests en inglés para sus ~25 compañeros de clase (mercancías o viajeros). Cada uno elige un apodo y recibe un código en pantalla, sin correo. El progreso se guarda en el servidor (`data/cpc-study/`, solo el hash del código). Lo que reportan se lee en `/api/cpc-study/admin?key=` con la clave de `STATS_KEY` (si dice "mira las sugerencias del CPC"). El banco inglés `web/cpc/mis-tests/data-en.js` se genera con `node web/cpc/herramientas/build.js` desde `web/cpc/mis-tests/data.js`. Si cambias una explicación en español, tradúcela en `web/cpc/herramientas/tr/` (`pending.js` dice cuáles faltan) y vuelve a generarlo.
+  - **Buscar en el libro** (tests para el case study): los de Alberto están en `web/cpc/mis-tests/buscar.js` (títulos sin temas, a propósito: el ejercicio es encontrar el tema). La versión inglesa `web/cpc/mis-tests/buscar-en.js` sale de `node web/cpc/herramientas/build-buscar.js` (`… pending 80` lista lo que falta traducir). A los de mercancías se les quitan las preguntas de módulos solo de autobús.
+  - **Simulacros nuevos:** se escriben en `web/cpc/herramientas/mocks/1xx.json` (pregunta en inglés, explicación `es` para la app de Alberto y `en` para los compañeros, cada una con su 📍 del libro) y se añaden con `node web/cpc/herramientas/add-mocks.js` y luego `build.js`. **Los títulos no dicen de qué temas son** («Simulacro 16»), por petición de Alberto.
   - La página avisa de que **todo está hecho con IA** y puede tener fallos: no quitar ese aviso.
-  - **Mercancías:** el libro del curso es de los dos exámenes, pero Alberto solo subió las páginas comunes y las de viajeros (faltan las de haulage; está preguntando si algún compañero las tiene escaneadas). Los temas de camión (`g10`, `g15`…) se escriben en inglés en `tools/cpc-en/goods/*.json`, **desde fuentes oficiales** (RSA, reglamentos UE, CMR), cada explicación con su línea 📍. Se generan con `node tools/cpc-en/build-goods.js` → `cpc/data-goods-en.js`. A los de mercancías la página les quita las preguntas de autobús de los temas comunes (`BUS_WORDS` en `cpc-study/index.html`). Que la respuesta correcta no sea la más larga: Alberto ya corrigió eso en su banco.
-- **`bravo/`** y **`bravo-api.js`** — **Bravo Transfers**, el proyecto nuevo de Alberto: traslados de personas desde Málaga con conductores VTC. **Lee antes `NEGOCIO/bravo-transfers/`** (el plan de la web está en `website/README.md` y lo decidido, en `decisiones/`). Ahora está en la **fase 1: escondida**.
+  - **Mercancías:** el libro del curso es de los dos exámenes, pero Alberto solo subió las páginas comunes y las de viajeros (faltan las de haulage; está preguntando si algún compañero las tiene escaneadas). Los temas de camión (`g10`, `g15`…) se escriben en inglés en `web/cpc/herramientas/goods/*.json`, **desde fuentes oficiales** (RSA, reglamentos UE, CMR), cada explicación con su línea 📍. Se generan con `node web/cpc/herramientas/build-goods.js` → `web/cpc/mis-tests/data-goods-en.js`. A los de mercancías la página les quita las preguntas de autobús de los temas comunes (`BUS_WORDS` en `web/cpc/companeros/index.html`). Que la respuesta correcta no sea la más larga: Alberto ya corrigió eso en su banco.
+- **`web/bravo/`** (`paginas/` y `bravo-api.js`, `bravo-pdf.js`, `bravo-mail.js`, `bravo-geo.js`) — **Bravo Transfers**, el proyecto nuevo de Alberto: traslados de personas desde Málaga con conductores VTC. **Lee antes `NEGOCIO/bravo-transfers/`** (el plan de la web está en `website/README.md` y lo decidido, en `decisiones/`). Ahora está en la **fase 1: escondida**.
   - Todo `/bravo/` (la web) y `/api/bravo/` pide contraseña: la variable `BRAVO_KEY` de Railway, o `STATS_KEY` mientras no exista. Lleva `noindex` y `no-store`. **No la pongas en `robots.txt`**, que es público y delataría la ruta.
   - El panel de Alberto está en `/bravo/panel/`. Las reservas (`bookings/BT-0001.json`…) y los precios (`settings.json`) se guardan en `DATA_DIR/bravo/`, nunca en git. Los precios de `DEFAULTS` en el código son **ficticios**. La regla 7 (no publicar precios) es de la mensajería; Bravo enseña precios por naturaleza.
   - **El servidor recalcula los km y el precio** antes de guardar: no te fíes de lo que mande la página. Los km salen de OSRM; `BRAVO_OSRM_URL` permite apuntar a uno falso en las pruebas.
@@ -32,7 +46,7 @@ Web de una empresa de transporte urgente dedicado (vehículo exclusivo punto a p
     - Lo no encontrado va a `geo-misses.json`. **Las sugerencias al escribir salen solo de la lista y de la caché**: Nominatim no permite autocompletar.
     - Si no hay resultado, la página ofrece «Pedir el precio por WhatsApp» con el viaje escrito.
     - Pruebas: `BRAVO_GEO_URL` y `BRAVO_PHOTON_URL`.
-  - El JS va dentro del HTML, porque `isPublicPath()` solo deja servir `.js` de `cpc/`. El aviso a Alberto se manda con Web3Forms, como la mensajería (solo funciona desde el dominio propio).
+  - El JS va dentro del HTML, porque el servidor solo deja servir `.js` de `/cpc/`. El aviso a Alberto se manda con Web3Forms, como la mensajería (solo funciona desde el dominio propio).
   - **Panel** con seis pestañas: Viajes, Clientes, Facturas, Cuentas, Empresas y Ajustes. «Clientes» (antes «Mensajes», `tab-messages` en el código) es la ficha de cada cliente: buscador, sus reservas (un toque las abre en Viajes) y sus mensajes. En Ajustes se cambian los precios, los datos de las facturas, la factura automática (`autoInvoice`), el justificante de pago (`payEmail`) y las horas para que el cliente cancele (`cancelHours`), en `settings.json`.
   - **Empresas** (pestaña): cada una plegada (`details.drv`; se ve el nombre, el teléfono, el coche y un aviso de papeles que caducan), con buscador (`#drv-q`) y «Guardar cambios» dentro de cada una. Todo se guarda con `POST admin/drivers` (la lista entera).
   - **Llamar o escribir:** en cada viaje (cliente, empresa y conductor que va), en cada empresa y en cada cliente hay botones de WhatsApp (`wa.me`, con el mensaje ya escrito), 📞 Llamar (`tel:`) y correo. Al conductor que va se le manda el viaje sin lo que se paga. El cliente, en «Mi cuenta», tiene Llamar y WhatsApp a su conductor.
@@ -91,7 +105,7 @@ Web de una empresa de transporte urgente dedicado (vehículo exclusivo punto a p
     - **Presupuestos** `P-AAAA-0001` (`admin/quote`, PDF `presupuesto.pdf`): el cliente los acepta o rechaza en «Mi cuenta».
     - **Hoteles y agencias** (`partners.json`): enlace `?p=CODIGO`, extracto mensual en PDF. **Códigos de descuento** (`codes.json`); el servidor aplica el descuento, nunca la página.
     - **Números** (sub-pestaña de Cuentas): estadísticas, trimestres, borrador del modelo 303 y calendario de impuestos. **Las fechas de impuestos y el 303 son orientativos: los confirma el gestor.**
-    - **La web nueva** (`bravo/index.html`): la portada A del lienzo (atardecer dibujado con CSS, con franjas de azulejo), rutas con precio desde el aeropuerto (`GET routes`, en caché 12 h), parada intermedia (`via`), cartel con nombre (`meetSign`) y equipaje especial (`SPECIAL`). Si se sube `bravo/hero.jpg`, sale de fondo; el vídeo aún no.
+    - **La web nueva** (`web/bravo/paginas/index.html`): la portada A del lienzo (atardecer dibujado con CSS, con franjas de azulejo), rutas con precio desde el aeropuerto (`GET routes`, en caché 12 h), parada intermedia (`via`), cartel con nombre (`meetSign`) y equipaje especial (`SPECIAL`). Si se sube `web/bravo/paginas/hero.jpg`, sale de fondo; el vídeo aún no.
     - **Usuarios del panel** (`users.json`, cookie `bravo_op`): administrador u **operador** (el sobrino). El operador solo ve Viajes, Clientes y Empresas, sin dinero: `OP_ROUTES`, `OP_UPDATE` y `forOperator()` en `bravo-api.js`, y `[data-admin]` en el panel. Todo POST queda en `audit.jsonl`. Ojo: la hoja de servicio en PDF sí dice lo que se paga a la empresa.
   - **Ofrecer el viaje a las empresas** (12/11):
     - En cada viaje, «Ofrecer a empresas» (`POST admin/offer`, solo administrador). Hace falta tener `driverPay`.
@@ -107,17 +121,17 @@ Web de una empresa de transporte urgente dedicado (vehículo exclusivo punto a p
     - Se guarda en `funnel.json`: contadores por día y las rutas con precio vistas (`quotes`; `booked` si acabaron en reserva).
     - Sale en Cuentas → 📈 Números (`GET admin/funnel`), con los precios no reservados y las direcciones no encontradas.
     - En la fase de pruebas incluye las visitas de Alberto.
-  - Las pruebas, con Playwright: un OSRM falso, un servicio de correo falso, Nominatim y Web3Forms simulados, y `pdftotext` para leer los PDF.
-- **`stats/`** y **`notas/`** — panel de analíticas y buzón de notas. **La clave no se escribe nunca aquí**: vive en la variable `STATS_KEY` de Railway, y apuntada en el repo privado (`NEGOCIO/empresa/acceso.md`)
+  - **Las pruebas de Playwright se perdieron** (16/11): vivían en la carpeta temporal de la sesión, no en el repositorio. Usaban un OSRM falso, un servicio de correo falso, Nominatim y Web3Forms simulados, y `pdftotext` para leer los PDF. **Hay que rehacerlas dentro de `web/pruebas/`**. Por ahora: `node web/pruebas/direcciones.js`.
+- **`web/negocio/stats/`** y **`web/negocio/notas/`** — panel de analíticas y buzón de notas. **La clave no se escribe nunca aquí**: vive en la variable `STATS_KEY` de Railway, y apuntada en el repo privado (`NEGOCIO/empresa/acceso.md`)
 - **`data/events.jsonl`** — registro de visitas, en un volumen persistente de Railway montado en `/app/data`. **No está en git.**
 
 **Despliegue:** `git push` → Railway construye y publica en 1-2 minutos. No hay otro paso.
 
 ## Reglas que te ahorrarán romper cosas
 
-**1. Nunca sirvas archivos nuevos sin pensar.** `server.js` solo entrega extensiones de una lista blanca, y bloquea `data/`, `CAMBIOS/` y los `.js` fuera de `cpc/`. Esto existe porque el servidor llegó a exponer públicamente el código fuente y el registro entero de visitantes. Si añades un tipo de archivo público, revisa `isPublicPath()`.
+**1. Nunca sirvas archivos nuevos sin pensar.** `web/server.js` solo entrega lo que está en las carpetas de `MOUNTS` (`web/negocio`, `web/cpc/mis-tests`, `web/cpc/companeros`, `web/bravo/paginas`), solo extensiones de una lista blanca, y bloquea `data/`, `CAMBIOS/` y los `.js` fuera de `/cpc/`. Esto existe porque el servidor llegó a exponer públicamente el código fuente y el registro entero de visitantes. Si añades un tipo de archivo público, revisa `MOUNTS` e `isPublicPath()`, y pasa `node web/pruebas/direcciones.js`.
 
-**2. No hay Node instalado en la máquina local**, así que no puedes ejecutar ni probar `server.js` antes de desplegar. *(En una sesión en la nube sí lo hay: allí usa `node --check server.js`, y no habrá Edge.)* Para validar la sintaxis en el ordenador de Alberto sin desplegar a ciegas, usa Edge headless:
+**2. No hay Node instalado en la máquina local**, así que no puedes ejecutar ni probar `server.js` antes de desplegar. *(En una sesión en la nube sí lo hay: allí usa `node --check web/server.js`, y no habrá Edge.)* Para validar la sintaxis en el ordenador de Alberto sin desplegar a ciegas, usa Edge headless:
 ```powershell
 # genera un HTML que hace new Function(<codigo en base64>) y vuelca el resultado
 & "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --headless=new --disable-gpu --no-sandbox --allow-file-access-from-files --user-data-dir=<perfil> --virtual-time-budget=6000 --dump-dom "file:///<ruta>"
