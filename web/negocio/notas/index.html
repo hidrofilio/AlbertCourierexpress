@@ -122,15 +122,17 @@ function tryUnlock() {
   if (!val) return;
   document.getElementById('err').textContent = 'Comprobando…';
   fetch('/api/notes?key=' + encodeURIComponent(val))
-    .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+    .then(r => { if (!r.ok) throw new Error(r.status === 429 ? 'freno' : 'clave'); return r.json(); })
     .then(data => {
       // Remembered on this phone so it is not retyped every time.
       try { localStorage.setItem(KEY_STORE, val); } catch (e) {}
       document.getElementById('err').textContent = '';
       showMain(data.notes || []);
     })
-    .catch(() => {
-      document.getElementById('err').textContent = 'Código incorrecto';
+    .catch(e => {
+      // 429: the server's brake after too many wrong codes (see server.js, keyOk).
+      document.getElementById('err').textContent = e.message === 'freno'
+        ? 'Demasiados intentos. Espera 15 minutos y vuelve a probar.' : 'Código incorrecto';
       document.getElementById('pin').value = '';
     });
 }
@@ -192,9 +194,13 @@ function saveNote() {
   const key = getKey();
   if (!key) return;
   fetch('/api/notes?key=' + encodeURIComponent(key))
-    .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+    .then(r => { if (!r.ok) throw new Error(r.status === 429 ? 'freno' : 'clave'); return r.json(); })
     .then(d => showMain(d.notes || []))
-    .catch(() => { try { localStorage.removeItem(KEY_STORE); } catch (e) {} });
+    .catch(e => {
+      // Only forget the saved code if the server says it is wrong, not while the brake is on.
+      if (e.message === 'clave') { try { localStorage.removeItem(KEY_STORE); } catch (err) {} }
+      else document.getElementById('err').textContent = 'Demasiados intentos. Espera 15 minutos y vuelve a probar.';
+    });
 })();
 </script>
 </body>

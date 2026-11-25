@@ -261,7 +261,7 @@ function tryUnlock() {
   document.getElementById('err').textContent = 'Comprobando...';
   fetch('/api/stats?key=' + encodeURIComponent(val))
     .then(r => {
-      if (!r.ok) throw new Error('bad key');
+      if (!r.ok) throw new Error(r.status === 429 ? 'freno' : 'bad key');
       return r.json();
     })
     .then(data => {
@@ -269,8 +269,10 @@ function tryUnlock() {
       document.getElementById('err').textContent = '';
       showDashboard(data);
     })
-    .catch(() => {
-      document.getElementById('err').textContent = 'Código incorrecto';
+    .catch(e => {
+      // 429: the server's brake after too many wrong codes (see server.js, keyOk).
+      document.getElementById('err').textContent = e.message === 'freno'
+        ? 'Demasiados intentos. Espera 15 minutos y vuelve a probar.' : 'Código incorrecto';
       document.getElementById('pin').value = '';
     });
 }

@@ -27,6 +27,56 @@ function refuse(res) {
   res.end(JSON.stringify({ error: 'unauthorized', key_configured: Boolean(STATS_KEY) }));
 }
 
+// Freno contra quien intenta adivinar la clave (25/11/2026). Antes, /api/stats,
+// /api/notes y /api/cpc-study/admin la comprobaban sin límite: una clave de 6 cifras
+// se podía sacar probando en unas horas, y la misma clave abre Bravo. Solo cuentan los
+// fallos: 10 por dirección cada 15 minutos y 60 entre todos cada hora (la dirección
+// sale de X-Forwarded-For, que se puede falsear; el tope común no). Mientras dura el
+// freno no se mira la clave, ni siquiera la buena: si no, seguirían probando gratis.
+const keyFails = new Map();
+const KEY_LIMITS = [['ip:', 10, 15 * 60 * 1000], ['all', 60, 60 * 60 * 1000]];
+function keyBuckets(ip) {
+  return KEY_LIMITS.map(([pre, max, win]) => [pre === 'all' ? 'all' : pre + ip, max, win]);
+}
+function keyBlocked(ip) {
+  const now = Date.now();
+  return keyBuckets(ip).some(([k, max, win]) => {
+    const rec = keyFails.get(k);
+    return Boolean(rec && now - rec.start <= win && rec.count >= max);
+  });
+}
+function keyFailed(ip) {
+  const now = Date.now();
+  for (const [k, , win] of keyBuckets(ip)) {
+    const rec = keyFails.get(k);
+    if (!rec || now - rec.start > win) keyFails.set(k, { start: now, count: 1 });
+    else rec.count++;
+  }
+}
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, rec] of keyFails) if (now - rec.start > 60 * 60 * 1000) keyFails.delete(k);
+}, 10 * 60 * 1000).unref();
+
+// true si la clave vale; si no, ya ha contestado (401, o 429 si está el freno).
+function keyOk(req, res, key) {
+  const ip = getClientIp(req);
+  if (keyBlocked(ip)) {
+    res.writeHead(429, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache', 'Retry-After': '900' });
+    res.end(JSON.stringify({ error: 'too_many_attempts' }));
+    return false;
+  }
+  const got = Buffer.from(String(key || ''));
+  const want = Buffer.from(STATS_KEY);
+  const good = STATS_KEY !== '' && got.length === want.length && crypto.timingSafeEqual(got, want);
+  if (!good) {
+    keyFailed(ip);
+    refuse(res);
+    return false;
+  }
+  return true;
+}
+
 fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(EVENTS_FILE)) fs.writeFileSync(EVENTS_FILE, '');
 
@@ -662,7 +712,7 @@ async function handleStudy(req, res, url) {
   // Read-only list for Alberto / Claude: who is using it and what they reported
   if (req.method === 'GET' && route === 'admin') {
     const key = new URL(url, 'http://x').searchParams.get('key');
-    if (!STATS_KEY || key !== STATS_KEY) { refuse(res); return; }
+    if (!keyOk(req, res, key)) return;
     const users = [];
     for (const f of fs.readdirSync(STUDY_USERS_DIR).filter((n) => n.endsWith('.json'))) {
       try {
@@ -848,10 +898,7 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'GET' && url.startsWith('/api/stats')) {
     const key = new URL(url, 'http://x').searchParams.get('key');
-    if (!STATS_KEY || key !== STATS_KEY) {
-      refuse(res);
-      return;
-    }
+    if (!keyOk(req, res, key)) return;
     const stats = buildStats();
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-cache' });
     res.end(JSON.stringify(stats));
@@ -860,10 +907,7 @@ const server = http.createServer(async (req, res) => {
 
   if (url.startsWith('/api/notes')) {
     const key = new URL(url, 'http://x').searchParams.get('key');
-    if (!STATS_KEY || key !== STATS_KEY) {
-      refuse(res);
-      return;
-    }
+    if (!keyOk(req, res, key)) return;
 
     if (req.method === 'POST') {
       try {
