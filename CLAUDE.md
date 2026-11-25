@@ -123,6 +123,7 @@ data/                → los datos (volumen de Railway en /app/data; no está en
     - En la fase de pruebas incluye las visitas de Alberto.
   - **Las pruebas de Playwright se perdieron** (16/11): vivían en la carpeta temporal de la sesión, no en el repositorio. Usaban un OSRM falso, un servicio de correo falso, Nominatim y Web3Forms simulados, y `pdftotext` para leer los PDF. **Hay que rehacerlas dentro de `web/pruebas/`**. Por ahora: `node web/pruebas/direcciones.js`.
 - **`web/negocio/stats/`** y **`web/negocio/notas/`** — panel de analíticas y buzón de notas. **La clave no se escribe nunca aquí**: vive en la variable `STATS_KEY` de Railway, y apuntada en el repo privado (`NEGOCIO/empresa/acceso.md`)
+  - **El freno (25/11):** `/api/stats`, `/api/notes` y `/api/cpc-study/admin` comprueban la clave con `keyOk()` en `web/server.js`: solo cuentan los fallos, 10 por dirección cada 15 minutos y 60 entre todos cada hora (la dirección sale de `X-Forwarded-For`, que se puede falsear). Con el freno puesto contesta 429 y **no mira la clave, ni la buena**. Las páginas dicen «Demasiados intentos». Al probar, no gastes los 60 fallos del tope común en producción: dejarías a Alberto fuera una hora.
 - **`data/events.jsonl`** — registro de visitas, en un volumen persistente de Railway montado en `/app/data`. **No está en git.**
 
 **Despliegue:** `git push` → Railway construye y publica en 1-2 minutos. No hay otro paso.
